@@ -16,6 +16,8 @@ from pathlib import Path
 
 import requests
 
+import champion_profiles as cp
+
 # --------------------------------------------------------------------- chemins
 # riotlib vit dans src/ ; la racine projet (data/, .env) est le dossier parent.
 ROOT = Path(__file__).resolve().parent.parent
@@ -349,6 +351,21 @@ def _facet(subset: list[dict]) -> dict:
     }
 
 
+def _by_lane_context(subset: list[dict]) -> dict:
+    """Facettes par bucket de contexte dérivé (lane_pattern, gank_exposure)."""
+    axes = {"lane_pattern": collections.defaultdict(list),
+            "gank_exposure": collections.defaultdict(list)}
+    for g in subset:
+        comp = g.get("comp")
+        if not comp:
+            continue
+        ctx = cp.derive_context(comp)
+        for axis, bucket in ctx.items():
+            axes[axis][bucket].append(g)
+    return {axis: {bucket: _facet(games) for bucket, games in buckets.items()}
+            for axis, buckets in axes.items()}
+
+
 def aggregate(games: list[dict], scope: str, **labels) -> dict:
     """Agrège en record gold, à facettes par issue (overall / win / loss).
 
@@ -366,6 +383,7 @@ def aggregate(games: list[dict], scope: str, **labels) -> dict:
         "overall": _facet(subset),
         "win": _facet(wins),
         "loss": _facet(losses),
+        "by_lane_context": _by_lane_context(subset),
     }
 
 
