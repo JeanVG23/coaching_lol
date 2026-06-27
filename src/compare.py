@@ -29,6 +29,8 @@ def context_benchmark(me_agg, ref_agg, axis, outcome):
     Repli explicite et loggué sur 'overall' si le référentiel a < MIN_CONTEXT_N games
     dans ce bucket (échantillon trop fin pour un benchmark honnête).
     """
+    # NOTE: `outcome` est réservé (interface du plan) mais pas encore utilisé :
+    # by_lane_context n'est pas tranché par issue (calculé sur toutes les games).
     me_buckets = me_agg.get("by_lane_context", {}).get(axis, {})
     ref_buckets = ref_agg.get("by_lane_context", {}).get(axis, {})
     if not me_buckets:
@@ -145,7 +147,7 @@ def main() -> int:
         print(f"    {k:<20}{mv:>7.0%}{rv:>9.0%}{gap:>+8.0%}{flag}")
 
     # --- benchmark conditionné sur le contexte de lane ---
-    print(f"\n  Benchmark conditionné sur le contexte de lane (vs {target}) :")
+    print(f"\n  Benchmark conditionné sur le contexte de lane (toutes issues, vs {target}) :")
     for axis in ("lane_pattern", "gank_exposure"):
         r = context_benchmark(me, refs[target], axis, outcome)
         if not r:

@@ -16,6 +16,8 @@ def test_uses_matching_bucket_when_ref_has_enough():
     assert r["bucket"] == "all_in"
     assert r["gd10_me"] == -510 and r["gd10_ref"] == -150
     assert r["fallback"] is False
+    assert r["n_me"] == 6
+    assert r["n_ref"] == 20
 
 
 def test_falls_back_to_global_when_ref_too_thin():
@@ -25,3 +27,5 @@ def test_falls_back_to_global_when_ref_too_thin():
     assert r["fallback"] is True
     assert r["gd10_ref"] == -100              # repli sur overall
     assert r["reason"]
+    assert r["n_ref"] == 3
+    assert "all_in" in r["reason"]
