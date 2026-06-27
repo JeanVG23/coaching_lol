@@ -1,75 +1,666 @@
 {
-  "_meta": {"note": "Traits curés : axes que Data Dragon n'a pas. Étendre via list_unknown_champions.py.",
-            "axes": {"adc_support": ["power_curve", "lane_pattern"],
-                     "jungle": ["playstyle", "gank_threat"], "mid": ["roam"]}},
-  "Zeri":      {"power_curve": "late",  "lane_pattern": "scaling"},
-  "Caitlyn":   {"power_curve": "early", "lane_pattern": "poke"},
-  "Draven":    {"power_curve": "early", "lane_pattern": "all_in"},
-  "Kalista":   {"power_curve": "early", "lane_pattern": "all_in"},
-  "Jhin":      {"power_curve": "mid",   "lane_pattern": "poke"},
-  "Ezreal":    {"power_curve": "mid",   "lane_pattern": "poke"},
-  "Kaisa":     {"power_curve": "mid",   "lane_pattern": "scaling"},
-  "Jinx":      {"power_curve": "late",  "lane_pattern": "scaling"},
-  "Aphelios":  {"power_curve": "late",  "lane_pattern": "scaling"},
-  "Lucian":    {"power_curve": "early", "lane_pattern": "all_in"},
-  "Varus":     {"power_curve": "mid",   "lane_pattern": "poke"},
-  "Ashe":      {"power_curve": "mid",   "lane_pattern": "poke"},
-  "MissFortune":{"power_curve": "mid",  "lane_pattern": "poke"},
-  "Sivir":     {"power_curve": "mid",   "lane_pattern": "sustain"},
-  "Twitch":    {"power_curve": "late",  "lane_pattern": "scaling"},
-  "Xayah":     {"power_curve": "mid",   "lane_pattern": "scaling"},
-  "Vayne":     {"power_curve": "late",  "lane_pattern": "scaling"},
-  "Samira":    {"power_curve": "mid",   "lane_pattern": "all_in"},
-  "Lux":       {"lane_pattern": "poke"},
-  "Leona":     {"lane_pattern": "all_in"},
-  "Nautilus":  {"lane_pattern": "all_in"},
-  "Thresh":    {"lane_pattern": "all_in"},
-  "Pyke":      {"lane_pattern": "all_in"},
-  "Blitzcrank":{"lane_pattern": "all_in"},
-  "Lulu":      {"lane_pattern": "sustain"},
-  "Nami":      {"lane_pattern": "sustain"},
-  "Karma":     {"lane_pattern": "poke"},
-  "Senna":     {"lane_pattern": "poke"},
-  "Brand":     {"lane_pattern": "poke"},
-  "Soraka":    {"lane_pattern": "sustain"},
-  "Yuumi":     {"lane_pattern": "sustain"},
-  "Milio":     {"lane_pattern": "sustain"},
-  "Renata":    {"lane_pattern": "all_in"},
-  "Rakan":     {"lane_pattern": "all_in"},
-  "JarvanIV":  {"playstyle": "ganking",  "gank_threat": "high"},
-  "LeeSin":    {"playstyle": "ganking",  "gank_threat": "high"},
-  "Elise":     {"playstyle": "ganking",  "gank_threat": "high"},
-  "Nidalee":   {"playstyle": "ganking",  "gank_threat": "high"},
-  "Vi":        {"playstyle": "ganking",  "gank_threat": "high"},
-  "XinZhao":   {"playstyle": "ganking",  "gank_threat": "high"},
-  "Hecarim":   {"playstyle": "ganking",  "gank_threat": "high"},
-  "Nocturne":  {"playstyle": "ganking",  "gank_threat": "high"},
-  "Sejuani":   {"playstyle": "skirmish", "gank_threat": "med"},
-  "Viego":     {"playstyle": "skirmish", "gank_threat": "med"},
-  "Graves":    {"playstyle": "farming",  "gank_threat": "med"},
-  "Khazix":    {"playstyle": "skirmish", "gank_threat": "med"},
-  "Kayn":      {"playstyle": "skirmish", "gank_threat": "med"},
-  "Belveth":   {"playstyle": "farming",  "gank_threat": "low"},
-  "Karthus":   {"playstyle": "farming",  "gank_threat": "low"},
-  "MasterYi":  {"playstyle": "farming",  "gank_threat": "low"},
-  "Amumu":     {"playstyle": "ganking",  "gank_threat": "med"},
-  "Warwick":   {"playstyle": "ganking",  "gank_threat": "high"},
-  "Ahri":      {"roam": "high"},
-  "Akshan":    {"roam": "high"},
-  "TwistedFate":{"roam": "high"},
-  "Galio":     {"roam": "high"},
-  "Talon":     {"roam": "high"},
-  "Zed":       {"roam": "med"},
-  "Yasuo":     {"roam": "low"},
-  "Yone":      {"roam": "low"},
-  "Syndra":    {"roam": "low"},
-  "Orianna":   {"roam": "low"},
-  "Cassiopeia":{"roam": "low"},
-  "Veigar":    {"roam": "low"},
-  "Viktor":    {"roam": "low"},
-  "Azir":      {"roam": "low"},
-  "Vex":       {"roam": "med"},
-  "Sylas":     {"roam": "med"},
-  "Leblanc":   {"roam": "high"},
-  "Malzahar":  {"roam": "low"}
+  "_meta": {
+    "note": "Traits cur\u00e9s : axes que Data Dragon n'a pas. \u00c9tendre via list_unknown_champions.py.",
+    "axes": {
+      "adc_support": [
+        "power_curve",
+        "lane_pattern"
+      ],
+      "jungle": [
+        "playstyle",
+        "gank_threat"
+      ],
+      "mid": [
+        "roam"
+      ]
+    }
+  },
+  "Zeri": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Caitlyn": {
+    "power_curve": "early",
+    "lane_pattern": "poke"
+  },
+  "Draven": {
+    "power_curve": "early",
+    "lane_pattern": "all_in"
+  },
+  "Kalista": {
+    "power_curve": "early",
+    "lane_pattern": "all_in"
+  },
+  "Jhin": {
+    "power_curve": "mid",
+    "lane_pattern": "poke"
+  },
+  "Ezreal": {
+    "power_curve": "mid",
+    "lane_pattern": "poke"
+  },
+  "Kaisa": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Jinx": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Aphelios": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Lucian": {
+    "power_curve": "early",
+    "lane_pattern": "all_in"
+  },
+  "Varus": {
+    "power_curve": "mid",
+    "lane_pattern": "poke"
+  },
+  "Ashe": {
+    "power_curve": "mid",
+    "lane_pattern": "poke"
+  },
+  "MissFortune": {
+    "power_curve": "mid",
+    "lane_pattern": "poke"
+  },
+  "Sivir": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Twitch": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Xayah": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Vayne": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Samira": {
+    "power_curve": "mid",
+    "lane_pattern": "all_in"
+  },
+  "Lux": {
+    "lane_pattern": "poke",
+    "roam": "low"
+  },
+  "Leona": {
+    "lane_pattern": "all_in"
+  },
+  "Nautilus": {
+    "lane_pattern": "all_in"
+  },
+  "Thresh": {
+    "lane_pattern": "all_in"
+  },
+  "Pyke": {
+    "lane_pattern": "all_in"
+  },
+  "Blitzcrank": {
+    "lane_pattern": "all_in"
+  },
+  "Lulu": {
+    "lane_pattern": "sustain",
+    "roam": "low"
+  },
+  "Nami": {
+    "lane_pattern": "sustain"
+  },
+  "Karma": {
+    "lane_pattern": "poke",
+    "roam": "med"
+  },
+  "Senna": {
+    "lane_pattern": "poke",
+    "power_curve": "late"
+  },
+  "Brand": {
+    "lane_pattern": "poke"
+  },
+  "Soraka": {
+    "lane_pattern": "sustain"
+  },
+  "Yuumi": {
+    "lane_pattern": "sustain"
+  },
+  "Milio": {
+    "lane_pattern": "sustain"
+  },
+  "Renata": {
+    "lane_pattern": "sustain"
+  },
+  "Rakan": {
+    "lane_pattern": "all_in"
+  },
+  "JarvanIV": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "LeeSin": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Elise": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Nidalee": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Vi": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "XinZhao": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Hecarim": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Nocturne": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Sejuani": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Viego": {
+    "playstyle": "skirmish",
+    "gank_threat": "med"
+  },
+  "Graves": {
+    "playstyle": "farming",
+    "gank_threat": "med"
+  },
+  "Khazix": {
+    "playstyle": "skirmish",
+    "gank_threat": "med"
+  },
+  "Kayn": {
+    "playstyle": "farming",
+    "gank_threat": "med"
+  },
+  "Belveth": {
+    "playstyle": "farming",
+    "gank_threat": "low"
+  },
+  "Karthus": {
+    "playstyle": "farming",
+    "gank_threat": "low",
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "MasterYi": {
+    "playstyle": "farming",
+    "gank_threat": "low"
+  },
+  "Amumu": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Warwick": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Ahri": {
+    "roam": "high"
+  },
+  "Akshan": {
+    "roam": "high"
+  },
+  "TwistedFate": {
+    "roam": "high"
+  },
+  "Galio": {
+    "roam": "high"
+  },
+  "Talon": {
+    "roam": "high"
+  },
+  "Zed": {
+    "roam": "high"
+  },
+  "Yasuo": {
+    "roam": "low",
+    "power_curve": "mid",
+    "lane_pattern": "all_in"
+  },
+  "Yone": {
+    "roam": "low"
+  },
+  "Syndra": {
+    "roam": "low"
+  },
+  "Orianna": {
+    "roam": "low"
+  },
+  "Cassiopeia": {
+    "roam": "low",
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Veigar": {
+    "roam": "low"
+  },
+  "Viktor": {
+    "roam": "low"
+  },
+  "Azir": {
+    "roam": "low"
+  },
+  "Vex": {
+    "roam": "high"
+  },
+  "Sylas": {
+    "roam": "high"
+  },
+  "Leblanc": {
+    "roam": "high"
+  },
+  "Malzahar": {
+    "roam": "low"
+  },
+  "Bard": {
+    "lane_pattern": "poke",
+    "roam": "high"
+  },
+  "Locke": {
+    "roam": "high"
+  },
+  "Rell": {
+    "lane_pattern": "all_in"
+  },
+  "Seraphine": {
+    "lane_pattern": "poke",
+    "roam": "low",
+    "power_curve": "late"
+  },
+  "Shaco": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Qiyana": {
+    "roam": "high"
+  },
+  "Alistar": {
+    "lane_pattern": "all_in"
+  },
+  "Janna": {
+    "lane_pattern": "sustain"
+  },
+  "Ekko": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "high"
+  },
+  "Pantheon": {
+    "playstyle": "ganking",
+    "gank_threat": "high",
+    "lane_pattern": "all_in",
+    "roam": "high"
+  },
+  "Skarner": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Tristana": {
+    "power_curve": "late",
+    "lane_pattern": "all_in"
+  },
+  "Camille": {
+    "roam": "med"
+  },
+  "Diana": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "high"
+  },
+  "Braum": {
+    "lane_pattern": "sustain"
+  },
+  "Poppy": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Naafiri": {
+    "roam": "high"
+  },
+  "Velkoz": {
+    "lane_pattern": "poke",
+    "roam": "low"
+  },
+  "Zoe": {
+    "roam": "high"
+  },
+  "Aatrox": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "low"
+  },
+  "Nunu": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Katarina": {
+    "roam": "high"
+  },
+  "Taliyah": {
+    "playstyle": "farming",
+    "gank_threat": "med",
+    "roam": "high"
+  },
+  "Jayce": {
+    "lane_pattern": "poke"
+  },
+  "Annie": {
+    "lane_pattern": "all_in",
+    "roam": "med"
+  },
+  "RekSai": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "MonkeyKing": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Akali": {
+    "roam": "high"
+  },
+  "Rengar": {
+    "playstyle": "skirmish",
+    "gank_threat": "high"
+  },
+  "Hwei": {
+    "roam": "low"
+  },
+  "Vladimir": {
+    "roam": "low"
+  },
+  "Riven": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "low",
+    "lane_pattern": "all_in"
+  },
+  "Aurora": {
+    "roam": "med"
+  },
+  "Yunara": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Nasus": {
+    "playstyle": "farming",
+    "gank_threat": "low",
+    "roam": "low"
+  },
+  "Olaf": {
+    "playstyle": "skirmish",
+    "gank_threat": "med"
+  },
+  "Ivern": {
+    "playstyle": "ganking",
+    "gank_threat": "med",
+    "lane_pattern": "sustain"
+  },
+  "Zyra": {
+    "lane_pattern": "poke"
+  },
+  "KogMaw": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Zilean": {
+    "lane_pattern": "sustain",
+    "roam": "med"
+  },
+  "Anivia": {
+    "roam": "low"
+  },
+  "Kassadin": {
+    "roam": "med"
+  },
+  "Shyvana": {
+    "playstyle": "farming",
+    "gank_threat": "low"
+  },
+  "Ryze": {
+    "roam": "med"
+  },
+  "Neeko": {
+    "roam": "med",
+    "lane_pattern": "poke"
+  },
+  "Udyr": {
+    "playstyle": "farming",
+    "gank_threat": "med"
+  },
+  "Irelia": {
+    "roam": "low"
+  },
+  "Lissandra": {
+    "roam": "high"
+  },
+  "Ambessa": {
+    "playstyle": "skirmish",
+    "gank_threat": "high",
+    "roam": "high"
+  },
+  "Mel": {
+    "lane_pattern": "poke",
+    "roam": "med"
+  },
+  "Zac": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Swain": {
+    "lane_pattern": "all_in",
+    "roam": "low"
+  },
+  "Sion": {
+    "playstyle": "farming",
+    "roam": "med"
+  },
+  "Sona": {
+    "lane_pattern": "sustain"
+  },
+  "Taric": {
+    "lane_pattern": "sustain"
+  },
+  "AurelionSol": {
+    "roam": "low"
+  },
+  "Kindred": {
+    "playstyle": "skirmish",
+    "gank_threat": "high"
+  },
+  "TahmKench": {
+    "lane_pattern": "all_in"
+  },
+  "Corki": {
+    "power_curve": "mid",
+    "lane_pattern": "poke",
+    "roam": "med"
+  },
+  "Malphite": {
+    "roam": "med"
+  },
+  "Gragas": {
+    "playstyle": "ganking",
+    "gank_threat": "high",
+    "roam": "med"
+  },
+  "Quinn": {
+    "roam": "high"
+  },
+  "KSante": {
+    "roam": "low"
+  },
+  "Xerath": {
+    "lane_pattern": "poke",
+    "roam": "low"
+  },
+  "Evelynn": {
+    "playstyle": "farming",
+    "gank_threat": "high"
+  },
+  "Trundle": {
+    "playstyle": "skirmish",
+    "gank_threat": "med"
+  },
+  "Fizz": {
+    "roam": "high"
+  },
+  "Ziggs": {
+    "lane_pattern": "poke",
+    "roam": "low",
+    "power_curve": "mid"
+  },
+  "Lillia": {
+    "playstyle": "farming",
+    "gank_threat": "low"
+  },
+  "Morgana": {
+    "lane_pattern": "poke",
+    "roam": "low"
+  },
+  "Zaahen": {},
+  "Smolder": {
+    "power_curve": "late",
+    "lane_pattern": "scaling"
+  },
+  "Chogath": {
+    "playstyle": "farming",
+    "gank_threat": "low",
+    "roam": "low"
+  },
+  "Garen": {
+    "roam": "med"
+  },
+  "DrMundo": {
+    "playstyle": "farming",
+    "gank_threat": "low",
+    "roam": "low"
+  },
+  "Jax": {
+    "playstyle": "skirmish",
+    "gank_threat": "med"
+  },
+  "Nilah": {
+    "power_curve": "late",
+    "lane_pattern": "all_in"
+  },
+  "Maokai": {
+    "playstyle": "ganking",
+    "gank_threat": "high",
+    "lane_pattern": "all_in"
+  },
+  "Fiora": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "lane_pattern": "all_in"
+  },
+  "Renekton": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "low",
+    "lane_pattern": "all_in"
+  },
+  "Fiddlesticks": {
+    "playstyle": "farming",
+    "gank_threat": "high"
+  },
+  "Briar": {
+    "playstyle": "skirmish",
+    "gank_threat": "high"
+  },
+  "Ornn": {
+    "lane_pattern": "all_in",
+    "roam": "low"
+  },
+  "Volibear": {
+    "playstyle": "ganking",
+    "gank_threat": "high"
+  },
+  "Heimerdinger": {
+    "lane_pattern": "poke",
+    "roam": "low"
+  },
+  "Gwen": {
+    "playstyle": "farming",
+    "gank_threat": "low"
+  },
+  "Teemo": {
+    "lane_pattern": "poke",
+    "roam": "low"
+  },
+  "Shen": {
+    "lane_pattern": "all_in"
+  },
+  "Darius": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "low"
+  },
+  "Rumble": {
+    "roam": "high"
+  },
+  "Tryndamere": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "low"
+  },
+  "Kayle": {
+    "power_curve": "late",
+    "lane_pattern": "scaling",
+    "roam": "low"
+  },
+  "Singed": {
+    "roam": "high"
+  },
+  "Illaoi": {
+    "lane_pattern": "all_in",
+    "roam": "low"
+  },
+  "Mordekaiser": {
+    "playstyle": "farming",
+    "gank_threat": "low"
+  },
+  "Sett": {
+    "lane_pattern": "all_in"
+  },
+  "Gnar": {
+    "roam": "low"
+  },
+  "Kennen": {
+    "lane_pattern": "poke",
+    "roam": "med"
+  },
+  "Kled": {
+    "playstyle": "skirmish",
+    "gank_threat": "med",
+    "roam": "med"
+  },
+  "Urgot": {
+    "playstyle": "farming",
+    "gank_threat": "low",
+    "lane_pattern": "all_in"
+  },
+  "Yorick": {
+    "playstyle": "farming",
+    "gank_threat": "low"
+  }
 }
