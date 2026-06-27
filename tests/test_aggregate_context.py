@@ -23,3 +23,16 @@ def test_by_lane_context_splits_by_pattern(monkeypatch):
     assert lp["all_in"]["n_games"] == 2
     assert lp["poke"]["n_games"] == 1
     assert lp["all_in"]["lane"]["gd10"] == -250  # médiane de -300/-200
+    ge = agg["by_lane_context"]["gank_exposure"]
+    assert ge["unknown"]["n_games"] == 3
+
+
+def test_by_lane_context_skips_games_without_comp(monkeypatch):
+    monkeypatch.setattr(rl.cp, "load_ddragon", lambda: DD)
+    monkeypatch.setattr(rl.cp, "load_traits", lambda: TR)
+    no_comp = {"match_id": "no_comp", "champion": "Zeri", "role": "BOTTOM",
+               "win": True, "deaths": [], "lane": {k: None for k in rl.LANE_KEYS}}
+    games = [_game("Leona", -300), _game("Leona", -200), no_comp]
+    agg = rl.aggregate(games, "adc")            # must not raise
+    lp = agg["by_lane_context"]["lane_pattern"]
+    assert lp["all_in"]["n_games"] == 2          # only the 2 comp games bucketed
