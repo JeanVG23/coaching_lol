@@ -216,27 +216,53 @@ Code dans `src/`, données dans `data/` (couches numérotées). Lancer depuis la
 ```
 src/                                     # tout le code Python
 data/
+  00_static/                             # données statiques versionnées (hors data/ ignoré)
+    champion_traits.json                 # table curée (power_curve/lane_pattern/playstyle/gank_threat/roam)
+    ddragon/<version>/championFull.json  # cache Data Dragon (attackrange/tags), figé par version
   01_raw/                                # JSON API brut, immuable, cache partagé par matchId
-  02_silver/{referentiel/<rank>,personal/<player>}/games.jsonl   # 1 ligne = 1 game nettoyée
+  02_silver/{referentiel/<rank>,personal/<player>}/games.jsonl   # 1 ligne = 1 game nettoyée (+ comp)
   03_gold/{referentiel/<rank>,personal/<player>}/<scope>/aggregate.json   # agrégats benchmarks
 ```
+⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : c'est de la
+config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` reste ignoré.
 ⚠️ Les chemins des couches sont définis dans `src/riotlib.py` (`RAW_DIR`/`SILVER_DIR`/
 `GOLD_DIR`). Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancien.
 
 - **`src/riotlib.py`** — socle partagé : `RiotClient` (routing régional account/match vs
   plateforme league ; rate-limiter ~1.3s/appel), helpers (`approx_zone`, `phase_of`,
-  `patch_of`), `get_match_timeline` (cache raw), `extract_game` (silver, + benchmark de lane),
-  `aggregate`/`write_gold` (gold, facettes win/loss), chemins médaillon.
+  `patch_of`), `get_match_timeline` (cache raw), `extract_game` (silver, + benchmark de lane
+  + sous-objet `comp` des 6 champions botlane), `aggregate`/`write_gold` (gold, facettes
+  win/loss + dimension `by_lane_context`), chemins médaillon. Importe `champion_profiles`.
+- **`src/champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon +
+  table curée, résolution casse-insensible), `derive_context(comp)` → 2 axes coarse
+  `lane_pattern` (poke/all_in/scaling/mixed/unknown, du duo ennemi) et `gank_exposure`
+  (low/med/high/unknown, jungler+mid ennemis atténués par ton jungler). `fetch_ddragon`
+  (one-shot, idempotent). Dégradation propre : champion inconnu → `unknown`, jamais d'erreur.
+- **`src/reextract_silver.py`** — ré-extrait le silver depuis le raw caché (**0 appel API**) ;
+  à relancer après toute évolution d'`extract_game` (ex. ajout du `comp`).
+- **`src/list_unknown_champions.py`** — scanner : champions du silver absents de la table
+  curée, triés par fréquence (pour compléter `champion_traits.json` au fil de l'eau).
 - **`src/phase1_pull.py`** — spike : détail visuel d'UNE game (déplacements/minute + morts).
 - **`src/aggregate_games.py`** — pipeline perso : N games → silver + gold (all/adc/zeri).
 - **`src/build_referential.py`** — collecte les benchmarks par rang (league-v4/-exp-v4).
 - **`src/rebuild_gold.py`** — régénère tout le gold depuis le silver, sans appel API.
 - **`src/compare.py`** — livrable coaching : slice perso vs référentiels, à issue égale.
+  Section **benchmark conditionné** par contexte de lane (`context_benchmark`, seuil de
+  repli `MIN_CONTEXT_N=8` loggué, `unknown` exclu du bucket dominant).
+- **Tests** : `tests/` (pytest), couvrent la dérivation déterministe + l'extraction comp +
+  l'agrégation contextuelle. Lancer : `.venv/bin/python -m pytest tests/`.
 
 Features clés : **facettes win/loss** (neutralise le biais d'issue), **benchmark de lane**
-(gold/CS/XP diff @10/@14/@20 vs adversaire), **gold-state des morts** (avance/retard).
+(gold/CS/XP diff @10/@14/@20 vs adversaire), **gold-state des morts** (avance/retard),
+**contexte de matchup botlane** (lane_pattern + gank_exposure, benchmarkés à contexte égal).
 Scopes : `all` · `adc` (BOTTOM) · `zeri` (champion). Filtre patch courant, SR (mapId 11),
 ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
+
+Pipeline contexte (0 API) : `champion_profiles` (fetch DDragon one-shot) → `reextract_silver`
+(silver + comp) → compléter `champion_traits.json` via `list_unknown_champions` → `rebuild_gold`
+(+ `by_lane_context`) → `compare`. **Principe asymétrie** : le comp (info post-game complète)
+sert UNIQUEMENT de contexte de benchmark (« en lane X, les challengers font Y »), jamais à
+reprocher une décision sur une info cachée.
 
 ## État d'avancement
 
