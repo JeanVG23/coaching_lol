@@ -5,6 +5,7 @@ DD = {
     "Zeri": {"attackrange": 500}, "Lux": {"attackrange": 550},
     "Jarvan": {"attackrange": 175}, "Karthus": {"attackrange": 450},
     "Ahri": {"attackrange": 550}, "Cass": {"attackrange": 550},
+    "Vex": {"attackrange": 550},
 }
 TR = {
     "Cait": {"lane_pattern": "poke"}, "Leona": {"lane_pattern": "all_in"},
@@ -12,6 +13,7 @@ TR = {
     "Jarvan": {"gank_threat": "high", "playstyle": "ganking"},
     "Karthus": {"gank_threat": "low", "playstyle": "farming"},
     "Ahri": {"roam": "high"}, "Cass": {"roam": "low"},
+    "Vex": {"roam": "med"},
 }
 
 
@@ -54,3 +56,21 @@ def test_gank_exposure_low():
 def test_gank_exposure_unknown():
     c = comp()  # tout None
     assert cp.derive_context(c, traits=TR, ddragon=DD)["gank_exposure"] == "unknown"
+
+
+def test_lane_pattern_scaling_when_both_enemy_scaling():
+    # Zeri (scaling) + a sustain/scaling support => "scaling"
+    c = comp(enemy_adc="Zeri", enemy_support="Zeri")
+    assert cp.derive_context(c, traits=TR, ddragon=DD)["lane_pattern"] == "scaling"
+
+
+def test_gank_exposure_partial_unknown_still_scores():
+    # enemy_jungle unknown, enemy_mid high roam (+2), self_jungle unknown => score 2 => med
+    c = comp(enemy_mid="Ahri")
+    assert cp.derive_context(c, traits=TR, ddragon=DD)["gank_exposure"] == "med"
+
+
+def test_gank_exposure_score_one_is_low():
+    # enemy_mid med roam only (+1) => score 1 => low (guards the <=1 boundary)
+    c = comp(enemy_mid="Vex")
+    assert cp.derive_context(c, traits=TR, ddragon=DD)["gank_exposure"] == "low"

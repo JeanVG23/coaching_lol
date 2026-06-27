@@ -106,8 +106,11 @@ def derive_context(comp: dict, traits=None, ddragon=None) -> dict:
         traits = load_traits()
     if ddragon is None:
         ddragon = load_ddragon()
-    g = lambda k: _vec(comp.get(k), traits, ddragon)
+
+    def vec(k):
+        return _vec(comp.get(k), traits, ddragon)
+
     return {
-        "lane_pattern": _lane_pattern(g("enemy_adc"), g("enemy_support")),
-        "gank_exposure": _gank_exposure(g("enemy_jungle"), g("enemy_mid"), g("self_jungle")),
+        "lane_pattern": _lane_pattern(vec("enemy_adc"), vec("enemy_support")),
+        "gank_exposure": _gank_exposure(vec("enemy_jungle"), vec("enemy_mid"), vec("self_jungle")),
     }
