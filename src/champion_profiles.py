@@ -5,8 +5,53 @@ d'identité par champion et dérive les axes de contexte de botlane.
 """
 from __future__ import annotations
 
+import json
+from functools import lru_cache
+from pathlib import Path
+
+import requests
+
+ROOT = Path(__file__).resolve().parent.parent
+STATIC_DIR = ROOT / "data" / "00_static"
+DDRAGON_VERSION = "16.13.1"  # figée ; refresh = action manuelle (fetch_ddragon)
+TRAITS_PATH = STATIC_DIR / "champion_traits.json"
+
 AXES_CURATED = ("power_curve", "lane_pattern", "playstyle", "gank_threat", "roam")
 RANGED_MIN = 500  # attackrange >= 500 => ranged
+
+
+def fetch_ddragon(version: str | None = None) -> Path:
+    version = version or DDRAGON_VERSION
+    url = (f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/championFull.json")
+    dest = STATIC_DIR / "ddragon" / version / "championFull.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+    dest.write_text(resp.text)
+    return dest
+
+
+@lru_cache(maxsize=1)
+def load_ddragon() -> dict:
+    path = STATIC_DIR / "ddragon" / DDRAGON_VERSION / "championFull.json"
+    if not path.exists():
+        return {}
+    raw = json.loads(path.read_text())["data"]
+    out = {}
+    for champ in raw.values():
+        out[champ["id"]] = {
+            "attackrange": champ.get("stats", {}).get("attackrange"),
+            "tags": champ.get("tags", []),
+        }
+    return out
+
+
+@lru_cache(maxsize=1)
+def load_traits() -> dict:
+    if not TRAITS_PATH.exists():
+        return {}
+    data = json.loads(TRAITS_PATH.read_text())
+    return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
 def champion_vector(name: str, traits: dict | None = None,
@@ -19,18 +64,10 @@ def champion_vector(name: str, traits: dict | None = None,
     tr = traits.get(name, {})
     rng = dd.get("attackrange")
     range_class = "unknown" if rng is None else ("ranged" if rng >= RANGED_MIN else "melee")
-    v = {"name": name, "range_class": range_class, "tags": dd.get("tags", [])}
+    v = {"name": name, "range_class": range_class, "tags": list(dd.get("tags", []))}
     for axis in AXES_CURATED:
         v[axis] = tr.get(axis, "unknown")
     return v
-
-
-def load_traits() -> dict:  # remplacé Task 3
-    return {}
-
-
-def load_ddragon() -> dict:  # remplacé Task 3
-    return {}
 
 
 def _vec(name, traits, ddragon):
