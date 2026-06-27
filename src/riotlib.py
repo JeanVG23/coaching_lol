@@ -262,6 +262,24 @@ def extract_game(match: dict, timeline: dict, puuid: str,
                     "killer_champ": pid_champ.get(kpid, "?"),
                     "gold_state": gold_state_at(minute),
                 })
+
+    def champ_at(team_is_mine: bool, role: str) -> str | None:
+        for i, p in enumerate(parts):
+            same = (p["teamId"] == my_team)
+            if same == team_is_mine and (p.get("teamPosition") or "") == role:
+                return pid_champ[i + 1]
+        return None
+
+    comp = {
+        "self_adc": me["championName"],
+        "self_support": champ_at(True, "UTILITY"),
+        "enemy_adc": champ_at(False, "BOTTOM"),
+        "enemy_support": champ_at(False, "UTILITY"),
+        "self_jungle": champ_at(True, "JUNGLE"),
+        "enemy_jungle": champ_at(False, "JUNGLE"),
+        "enemy_mid": champ_at(False, "MIDDLE"),
+    }
+
     return {
         "match_id": meta["matchId"],
         "puuid": puuid,                          # pour ré-extraction depuis raw sans API
@@ -272,6 +290,7 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "win": me["win"],
         "queue": info.get("queueId"),
         "lane": lane,
+        "comp": comp,
         "deaths": deaths,
     }
 
