@@ -20,7 +20,9 @@ def main() -> int:
             continue
         for d in sorted(root.iterdir()):
             for g in rl.read_jsonl(d / "games.jsonl"):
-                for name in (g.get("comp") or {}).values():
+                comp = g.get("comp") or {}
+                for role in ROLES:
+                    name = comp.get(role)
                     if name and name not in traits:
                         seen[name] += 1
     if not seen:

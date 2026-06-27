@@ -22,12 +22,15 @@ RANGED_MIN = 500  # attackrange >= 500 => ranged
 
 def fetch_ddragon(version: str | None = None) -> Path:
     version = version or DDRAGON_VERSION
-    url = (f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/championFull.json")
     dest = STATIC_DIR / "ddragon" / version / "championFull.json"
+    if dest.exists():
+        return dest  # idempotent : cache déjà chaud (refresh = supprimer le fichier)
+    url = (f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/championFull.json")
     dest.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     dest.write_text(resp.text)
+    load_ddragon.cache_clear()  # invalide un éventuel {} mis en cache avant le fetch
     return dest
 
 
