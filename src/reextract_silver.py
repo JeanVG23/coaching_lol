@@ -21,10 +21,13 @@ def _load_raw(match_id: str):
     t = rl.RAW_DIR / f"{match_id}_timeline.json"
     if not m.exists() or not t.exists():
         return None
-    return json.loads(m.read_text()), json.loads(t.read_text())
+    try:
+        return json.loads(m.read_text()), json.loads(t.read_text())
+    except json.JSONDecodeError:
+        return None
 
 
-def _reextract_dir(d, rank, scope_kind):
+def _reextract_dir(d, rank):
     games = rl.read_jsonl(d / "games.jsonl")
     if not games:
         return 0, 0
@@ -48,7 +51,9 @@ def main() -> int:
         if not root.exists():
             continue
         for d in sorted(root.iterdir()):
-            n, miss = _reextract_dir(d, d.name, kind)
+            if not d.is_dir():
+                continue
+            n, miss = _reextract_dir(d, d.name)
             total += n
             missing += miss
             print(f"  {kind}/{d.name}: {n} games re-extraits ({miss} raw manquants)")
