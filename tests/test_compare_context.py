@@ -29,3 +29,18 @@ def test_falls_back_to_global_when_ref_too_thin():
     assert r["reason"]
     assert r["n_ref"] == 3
     assert "all_in" in r["reason"]
+
+
+def test_dominant_bucket_excludes_unknown():
+    # unknown has more games but should be skipped in favor of a real bucket
+    me = _agg({"unknown": (20, -100), "all_in": (6, -510)}, -300)
+    ref = _agg({"all_in": (15, -150), "unknown": (40, -90)}, -100)
+    r = compare.context_benchmark(me, ref, "lane_pattern", "overall")
+    assert r["bucket"] == "all_in"      # not "unknown" despite unknown having n=20
+
+
+def test_dominant_bucket_falls_back_to_unknown_if_only_option():
+    me = _agg({"unknown": (12, -200)}, -150)
+    ref = _agg({"unknown": (30, -50)}, -40)
+    r = compare.context_benchmark(me, ref, "lane_pattern", "overall")
+    assert r["bucket"] == "unknown"     # only option, still produces output

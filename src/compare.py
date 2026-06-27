@@ -35,7 +35,8 @@ def context_benchmark(me_agg, ref_agg, axis, outcome):
     ref_buckets = ref_agg.get("by_lane_context", {}).get(axis, {})
     if not me_buckets:
         return None
-    bucket = max(me_buckets, key=lambda b: me_buckets[b].get("n_games", 0))
+    candidates = {b: v for b, v in me_buckets.items() if b != "unknown"} or me_buckets
+    bucket = max(candidates, key=lambda b: candidates[b].get("n_games", 0))
     n_me = me_buckets[bucket].get("n_games", 0)
     gd10_me = me_buckets[bucket].get("lane", {}).get("gd10")
     ref_b = ref_buckets.get(bucket, {})

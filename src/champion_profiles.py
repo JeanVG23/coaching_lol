@@ -57,14 +57,25 @@ def load_traits() -> dict:
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
+def _ci_get(name: str, d: dict) -> dict:
+    """Return d[name] (exact match first); fall back to case-insensitive match; else {}."""
+    if name in d:
+        return d[name]
+    lower = name.lower()
+    for k, v in d.items():
+        if k.lower() == lower:
+            return v
+    return {}
+
+
 def champion_vector(name: str, traits: dict | None = None,
                     ddragon: dict | None = None) -> dict:
     if traits is None:
         traits = load_traits()
     if ddragon is None:
         ddragon = load_ddragon()
-    dd = ddragon.get(name, {})
-    tr = traits.get(name, {})
+    dd = _ci_get(name, ddragon)
+    tr = _ci_get(name, traits)
     rng = dd.get("attackrange")
     range_class = "unknown" if rng is None else ("ranged" if rng >= RANGED_MIN else "melee")
     v = {"name": name, "range_class": range_class, "tags": list(dd.get("tags", []))}

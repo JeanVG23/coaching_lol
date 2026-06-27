@@ -31,3 +31,12 @@ def test_vector_unknown_champion_degrades_cleanly():
     assert v["lane_pattern"] == "unknown"
     assert v["power_curve"] == "unknown"
     assert v["tags"] == []
+
+
+def test_vector_resolves_case_insensitive_name():
+    # API returns "FiddleSticks"; DDragon/traits key is "Fiddlesticks"
+    dd = {"Fiddlesticks": {"attackrange": 480, "tags": ["Mage"]}}
+    tr = {"Fiddlesticks": {"playstyle": "ganking", "gank_threat": "high"}}
+    v = cp.champion_vector("FiddleSticks", traits=tr, ddragon=dd)
+    assert v["range_class"] == "melee"        # 480 < 500
+    assert v["gank_threat"] == "high"          # resolved despite casing
