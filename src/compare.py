@@ -20,6 +20,32 @@ import riotlib as rl
 
 RANKS = ["diamond", "master", "grandmaster", "challenger"]
 MIN_N = 5  # seuil d'effectif sous lequel on prévient
+MIN_CONTEXT_N = 8  # sous ce seuil de games référentiel dans le bucket, on retombe sur global
+
+
+def context_benchmark(me_agg, ref_agg, axis, outcome):
+    """Compare le bucket de contexte DOMINANT côté perso au même bucket référentiel.
+
+    Repli explicite et loggué sur 'overall' si le référentiel a < MIN_CONTEXT_N games
+    dans ce bucket (échantillon trop fin pour un benchmark honnête).
+    """
+    me_buckets = me_agg.get("by_lane_context", {}).get(axis, {})
+    ref_buckets = ref_agg.get("by_lane_context", {}).get(axis, {})
+    if not me_buckets:
+        return None
+    bucket = max(me_buckets, key=lambda b: me_buckets[b].get("n_games", 0))
+    n_me = me_buckets[bucket].get("n_games", 0)
+    gd10_me = me_buckets[bucket].get("lane", {}).get("gd10")
+    ref_b = ref_buckets.get(bucket, {})
+    n_ref = ref_b.get("n_games", 0)
+    if n_ref < MIN_CONTEXT_N:
+        glob = ref_agg.get("overall", {})
+        return {"bucket": bucket, "n_me": n_me, "n_ref": n_ref,
+                "gd10_me": gd10_me, "gd10_ref": glob.get("lane", {}).get("gd10"),
+                "fallback": True,
+                "reason": f"réf. {bucket}={n_ref}<{MIN_CONTEXT_N} games → repli global"}
+    return {"bucket": bucket, "n_me": n_me, "n_ref": n_ref, "gd10_me": gd10_me,
+            "gd10_ref": ref_b.get("lane", {}).get("gd10"), "fallback": False, "reason": None}
 
 
 def arg(flag, default=None):
@@ -117,6 +143,19 @@ def main() -> int:
         gap = mv - rv
         flag = "  ←" if gap >= 0.08 else ""
         print(f"    {k:<20}{mv:>7.0%}{rv:>9.0%}{gap:>+8.0%}{flag}")
+
+    # --- benchmark conditionné sur le contexte de lane ---
+    print(f"\n  Benchmark conditionné sur le contexte de lane (vs {target}) :")
+    for axis in ("lane_pattern", "gank_exposure"):
+        r = context_benchmark(me, refs[target], axis, outcome)
+        if not r:
+            print(f"    {axis}: pas de contexte côté perso (comp manquant ?)")
+            continue
+        gm = f"{r['gd10_me']:+d}" if r["gd10_me"] is not None else "—"
+        gr = f"{r['gd10_ref']:+d}" if r["gd10_ref"] is not None else "—"
+        tag = f"  ⚠ {r['reason']}" if r["fallback"] else ""
+        print(f"    {axis} = {r['bucket']:<10} gd10 toi {gm} vs {target} {gr} "
+              f"(toi n={r['n_me']}, réf n={r['n_ref']}){tag}")
 
     # --- verdict ---
     print("\n  ⚑ Verdict :")
