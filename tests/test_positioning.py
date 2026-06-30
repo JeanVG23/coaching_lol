@@ -101,3 +101,23 @@ def test_base_and_isolation():
     r = P._base_and_isolation(snaps, 1, 100, [1, 2, 3])
     assert r["frac_base"] == 0.5
     assert abs(r["avg_dist_to_ally"] - (300 + 400) / 2) < 1e-6
+
+
+def _tl_events(events):
+    return {"info": {"frames": [{"timestamp": 0, "participantFrames": {},
+                                 "events": events}]}}
+
+
+def test_ward_counts_only_mine():
+    tl = _tl_events([
+        {"type": "WARD_PLACED", "creatorId": 1, "wardType": "YELLOW_TRINKET", "timestamp": 60000},
+        {"type": "WARD_PLACED", "creatorId": 1, "wardType": "CONTROL_WARD", "timestamp": 900000},
+        {"type": "WARD_PLACED", "creatorId": 2, "wardType": "YELLOW_TRINKET", "timestamp": 60000},  # pas moi
+        {"type": "WARD_KILL", "killerId": 1, "wardType": "YELLOW_TRINKET", "timestamp": 120000},
+        {"type": "WARD_KILL", "killerId": 5, "wardType": "YELLOW_TRINKET", "timestamp": 120000},   # pas moi
+    ])
+    r = P._ward_counts(tl, 1)
+    assert r["wards_placed"] == 2
+    assert r["wards_placed_early"] == 1          # seul le 1er est en early (<14 min)
+    assert r["control_wards_placed"] == 1
+    assert r["wards_killed"] == 1

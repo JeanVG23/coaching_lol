@@ -133,3 +133,21 @@ def _base_and_isolation(snaps: list, pid: int, my_team: int, allies: list) -> di
         "frac_base": base / n,
         "avg_dist_to_ally": sum(dists) / len(dists) if dists else None,
     }
+
+
+def _ward_counts(timeline: dict, pid: int) -> dict:
+    """Compte les wards placés et tués par le joueur pid (Famille C exact)."""
+    placed = early = control = killed = 0
+    for fr in timeline["info"]["frames"]:
+        for ev in fr.get("events", []):
+            t = ev.get("type")
+            if t == "WARD_PLACED" and ev.get("creatorId") == pid:
+                placed += 1
+                if round(ev["timestamp"] / 60000) < 14:
+                    early += 1
+                if ev.get("wardType") == "CONTROL_WARD":
+                    control += 1
+            elif t == "WARD_KILL" and ev.get("killerId") == pid:
+                killed += 1
+    return {"wards_placed": placed, "wards_placed_early": early,
+            "control_wards_placed": control, "wards_killed": killed}
