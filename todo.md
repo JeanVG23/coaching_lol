@@ -1,0 +1,53 @@
+# TODO — Coaching LoL
+
+> Suite logique après la **Phase 2 narration LLM** (merge `feat/llm-coaching`).
+> Source : spec `docs/superpowers/specs/2026-06-30-llm-coaching-narration-design.md` (§ Hors scope / Critères de succès) + `CLAUDE.md` (§ Prochaines étapes).
+
+## ⚡ Immédiat — valider l'incrément narration (critères de succès non atteints)
+
+- [x] **Premier run réel** — `deepseek-v4-pro` (commit `5ced84b`). A révélé que deepseek-v4-pro n'honore pas la contrainte `format` → prompt durci (règle 7 + règle 3 étendue à toutes les `descriptive_only`). Review conforme, asymétrie tenue, profondeur en observation neutre.
+- [x] **A/B modèles manuel** — même payload (spadzze/adc/loss) rejoué sur 4 modèles, tous conformes au schéma (3 forces / 3 erreurs / 2 habitudes) :
+  | Modèle | Conf. | Format | Profondeur (règle 3) | Benchmark contextuel | Note |
+  |---|---|---|---|---|---|
+  | `deepseek-v4-pro` | 0.60 | OK (après durcissement) | neutre « écart typique de rang » | non | baseline, plate |
+  | `glm-5.2` | 0.55 | OK natif | non mentionnée (sûr) | non | la plus concise, deltas bien mis en forme |
+  | `minimax-m3` | 0.50 | OK natif | non mentionnée (sûr) | **oui** (`all-in: -429g @10 vs +24g`) | narration la plus riche, exploite `context_benchmark` |
+  | `kimi-k2.6` | 0.60 | OK natif | **la meilleure** (« marqueurs descriptifs de ton rang, pas des fautes ») | non | respecte le plus fidèlement l'asymétrie/règle 3 ; plus lent (timeout) |
+  - **Verdict** : `kimi-k2.6` ≥ `minimax-m3` > `glm-5.2` > `deepseek-v4-pro`. Le durcissement du prompt est **model-agnostic** (les 4 honorent le schéma) → confirme la thèse projet « la qualité dépend du prompt+features, pas du modèle ». `minimax-m3` à privilégier si on veut exploiter le benchmark contextuel ; `kimi-k2.6` pour le respect maximal de l'asymétrie.
+  - Catalogue Ollama Cloud récupéré via `GET https://ollama.com/api/tags` (35 modèles) ; pas de `kimi-k2.7` général (existe en `-code`), `kimi-k2.6` retenu.
+  - Reste à faire : vérifier `OLLAMA_MODEL` du `.env` (correctif `1ca1973`) — poser `OLLAMA_MODEL=kimi-k2.6` et lancer sans `--model`.
+
+## 🚧 Court terme — fermer la boucle d'évaluation (le vrai goulot)
+
+- [ ] **Scoring d'utilité** — boucle de feedback « ce conseil était-il juste / utile ? ».
+  - La persistance payload+review (déjà posée) la rend possible **sans re-générer**.
+  - UI minimale : annoter une review persistée (thumbs up/down + note par insight) dans un fichier `data/07_coaching/<player>/feedback.jsonl`.
+  - Objectif : pouvoir dire si le coach s'améliore (intrinsèquement vérifiable grâce au benchmark challenger, contrairement aux opinions absolues).
+- [ ] **Compte-rendu par-game** (fin de partie) — incrément payload par-game, pas seulement agrégé.
+  - Nécessite un payload par game (1 game → 1 review) en plus du payload agrégé N games.
+  - Réutiliser `payload.build` en mode « single game » (ou un `build_one`).
+
+## 🔧 Consolidation technique
+
+- [ ] **Refactor `compare.py`** — exposer une fonction de données partagée plutôt que dupliquer la logique « delta saillant » entre `compare` et `payload._*_signals`. Recouvrement assumé aujourd'hui (consommateurs distincts) ; à mutualiser maintenant que les deux existent.
+- [ ] **Industrialisation** — poursuivre la migration vers Pydantic + Parquet/DuckDB (cf. Notes de développement CLAUDE.md) : `04_dataset` Parquet, `05_model`, flux consolidé.
+- [ ] **Robustesse ML/SHAP** — valider la qualité des **prescriptions SHAP vs heuristiques** (les features sont là, mais la pertinence des prescriptions reste à valider).
+
+## 📊 Données — densifier si besoin
+
+- [ ] **Benchmark Zeri** densifié (sampling champion ciblé) si la slice `zeri` reste trop fine pour des conseils fiables.
+
+## 🟦 Phase 2 — CV / Live Client (gated)
+
+- [ ] **Computer vision pour les trous** — uniquement si le coach basé timeline **démontre sa valeur** (boucle d'éval positive). Sinon le problème vient des features, pas de la vision.
+  - Cibles : cooldowns exacts, skillshots loupés/touchés, micro-position entre frames 60 s, zone de caméra.
+  - Piste maligne : rejouer depuis les **replays `.rofl`** en mode spectateur (Live Client API + caméra disponibles, sans impacter la game live).
+  - ToS Riot : overlay en lecture seule, **aucune automatisation d'input**.
+
+## ✅ Déjà fait (référence)
+
+- Phase 1 validée (positionnement reconstruit sans vision, AUC dia_chall 0.655 → 0.724).
+- Référentiels multi-rangs (~4454 games / patch 16.13, Diamond→Challenger).
+- ML/SHAP industrialisé (Ensemble XGBoost/RF/EBM, dataset densifié ~7 873 rows).
+- Macro-positionnement (17 features, manifeste COACHING_SAFE/ML_ONLY).
+- **Narration LLM** (Ollama Cloud, `deepseek-v4-pro`, structured output, Review typée Pydantic, persistance `data/07_coaching/`). Asymétrie gardée bout-en-bout.

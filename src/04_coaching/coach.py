@@ -6,7 +6,7 @@ Ollama Cloud (structured output) -> Review validée (Pydantic) -> affichage FR +
 persistance data/07_coaching/<player>/reviews.jsonl.
 
 Usage : python3 src/04_coaching/coach.py --player spadzze --scope adc \
-        [--outcome loss] [--target challenger] [--model deepseek-v4-pro]
+        [--outcome loss] [--target challenger] [--model kimi-k2.6]
 """
 from __future__ import annotations
 
@@ -26,7 +26,10 @@ import prompt as prompt_mod
 import schema as schema_mod
 import llm_client
 
-DEFAULT_MODEL = "deepseek-v4-pro"
+# Modèle par défaut retenu après A/B (cf. README.md) : kimi-k2.6 respecte le plus
+# fidèlement l'asymétrie (règle 3 : profondeur/overextension = observation neutre,
+# pas une faute). Surclassable via --model ou OLLAMA_MODEL (.env).
+DEFAULT_MODEL = "kimi-k2.6"
 
 
 class CoachValidationError(RuntimeError):

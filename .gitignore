@@ -22,3 +22,6 @@ frames/
 .DS_Store
 .idea/
 .vscode/
+
+# Agent local config (Claude Code)
+.claude/

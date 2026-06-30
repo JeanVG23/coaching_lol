@@ -280,7 +280,7 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     benchmark-relatif, FR), `schema.py` (Pydantic `Review` : 3 forces / 3 erreurs / 2
     habitudes / 1 focus / confidence, **preuve chiffrée par point**), `llm_client.py`
     (client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema,
-    défaut `deepseek-v4-pro`), `coach.py` (CLI : payload→prompt→client→validation→affiche+
+    défaut `kimi-k2.6`), `coach.py` (CLI : payload→prompt→client→validation→affiche+
     persiste). Lancer : `python3 src/04_coaching/coach.py --player spadzze --scope adc`.
 - **Tests** : `tests/` (pytest), couvrent la dérivation déterministe + l'extraction comp +
   l'agrégation contextuelle. Lancer : `.venv/bin/python -m pytest tests/`.
@@ -320,8 +320,10 @@ reprocher une décision sur une info cachée.
 ### Prochaines étapes (Objectifs non atteints)
 
 1. ✅ **Ollama branché** (Phase 2 narration) — `src/04_coaching/` génère un compte-rendu
-   agrégé typé (Ollama Cloud, `deepseek-v4-pro`) depuis le diff perso↔référentiel, persisté
-   dans `data/07_coaching/`. À suivre : compte-rendu par-game + boucle d'éval (scoring d'utilité).
+   agrégé typé (Ollama Cloud) depuis le diff perso↔référentiel, persisté
+   dans `data/07_coaching/`. Modèle par défaut `kimi-k2.6` (retenu après A/B, cf.
+   `src/04_coaching/README.md` ; surclassable via `--model`/`OLLAMA_MODEL`). À suivre :
+   compte-rendu par-game + boucle d'éval (scoring d'utilité).
 2. **Benchmark Zeri** densifié (sampling champion ciblé) si la slice reste trop fine.
 3. Stabiliser et valider la **robustesse de l'approche ML/SHAP** (les features sont là, mais la qualité des prescriptions SHAP vs Heuristiques reste à valider).
 4. Poursuivre l'industrialisation : modèles Pydantic et flux consolidé.
