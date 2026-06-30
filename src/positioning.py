@@ -201,7 +201,7 @@ def _interp(snaps: list, apid: int, t_ms: int):
 
 
 def _level_at(snaps: list, pid: int, t_ms: int) -> int:
-    """Niveau du joueur pid au frame le plus proche (≤ t_ms si possible)."""
+    """Niveau du joueur pid au frame le plus proche en |t - t_ms| (peut être après la mort : le joueur mort ne level pas, donc reflète le niveau à la mort)."""
     best_lvl, best_dt = 1, None
     for t, _m, _pos, lvl in snaps:
         if pid not in lvl:
