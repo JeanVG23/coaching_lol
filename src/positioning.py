@@ -45,3 +45,30 @@ def _build_snaps(timeline: dict) -> list[tuple[int, int, dict, dict]]:
             lvl[pid] = pf.get("level", 1)
         snaps.append((t, round(t / 60000), pos, lvl))
     return snaps
+
+
+def _zone_presence(snaps: list, pid: int, my_role: str) -> dict:
+    """Calcule la fraction de temps passé dans chaque zone par phase."""
+    own = _ROLE_ZONE.get(my_role, "BOT")
+    e_own = e_river = e_tot = m_roam = m_tot = 0
+    for _t, minute, pos, _lvl in snaps:
+        if pid not in pos:
+            continue
+        z = approx_zone(*pos[pid])
+        ph = phase_of(minute)
+        if ph == "early":
+            e_tot += 1
+            if z == own:
+                e_own += 1
+            if z == "JUNGLE/RIVER":
+                e_river += 1
+        elif ph == "mid":
+            m_tot += 1
+            # roam = autre lane que la sienne (pas river/jungle, pas sa lane)
+            if z in ("TOP", "MID", "BOT") and z != own:
+                m_roam += 1
+    return {
+        "frac_own_lane_early": e_own / e_tot if e_tot else None,
+        "frac_river_early": e_river / e_tot if e_tot else None,
+        "frac_roam_mid": m_roam / m_tot if m_tot else None,
+    }

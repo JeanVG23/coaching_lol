@@ -33,3 +33,30 @@ def test_build_snaps_skips_missing_position():
     snaps = P._build_snaps(tl)
     assert snaps[0][2] == {}          # pas de position
     assert snaps[0][3] == {1: 2}      # level présent
+
+
+def test_zone_presence_own_lane_and_river():
+    # joueur ADC (BOT) : early en bot (coin bas-droit) puis en river
+    # BOT ≈ x grand & y petit ; RIVER ≈ près de la diagonale, loin des bords.
+    snaps = [
+        (0, 0, {1: (13000, 2000)}, {}),      # early, BOT (coin bas-droit)
+        (60000, 1, {1: (13000, 2000)}, {}),  # early, BOT
+        (120000, 2, {1: (10000, 5000)}, {}), # early, JUNGLE/RIVER (loin des 3 lanes)
+    ]
+    r = P._zone_presence(snaps, 1, "BOTTOM")
+    assert r["frac_own_lane_early"] == 2 / 3
+    assert r["frac_river_early"] == 1 / 3
+
+
+def test_zone_presence_roam_mid_counts_other_lanes():
+    # mid phase (minute 15+) : 1 frame en MID (roam hors BOT), 1 en BOT
+    snaps = [
+        (900000, 15, {1: (7400, 7400)}, {}),   # MID (sur diagonale)
+        (960000, 16, {1: (13000, 2000)}, {}),  # BOT (own lane)
+    ]
+    r = P._zone_presence(snaps, 1, "BOTTOM")
+    assert r["frac_roam_mid"] == 1 / 2
+
+
+def test_zone_presence_none_when_no_frames():
+    assert P._zone_presence([], 1, "BOTTOM")["frac_own_lane_early"] is None
