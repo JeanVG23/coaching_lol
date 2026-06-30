@@ -19,10 +19,18 @@
 
 ## 🚧 Court terme — fermer la boucle d'évaluation (le vrai goulot)
 
-- [ ] **Scoring d'utilité** — boucle de feedback « ce conseil était-il juste / utile ? ».
-  - La persistance payload+review (déjà posée) la rend possible **sans re-générer**.
-  - UI minimale : annoter une review persistée (thumbs up/down + note par insight) dans un fichier `data/07_coaching/<player>/feedback.jsonl`.
-  - Objectif : pouvoir dire si le coach s'améliore (intrinsèquement vérifiable grâce au benchmark challenger, contrairement aux opinions absolues).
+- [x] **Scoring d'utilité** — boucle de feedback « ce conseil était-il juste / utile ? » ✅
+  - Implémenté : `src/04_coaching/feedback.py` (CLI `annotate`/`summary`), schéma
+    `Feedback`/`FeedbackItem` dans `schema.py`. CLI interactive par-insight (9 items,
+    `y/n/s` + tag fixe `NEG_TAGS` + note sur faux), persiste
+    `data/07_coaching/<player>/feedback.jsonl` (1 ligne/review, réannotation écrase par `ts`).
+  - `summary` agrège : taux global, par section, top tags (signal actionnable pour durcir
+    le prompt), par modèle, tendance (5 dernières vs précédentes, low_sample `<10`).
+  - Spéc : `docs/superpowers/specs/2026-06-30-utility-scoring-design.md`.
+  - Objectif atteint : pouvoir dire si le coach s'améliore (intrinsèquement vérifiable
+    grâce au benchmark challenger, contrairement aux opinions absolues).
+  - **Reste à faire** : nourrir la boucle (annoter les vraies reviews Spadzze au fil de
+    l'usage), puis itérer le prompt sur les top tags dominants.
 - [ ] **Compte-rendu par-game** (fin de partie) — incrément payload par-game, pas seulement agrégé.
   - Nécessite un payload par game (1 game → 1 review) en plus du payload agrégé N games.
   - Réutiliser `payload.build` en mode « single game » (ou un `build_one`).

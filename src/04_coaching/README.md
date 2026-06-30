@@ -34,6 +34,33 @@ Résolution du modèle : `--model` (CLI) > `OLLAMA_MODEL` (shell env) > `OLLAMA_
 
 ---
 
+## Boucle d'évaluation (`feedback.py`)
+
+Ferme le « ce conseil était-il utile ? » sur les reviews persistées — **sans
+re-générer**. CLI interactive par-insight (9 items), tag fixe sur jugement négatif.
+
+```bash
+python3 src/04_coaching/feedback.py annotate --player spadzze   # choisir + juger
+python3 src/04_coaching/feedback.py summary  --player spadzze   # agrégation
+```
+
+- **annotate** : liste les reviews (`ts`/modèle/issue), défile 3 forces / 3 erreurs /
+  2 habitudes / focus, prompt `y/n/s` (+ tag numéroté + note sur `n`). `--ts <ts>`
+  ou `--last` court-circuithe la sélection. Persiste dans
+  `data/07_coaching/<player>/feedback.jsonl` (1 ligne/review ; réannotation écrase).
+- **summary** : taux d'utilité global + par section, top tags (conseils faux),
+  par modèle, tendance (5 dernières vs précédentes ; low_sample `<10`). Filtres
+  `--tag <t>` / `--model <m>`.
+- **Tags** : `asymetrie`, `stat-inventee`, `profondeur-en-faute`, `trop-vague`,
+  `non-actionnable`, `autre` — ciblent les modes d'échec connus du prompt
+  (règles 1/2/3). Le **top tag** est le signal actionnable pour durcir le prompt
+  (ex : `profondeur-en-faute` qui domine → régression de règle 3).
+
+Schéma Pydantic partagé : `schema.FeedbackItem` (kind/index/useful/tag/note,
+invariant *tag requis si useful=False*) + `schema.Feedback`. Aucun appel réseau.
+
+---
+
 ## A/B testing des modèles (2026-06-30)
 
 **Protocole** : même payload (`spadzze`, scope `adc`, issue `loss`, vs challenger) rejoué sur

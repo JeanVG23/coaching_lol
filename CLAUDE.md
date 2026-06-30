@@ -281,7 +281,13 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     habitudes / 1 focus / confidence, **preuve chiffrée par point**), `llm_client.py`
     (client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema,
     défaut `kimi-k2.6`), `coach.py` (CLI : payload→prompt→client→validation→affiche+
-    persiste). Lancer : `python3 src/04_coaching/coach.py --player spadzze --scope adc`.
+    persiste). `schema.py` porte aussi `Feedback`/`FeedbackItem` (boucle d'éval). Lancer :
+    `python3 src/04_coaching/coach.py --player spadzze --scope adc`. `feedback.py` (CLI
+    `annotate`/`summary` : boucle d'éval par-insight — `y/n/s` + tag fixe `NEG_TAGS`
+    sur jugement négatif, persiste `data/07_coaching/<player>/feedback.jsonl` (1 ligne/
+    review, réannotation écrase par `ts`), `summary` agrège taux par section + top tags +
+    par modèle + tendance low_sample `<10`). Aucun réseau. Lancer :
+    `python3 src/04_coaching/feedback.py annotate --player spadzze [--last|--ts]`.
 - **Tests** : `tests/` (pytest), couvrent la dérivation déterministe + l'extraction comp +
   l'agrégation contextuelle. Lancer : `.venv/bin/python -m pytest tests/`.
 
@@ -322,8 +328,11 @@ reprocher une décision sur une info cachée.
 1. ✅ **Ollama branché** (Phase 2 narration) — `src/04_coaching/` génère un compte-rendu
    agrégé typé (Ollama Cloud) depuis le diff perso↔référentiel, persisté
    dans `data/07_coaching/`. Modèle par défaut `kimi-k2.6` (retenu après A/B, cf.
-   `src/04_coaching/README.md` ; surclassable via `--model`/`OLLAMA_MODEL`). À suivre :
-   compte-rendu par-game + boucle d'éval (scoring d'utilité).
+   `src/04_coaching/README.md` ; surclassable via `--model`/`OLLAMA_MODEL`).
+   ✅ **Boucle d'éval** (scoring d'utilité) — `feedback.py annotate/summary` :
+   annotation interactive par-insight (tag fixe `NEG_TAGS` + note) sur les reviews
+   persistées, agrégation taux/top tags/par modèle/tendance. À suivre : compte-rendu
+   par-game.
 2. **Benchmark Zeri** densifié (sampling champion ciblé) si la slice reste trop fine.
 3. Stabiliser et valider la **robustesse de l'approche ML/SHAP** (les features sont là, mais la qualité des prescriptions SHAP vs Heuristiques reste à valider).
 4. Poursuivre l'industrialisation : modèles Pydantic et flux consolidé.
