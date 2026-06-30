@@ -178,3 +178,61 @@ def _vision_frames(snaps: list, pid: int, allies: list, enemies: list,
         "avg_unaccounted_enemies": sum(unacc_per_frame) / len(unacc_per_frame),
         "overext_x_unaccounted": sum(overext_unacc) / len(overext_unacc),
     }
+
+
+def _interp(snaps: list, apid: int, t_ms: int):
+    """Position interpolée linéairement de l'allié apid au temps t_ms (ou None)."""
+    prev = None
+    for t, _m, pos, _lvl in snaps:
+        if apid not in pos:
+            continue
+        if t <= t_ms:
+            prev = (t, pos[apid])
+        else:
+            if prev is None:
+                return pos[apid]
+            t0, (x0, y0) = prev
+            x1, y1 = pos[apid]
+            if t == t0:
+                return (x0, y0)
+            f = (t_ms - t0) / (t - t0)
+            return (x0 + f * (x1 - x0), y0 + f * (y1 - y0))
+    return prev[1] if prev else None
+
+
+def _level_at(snaps: list, pid: int, t_ms: int) -> int:
+    """Niveau du joueur pid au frame le plus proche (≤ t_ms si possible)."""
+    best_lvl, best_dt = 1, None
+    for t, _m, _pos, lvl in snaps:
+        if pid not in lvl:
+            continue
+        dt = abs(t - t_ms)
+        if best_dt is None or dt < best_dt:
+            best_dt, best_lvl = dt, lvl[pid]
+    return best_lvl
+
+
+def _death_features(timeline: dict, snaps: list, pid: int, allies: list,
+                    my_team: int) -> dict:
+    others = [a for a in allies if a != pid]
+    deaths, fog, dead_time = 0, 0, 0.0
+    for fr in timeline["info"]["frames"]:
+        for ev in fr.get("events", []):
+            if ev.get("type") != "CHAMPION_KILL" or ev.get("victimId") != pid:
+                continue
+            deaths += 1
+            t = ev["timestamp"]
+            dead_time += _BRW.get(min(18, max(1, _level_at(snaps, pid, t))), 0)
+            dx, dy = ev["position"]["x"], ev["position"]["y"]
+            in_vision = False
+            for a in others:
+                ap = _interp(snaps, a, t)
+                if ap and ((ap[0] - dx) ** 2 + (ap[1] - dy) ** 2) ** 0.5 <= SIGHT:
+                    in_vision = True
+                    break
+            if not in_vision:
+                fog += 1
+    return {
+        "frac_deaths_in_fog": fog / deaths if deaths else None,
+        "gold_dead_time": dead_time,
+    }

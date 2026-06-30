@@ -139,3 +139,37 @@ def test_overext_x_unaccounted_zero_when_home():
     r = P._vision_frames(snaps, 1, [1], [7], 100)
     assert r["avg_unaccounted_enemies"] == 1.0
     assert r["overext_x_unaccounted"] == 0.0
+
+
+def test_interp_linear_between_frames():
+    snaps = [(0, 0, {2: (0, 0)}, {}), (60000, 1, {2: (6000, 0)}, {})]
+    assert P._interp(snaps, 2, 30000) == (3000.0, 0.0)   # mi-chemin
+    assert P._interp(snaps, 2, 0) == (0, 0)
+
+
+def test_death_features_fog_vs_vision_and_dead_time():
+    # 2 morts. Mort A (t=30000) : allié 2 interpolé à (3000,0), mort en (3000,0) -> VISION.
+    # Mort B (t=90000) : allié 2 à (12000,0) interp, mort en (0,12000) -> FOG (loin).
+    snaps = [
+        (0, 0, {1: (0, 0), 2: (0, 0)}, {1: 3}),
+        (60000, 1, {1: (0, 0), 2: (6000, 0)}, {1: 6}),
+        (120000, 2, {1: (0, 0), 2: (12000, 0)}, {1: 8}),
+    ]
+    events = [
+        {"type": "CHAMPION_KILL", "victimId": 1, "timestamp": 30000, "position": {"x": 3000, "y": 0}},
+        {"type": "CHAMPION_KILL", "victimId": 1, "timestamp": 90000, "position": {"x": 0, "y": 12000}},
+    ]
+    tl = {"info": {"frames": [{"timestamp": 0, "participantFrames": {}, "events": events}]}}
+    r = P._death_features(tl, snaps, 1, [1, 2], 100)
+    assert r["frac_deaths_in_fog"] == 0.5
+    # dead time : level au frame le plus proche. Mort A t=30000 -> frame 0 (level 3) = BRW 12 ;
+    # Mort B t=90000 -> frame 60000 (level 6) = BRW 16. Total = 28.
+    assert r["gold_dead_time"] == P._BRW[3] + P._BRW[6]
+
+
+def test_death_features_none_when_no_death():
+    snaps = [(0, 0, {1: (0, 0)}, {1: 1})]
+    tl = {"info": {"frames": [{"timestamp": 0, "participantFrames": {}, "events": []}]}}
+    r = P._death_features(tl, snaps, 1, [1], 100)
+    assert r["frac_deaths_in_fog"] is None
+    assert r["gold_dead_time"] == 0
