@@ -114,3 +114,80 @@ def test_persist_feedback_creates_then_overwrites_same_ts(tmp_path):
     lines = [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
     assert len(lines) == 1                         # 1 ligne finale, pas 2
     assert lines[0]["rated_at"] == "b" and lines[0]["items"][0]["tag"] == "asymetrie"
+
+
+# --- Task 3 : summarize + render ---------------------------------------------
+
+def _fb(ts, model, items):
+    return S.Feedback(ts=ts, player="spadzze", rated_at="r", model=model, items=items)
+
+
+def _it(kind, useful, tag=None):
+    return S.FeedbackItem(kind=kind, index=0, useful=useful, tag=tag)
+
+
+def test_summarize_empty():
+    s = F.summarize([])
+    assert s["n_reviews"] == 0 and "global_rate" not in s
+
+
+def test_summarize_global_and_by_kind():
+    fbs = [_fb("t1", "kimi-k2.6", [
+            _it("strength", True), _it("mistake", False, "profondeur-en-faute"),
+            _it("habit", True)])]
+    s = F.summarize(fbs)
+    assert s["n_reviews"] == 1 and s["n_items"] == 3
+    assert s["global_rate"] == pytest.approx(2 / 3)
+    assert s["by_kind"]["strength"]["rate"] == 1.0
+    assert s["by_kind"]["mistake"]["rate"] == 0.0
+    assert s["by_kind"]["habit"]["rate"] == 1.0
+
+
+def test_summarize_top_tags():
+    fbs = [_fb("t1", "m", [_it("mistake", False, "profondeur-en-faute"),
+                           _it("mistake", False, "profondeur-en-faute"),
+                           _it("strength", False, "asymetrie")])]
+    s = F.summarize(fbs)
+    assert s["top_tags"][0] == ("profondeur-en-faute", 2)
+    assert s["top_tags"][1] == ("asymetrie", 1)
+
+
+def test_summarize_by_model():
+    fbs = [_fb("t1", "kimi-k2.6", [_it("strength", True), _it("mistake", True)]),
+           _fb("t2", "minimax-m3", [_it("mistake", False, "asymetrie")])]
+    s = F.summarize(fbs)
+    assert s["by_model"]["kimi-k2.6"]["rate"] == 1.0
+    assert s["by_model"]["minimax-m3"]["rate"] == 0.0
+    assert s["by_model"]["kimi-k2.6"]["n_reviews"] == 1
+
+
+def test_summarize_low_sample_no_trend():
+    fbs = [_fb(f"t{i}", "m", [_it("strength", True)]) for i in range(5)]
+    s = F.summarize(fbs)
+    assert s["low_sample"] is True and s["trend"] is None
+
+
+def test_summarize_trend_when_enough():
+    # 10 reviews : 5 premières tout faux, 5 dernières tout vrai -> tendance haussière
+    # ts croissants : a* (faux) trie avant b* (vrai)
+    fbs = ([_fb(f"a{i}", "m", [_it("strength", False, "trop-vague")]) for i in range(5)]
+           + [_fb(f"b{i}", "m", [_it("strength", True)]) for i in range(5)])
+    s = F.summarize(fbs)
+    assert s["low_sample"] is False
+    assert s["trend"] is not None
+    assert s["trend"]["prior"] == 0.0 and s["trend"]["recent"] == 1.0
+
+
+def test_render_summary_has_sections():
+    fbs = [_fb("t1", "kimi-k2.6", [_it("strength", True),
+                                   _it("mistake", False, "profondeur-en-faute")])]
+    txt = F.render_summary(F.summarize(fbs))
+    assert "Taux d'utilité" in txt and "Top tags" in txt and "Par modèle" in txt
+    assert "profondeur-en-faute" in txt
+
+
+def test_load_feedbacks_roundtrip(tmp_path):
+    fb = _fb("t1", "m", [_it("strength", True)])
+    F.persist_feedback("spadzze", fb, root=tmp_path)
+    loaded = F.load_feedbacks("spadzze", root=tmp_path)
+    assert len(loaded) == 1 and loaded[0].ts == "t1"
