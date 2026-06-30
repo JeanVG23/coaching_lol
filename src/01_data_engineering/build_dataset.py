@@ -82,6 +82,7 @@ def game_to_row(g: dict, rank: str | None, source: str) -> dict:
         "support_deaths_early": g.get("support_deaths_early", 0),
         "plates_diff_early": g.get("plates_diff_early", 0),
         "frames_in_base_early": g.get("frames_in_base_early", 0),
+        **{f"pos_{k}": v for k, v in (g.get("position") or {}).items()},
     }
 
 

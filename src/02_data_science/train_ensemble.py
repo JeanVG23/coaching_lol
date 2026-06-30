@@ -62,6 +62,14 @@ FEATURES = [
     "support_deaths_early", "plates_diff_early", "frames_in_base_early",
     "frac_behind", "frac_ahead",
     "avg_dragon_prox",
+    # positionnement macro (timeline, 0 CV)
+    "pos_frac_own_lane_early", "pos_frac_river_early", "pos_frac_roam_mid",
+    "pos_frac_enemy_half", "pos_frac_base",
+    "pos_avg_map_depth", "pos_max_map_depth", "pos_frac_overextended",
+    "pos_avg_dist_to_ally", "pos_gold_dead_time",
+    "pos_wards_placed", "pos_wards_placed_early", "pos_control_wards_placed",
+    "pos_wards_killed",
+    "pos_frac_deaths_in_fog", "pos_avg_unaccounted_enemies", "pos_overext_x_unaccounted",
 ]
 
 
