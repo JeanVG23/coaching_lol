@@ -121,3 +121,21 @@ def test_ward_counts_only_mine():
     assert r["wards_placed_early"] == 1          # seul le 1er est en early (<14 min)
     assert r["control_wards_placed"] == 1
     assert r["wards_killed"] == 1
+
+
+def test_unaccounted_enemies_one_seen():
+    # allié 1 et 2 ; ennemis 6,7,8,9,10. 6 est collé à l'allié 1 (vu), les 4 autres loin.
+    snaps = [(0, 0, {1: (1000, 1000), 2: (1100, 1000),
+                     6: (1200, 1000),               # à ~200 de l'allié 1 -> vu
+                     7: (14000, 14000), 8: (14000, 13000),
+                     9: (13000, 14000), 10: (13500, 13500)}, {})]
+    r = P._vision_frames(snaps, 1, [1, 2], [6, 7, 8, 9, 10], 100)
+    assert r["avg_unaccounted_enemies"] == 4.0
+
+
+def test_overext_x_unaccounted_zero_when_home():
+    # joueur chez lui (depth<=0) -> overext_x_unaccounted = 0 quel que soit unaccounted
+    snaps = [(0, 0, {1: (1000, 1000), 7: (14000, 14000)}, {})]
+    r = P._vision_frames(snaps, 1, [1], [7], 100)
+    assert r["avg_unaccounted_enemies"] == 1.0
+    assert r["overext_x_unaccounted"] == 0.0

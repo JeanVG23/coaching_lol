@@ -151,3 +151,30 @@ def _ward_counts(timeline: dict, pid: int) -> dict:
                 killed += 1
     return {"wards_placed": placed, "wards_placed_early": early,
             "control_wards_placed": control, "wards_killed": killed}
+
+
+def _vision_frames(snaps: list, pid: int, allies: list, enemies: list,
+                   my_team: int) -> dict:
+    """Calcule le nombre moyen d'ennemis non-accountés et l'overextension × unaccounted."""
+    unacc_per_frame, overext_unacc = [], []
+    for _t, _m, pos, _lvl in snaps:
+        if pid not in pos:
+            continue
+        seen = [pos[a] for a in allies if a in pos]
+        unacc = 0
+        for e in enemies:
+            if e not in pos:
+                continue
+            ex, ey = pos[e]
+            if not any(((sx - ex) ** 2 + (sy - ey) ** 2) ** 0.5 <= SIGHT
+                       for sx, sy in seen):
+                unacc += 1
+        unacc_per_frame.append(unacc)
+        depth = max(0.0, _depth(pos[pid][0], pos[pid][1], my_team))
+        overext_unacc.append(depth * unacc)
+    if not unacc_per_frame:
+        return {"avg_unaccounted_enemies": None, "overext_x_unaccounted": None}
+    return {
+        "avg_unaccounted_enemies": sum(unacc_per_frame) / len(unacc_per_frame),
+        "overext_x_unaccounted": sum(overext_unacc) / len(overext_unacc),
+    }
