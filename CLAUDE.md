@@ -235,8 +235,15 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   plateforme league ; rate-limiter ~1.3s/appel), helpers (`approx_zone`, `phase_of`,
   `patch_of`), `get_match_timeline` (cache raw **compressé zstd** via `_read_raw`/`_write_raw`,
   lecture tolérante `.json.zst`→`.json.gz`→`.json` pour la migration), `extract_game` (silver,
-  + benchmark de lane + sous-objet `comp` des 6 champions botlane), `aggregate`/`write_gold`
-  (gold, facettes win/loss + dimension `by_lane_context`), chemins médaillon. Importe `champion_profiles`.
+  + benchmark de lane + sous-objet `comp` des 6 champions botlane + sous-objet `position`
+  via `positioning`), `aggregate`/`write_gold` (gold, facettes win/loss + dimension
+  `by_lane_context` + bloc `positioning` = médianes des 14 features COACHING_SAFE via
+  `_fmedian`, sans arrondi entier), chemins médaillon. Importe `champion_profiles`.
+- **`src/positioning.py`** — features macro-positionnement depuis la timeline (0 CV, module
+  pur). `positioning_features` → 17 scalaires nichés sous `record["position"]`. Manifeste
+  d'asymétrie mécanique : `COACHING_SAFE` (14 exactes → ML + coaching) vs `ML_ONLY` (3 proxys
+  vision → jamais prescrits). ⚠️ Profondeur (`avg/max_map_depth`) : sens contre-intuitif
+  (valeur haute → diamond, rang INFÉRIEUR) → marqueur de risque, jamais à prescrire.
 - **`src/champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon +
   table curée, résolution casse-insensible), `derive_context(comp)` → 2 axes coarse
   `lane_pattern` (poke/all_in/scaling/mixed/unknown, du duo ennemi) et `gank_exposure`
@@ -256,7 +263,10 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
 - **`src/rebuild_gold.py`** — régénère tout le gold depuis le silver, sans appel API.
 - **`src/compare.py`** — livrable coaching : slice perso vs référentiels, à issue égale.
   Section **benchmark conditionné** par contexte de lane (`context_benchmark`, seuil de
-  repli `MIN_CONTEXT_N=8` loggué, `unknown` exclu du bucket dominant).
+  repli `MIN_CONTEXT_N=8` loggué, `unknown` exclu du bucket dominant). Section **benchmark
+  positionnement** (`POS_ROWS`, 14 features COACHING_SAFE, médianes à issue égale) avec
+  garde-fou asymétrie en `assert` au chargement (toute feature ML_ONLY → crash). Note
+  prescriptive sur le sens contre-intuitif de la profondeur (↑ = diamond, non corrigeable).
 - **Pipeline ML (en cours de structuration)** :
   - **`src/01_data_engineering/`** : `build_dataset.py` consolide en table de features tabulaire ML-ready (Parquet). **1 ligne = 1 ADC d'une game.** Le référentiel ré-extrait **les DEUX ADC de chaque game depuis le raw** (0 API) — le silver ne stocke qu'un joueur ciblé par game, donc s'y limiter ne récupérait l'ADC que des games où le ciblé était ADC (~3 088 rows). En relisant le raw (10 joueurs présents), on densifie à ~games×2 (≈ 7 873 rows sur le patch courant). Le perso (Spadzze) garde sa propre perspective ADC (inférence).
     > ⚠️ **FLAW ASSUMÉ — transfert de rang.** Le rang d'une game = rang de collecte du joueur ciblé (dossier silver). On le transfère **aux deux ADC** en supposant un **MMR égal dans le lobby** (vrai en solo queue high-elo, matchmaking serré). L'ADC ennemi n'a donc pas son rang réel mesuré mais celui, approché, de la game. Acceptable pour un classif high/low ; à revoir si on descend en elo (écart de MMR intra-lobby plus large). Games collectées sous plusieurs rangs (lobby master∩GM) : rang résolu au **mode**, tie-break sur le rang le plus bas (ne pas gonfler high_elo aux frontières).
@@ -267,7 +277,9 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
 
 Features clés : **facettes win/loss** (neutralise le biais d'issue), **benchmark de lane**
 (gold/CS/XP diff @10/@14/@20 vs adversaire), **gold-state des morts** (avance/retard),
-**contexte de matchup botlane** (lane_pattern + gank_exposure, benchmarkés à contexte égal).
+**contexte de matchup botlane** (lane_pattern + gank_exposure, benchmarkés à contexte égal),
+**benchmark positionnement** (présence/roam, over-extension, vision — timeline, 0 CV,
+COACHING_SAFE uniquement côté coaching).
 Scopes : `all` · `adc` (BOTTOM) · `zeri` (champion). Filtre patch courant, SR (mapId 11),
 ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
 
@@ -285,6 +297,11 @@ reprocher une décision sur une info cachée.
   ~37% des morts ADC = BOT en early game ; l'ennemi ADC signe ~45% des morts.
 - **Phase 1.6 — référentiels multi-rangs** ✅ — **Collecte globale effectuée** (~4454 games / patch 16.13) couvrant Diamond, Master, Grandmaster et Challenger avec features lane (tâche de fond de 5000 games partiellement atteinte, mais suffisante). `compare.py` et benchmarks contextuels intégrés.
 - **Phase 1.7 — Machine Learning & SHAP** 🚧 — Début de l'industrialisation Data Science. Pipeline découpé en médaillon (`01_data_engineering`, `02_data_science`, `03_data_analyse`). Modèles de classif High-Elo vs Low-Elo (Ensemble **XGBoost / Random Forest / EBM**, 3 biais inductifs) avec extraction d'insights SHAP + cross-check EBM. **Dataset densifié** : extraction des deux ADC par game depuis le raw → ~7 873 rows (patch courant), vs 3 088 quand on se limitait à la perspective collectée.
+- **Phase 1.8 — macro-positionnement (timeline, 0 CV)** ✅ — module `positioning` (17 features,
+  manifeste d'asymétrie COACHING_SAFE/ML_ONLY). Incrément 1 (ML) : le positionnement porte un
+  signal au-delà du laning — **AUC dia_chall 0.655 → 0.724 (+0.069)**, top-3 discriminants EBM
+  tous positionnels (`avg_dist_to_ally`, `wards_killed`, `wards_placed_early`). Incrément 2
+  (coaching) : 14 features câblées dans `aggregate`/`compare` (médianes à issue égale).
 - **Premier verdict ADC** : laning = LE levier (≈ -10 à -16 CS @14 vs challenger, *toutes*
   issues) ; mauvaise gestion du retard (gold@20 en lose -1252 vs -322) ; morts = symptôme.
 - Clé **dev** (throttle ~100 req/2min, attentes 429 si saturé) → rate-limiter intégré.

@@ -54,7 +54,12 @@ def _depth(x: float, y: float, my_team: int) -> float:
 
 
 def _territory(snaps: list, pid: int, my_team: int) -> dict:
-    """Calcule la fraction de temps en terrain ennemi, profondeur moyenne/max, over-extension."""
+    """Calcule la fraction de temps en terrain ennemi, profondeur moyenne/max, over-extension.
+
+    ⚠ Sens contre-intuitif : le modèle EBM dia_chall classe avg_map_depth ET max_map_depth
+    « valeur haute → diamond » (max : monotonic_rho=-0.98). Profondeur ↑ = rang ↓ : c'est un
+    marqueur de RISQUE, jamais une force à prescrire. Détail + garde-fou : voir compare.py.
+    """
     depths, n, enemy_half, overext = [], 0, 0, 0
     for _t, _m, pos, _lvl in snaps:
         if pid not in pos:
@@ -193,8 +198,8 @@ def _interp(snaps: list, apid: int, t_ms: int):
                 return pos[apid]
             t0, (x0, y0) = prev
             x1, y1 = pos[apid]
-            if t == t0:
-                return (x0, y0)
+            # t0 <= t_ms < t ici (prev = dernière frame <= t_ms, t = 1re frame > t_ms),
+            # donc t > t0 strictement : pas de division par zéro possible.
             f = (t_ms - t0) / (t - t0)
             return (x0 + f * (x1 - x0), y0 + f * (y1 - y0))
     return prev[1] if prev else None

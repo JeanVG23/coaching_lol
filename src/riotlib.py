@@ -464,6 +464,20 @@ def _median(vals) -> int | None:
     return vals[m] if len(vals) % 2 else round((vals[m - 1] + vals[m]) / 2)
 
 
+def _fmedian(vals) -> float | None:
+    """Médiane SANS arrondi entier (préserve fractions 0..1, profondeurs, comptes).
+
+    `_median` arrondit à l'entier (ok pour gold/cs diffs) ; appliqué à une fraction
+    comme frac_overextended ça l'écrase à 0/1. Les features positionnelles ont des
+    échelles mixtes (0..1, ~milliers, comptes) → médiane flottante, arrondie à 4 déc."""
+    vals = sorted(v for v in vals if v is not None)
+    if not vals:
+        return None
+    m = len(vals) // 2
+    med = vals[m] if len(vals) % 2 else (vals[m - 1] + vals[m]) / 2
+    return round(med, 4)
+
+
 def _facet(subset: list[dict]) -> dict:
     """Bloc de métriques pour un sous-ensemble de games (à issue fixée ou non)."""
     deaths = [d for g in subset for d in g["deaths"]]
@@ -474,6 +488,12 @@ def _facet(subset: list[dict]) -> dict:
     by_zone_phase = collections.Counter(f'{d["zone"]}|{d["phase"]}' for d in deaths)
     # benchmark de lane : médiane des diffs vs adversaire (robuste aux outliers)
     lane = {k: _median([g.get("lane", {}).get(k) for g in subset]) for k in LANE_KEYS}
+    # benchmark positionnement : médiane des features COACHING_SAFE de la timeline.
+    # Asymétrie : on n'agrège QUE les features exactes/safe (jamais les proxys ML_ONLY)
+    # — la couche de benchmark coaching ne doit pouvoir prescrire que de l'asymétrie-safe.
+    import positioning  # import paresseux : évite le cycle riotlib<->positioning
+    positioning_med = {k: _fmedian([(g.get("position") or {}).get(k) for g in subset])
+                       for k in sorted(positioning.COACHING_SAFE)}
     # contexte économique des morts (avance/retard/égalité)
     gs = collections.Counter(d.get("gold_state") for d in deaths if d.get("gold_state"))
     gs_total = sum(gs.values())
@@ -482,6 +502,7 @@ def _facet(subset: list[dict]) -> dict:
         "deaths_total": total,
         "deaths_per_game": round(total / n, 2) if n else 0,
         "lane": lane,
+        "positioning": positioning_med,
         "death_gold_state": _norm(gs, gs_total),
         "by_zone": _norm(by_zone, total),
         "by_phase": _norm(by_phase, total),

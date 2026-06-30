@@ -16,11 +16,46 @@ from __future__ import annotations
 import json
 import sys
 
+import positioning as pos
 import riotlib as rl
 
 RANKS = ["diamond", "master", "grandmaster", "challenger"]
 MIN_N = 5  # seuil d'effectif sous lequel on prévient
 MIN_CONTEXT_N = 8  # sous ce seuil de games référentiel dans le bucket, on retombe sur global
+
+# Lignes du benchmark positionnement (libellé, clé, format). "pct" pour les fractions
+# 0..1, "num" pour profondeurs/distances/temps/comptes. ORDRE = lecture coaching.
+POS_ROWS = [
+    ("% lane (early)", "frac_own_lane_early", "pct"),
+    ("% river (early)", "frac_river_early", "pct"),
+    ("% roam (mid)", "frac_roam_mid", "pct"),
+    ("% moitié ennemie", "frac_enemy_half", "pct"),
+    ("% en base", "frac_base", "pct"),
+    ("% over-extended", "frac_overextended", "pct"),
+    ("profondeur moy.", "avg_map_depth", "num"),
+    ("profondeur max", "max_map_depth", "num"),
+    ("isolement (allié)", "avg_dist_to_ally", "num"),
+    ("temps mort (s)", "gold_dead_time", "num"),
+    ("wards posées", "wards_placed", "num"),
+    ("wards early", "wards_placed_early", "num"),
+    ("control wards", "control_wards_placed", "num"),
+    ("wards détruites", "wards_killed", "num"),
+]
+# Garde-fou asymétrie (mécanique) : le coaching ne benchmarke QUE des features
+# exactes/asymétrie-safe. Si un proxy ML_ONLY se glisse dans POS_ROWS, on crashe net.
+assert {k for _, k, _ in POS_ROWS} <= pos.COACHING_SAFE, \
+    "POS_ROWS contient une feature non COACHING_SAFE — violation d'asymétrie"
+assert {k for _, k, _ in POS_ROWS}.isdisjoint(pos.ML_ONLY), \
+    "POS_ROWS contient un proxy ML_ONLY — interdit en prescription"
+
+# ⚠ Sens contre-intuitif des features de PROFONDEUR (avg_map_depth / max_map_depth).
+# Le modèle EBM dia_chall les classe "valeur haute → diamond" (max_map_depth :
+# monotonic_rho=-0.98, swing 0.495, crossover ~3775u). Autrement dit : plus tu
+# t'enfonces en terrain ennemi (pic ou moyenne), plus tu ressembles à un DIAMOND
+# (rang INFÉRIEUR), pas à un challenger. Ne JAMAIS prescrire « prends plus d'espace » :
+# la profondeur est un marqueur de RISQUE, pas de force. Un perso qui over-extend
+# MOINS que les challengers n'a donc aucune correction à faire de ce côté. Ces deux
+# lignes sont descriptives, pas prescriptives.
 
 
 def context_benchmark(me_agg, ref_agg, axis, outcome):
@@ -115,6 +150,20 @@ def main() -> int:
                      ("cs diff @10", "csd10"), ("cs diff @14", "csd14"),
                      ("gold diff @20", "gd20")]:
         lane_row(lbl, key)
+
+    # --- benchmark positionnement (timeline, 0 CV ; COACHING_SAFE uniquement) ---
+    def pos_cell(a, key, fmt):
+        v = a.get(outcome, {}).get("positioning", {}).get(key)
+        if v is None:
+            return "—"
+        return f"{v:.0%}" if fmt == "pct" else f"{v:.1f}"
+
+    print(f"\n  Benchmark positionnement — {outcome.upper()} (médianes) :")
+    print(f"    {'':<18}{'TOI':>9}" + "".join(f"{r[:9]:>11}" for r in cols))
+    for lbl, key, fmt in POS_ROWS:
+        print(f"    {lbl:<18}{pos_cell(me, key, fmt):>9}"
+              + "".join(f"{pos_cell(refs[r], key, fmt):>11}" for r in cols))
+    print("  (profondeur ↑ = plus diamond/risqué, PAS un objectif — cf. note compare.py)")
 
     # --- contexte économique des morts ---
     def gs_cell(a, key):
