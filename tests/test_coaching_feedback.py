@@ -191,3 +191,67 @@ def test_load_feedbacks_roundtrip(tmp_path):
     F.persist_feedback("spadzze", fb, root=tmp_path)
     loaded = F.load_feedbacks("spadzze", root=tmp_path)
     assert len(loaded) == 1 and loaded[0].ts == "t1"
+
+
+# --- Task 4 : annotate interactif + main() ----------------------------------
+
+def _reviews_file(tmp_path, n=1):
+    lines = []
+    for i in range(n):
+        d = _review_dict()
+        d["ts"] = f"2026-06-30T1{i}:00:00"
+        lines.append(d)
+    _write_reviews(tmp_path, lines=lines)
+
+
+def test_annotate_interactive_monkeypatched_input(tmp_path, monkeypatch, capsys):
+    _reviews_file(tmp_path, n=1)
+    answers = iter([
+        "1",                       # choix review #1
+        "y",                       # strength 0 utile
+        "s",                       # strength 1 skip
+        "y",                       # strength 2 utile
+        "n", "3", "prof prescrite", # mistake 0 faux -> tag #3 = profondeur-en-faute, note
+        "y",                       # mistake 1 utile
+        "y",                       # mistake 2 utile
+        "y",                       # habit 0 utile
+        "s",                       # habit 1 skip
+        "y",                       # focus utile
+    ])
+    monkeypatch.setattr("builtins.input", lambda *a, **k: next(answers))
+    rc = F.annotate("spadzze", root=tmp_path)
+    assert rc == 0
+    fbs = F.load_feedbacks("spadzze", root=tmp_path)
+    assert len(fbs) == 1
+    fb = fbs[0]
+    assert fb.ts == "2026-06-30T10:00:00"
+    assert len(fb.items) == 7            # 9 - 2 skips
+    mk0 = next(it for it in fb.items if it.kind == "mistake" and it.index == 0)
+    assert mk0.useful is False and mk0.tag == "profondeur-en-faute"
+    assert mk0.note == "prof prescrite"
+
+
+def test_annotate_no_reviews(tmp_path, capsys):
+    rc = F.annotate("nobody", root=tmp_path, prompt=lambda *a, **k: "")
+    assert rc == 0
+    assert "Aucune review" in capsys.readouterr().out
+
+
+def test_annotate_ts_not_found(tmp_path, capsys):
+    _reviews_file(tmp_path, n=1)
+    rc = F.annotate("spadzze", ts="missing", root=tmp_path, prompt=lambda *a, **k: "")
+    assert rc == 1
+    assert "introuvable" in capsys.readouterr().out.lower()
+
+
+def test_main_summary_subcommand(tmp_path, monkeypatch, capsys):
+    # layout production : rl.DATA / "07_coaching" / player / reviews.jsonl
+    _reviews_file(tmp_path / "07_coaching", n=1)
+    answers = iter(["1", "y", "y", "y", "y", "y", "y", "y", "y", "y"])
+    monkeypatch.setattr("builtins.input", lambda *a, **k: next(answers))
+    monkeypatch.setattr(F.rl, "DATA", tmp_path)   # rl.DATA/07_coaching = tmp/07_coaching
+    assert F.main(["annotate", "--player", "spadzze"]) == 0
+    capsys.readouterr()
+    assert F.main(["summary", "--player", "spadzze"]) == 0
+    out = capsys.readouterr().out
+    assert "Taux d'utilité" in out

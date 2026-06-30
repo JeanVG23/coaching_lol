@@ -13,6 +13,7 @@ Usage :
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from collections import Counter
@@ -184,3 +185,119 @@ def render_summary(stats: dict) -> str:
         rp = lambda v: "—" if v is None else f"{v:.0%}"
         lines.append(f"\nTendance : 5 dernières {rp(t['recent'])} vs précédentes {rp(t['prior'])}")
     return "\n".join(lines)
+
+# --- annotate (flow interactif) + main() ------------------------------------
+
+def _display_items(review: schema_mod.Review) -> list[tuple[str, int, str]]:
+    """Retourne [(kind, index, ligne_affichage)] pour les items (ordre fixe)."""
+    out = []
+    for i, ins in enumerate(review.strengths):
+        out.append(("strength", i, f"Force  {i}: {ins.point}  ({ins.evidence})"))
+    for i, ins in enumerate(review.mistakes):
+        out.append(("mistake", i, f"Erreur {i}: {ins.point}  ({ins.evidence})"))
+    for i, h in enumerate(review.habits):
+        out.append(("habit", i, f"Habitude {i}: {h}"))
+    out.append(("focus", 0, f"Focus : {review.next_focus}"))
+    return out
+
+
+def _prompt_useful(prompt, label_line) -> str | None:
+    """Retourne 'y'/'n'/'s' (Entrée vide = skip = None)."""
+    while True:
+        ans = prompt(f"{label_line}\n  utile ? [y/n/s] : ").strip().lower()
+        if ans in ("y", "n", "s", ""):
+            return None if ans == "" else ans
+
+
+def annotate(player: str, ts: str | None = None, last: bool = False,
+             root=None, prompt=None) -> int:
+    if prompt is None:
+        prompt = input           # late binding : monkeypatch builtins.input pris en compte
+    reviews = list_reviews(player, root)
+    if not reviews:
+        print("Aucune review pour ce joueur — génère-en via coach.py d'abord.")
+        return 0
+    if ts is None:
+        if last:
+            chosen = reviews[-1]
+        else:
+            print("Reviews disponibles :")
+            for i, r in enumerate(reviews, 1):
+                print(f"  {i} | {r['ts']} | {r['model']} | {r.get('outcome_focus','?')}")
+            sel = prompt("Choisis une review (numéro) : ").strip()
+            try:
+                chosen = reviews[int(sel) - 1]
+            except (ValueError, IndexError):
+                print("✗ sélection invalide")
+                return 1
+    else:
+        chosen = next((r for r in reviews if r.get("ts") == ts), None)
+        if chosen is None:
+            print(f"✗ ts {ts} introuvable dans reviews.jsonl")
+            return 1
+    review = schema_mod.Review.model_validate(chosen["review"])
+    items = _display_items(review)
+    responses: dict[tuple[str, int], tuple[bool, str | None, str | None]] = {}
+    for kind, idx, line in items:
+        ans = _prompt_useful(prompt, line)
+        if ans is None or ans == "s":
+            continue
+        useful = (ans == "y")
+        tag = None
+        note = None
+        if not useful:
+            menu = "\n".join(f"  {j+1} | {t}" for j, t in enumerate(schema_mod.NEG_TAGS))
+            while tag is None:
+                ts_in = prompt(f"Pourquoi ? (numéro)\n{menu}\n  tag : ").strip()
+                try:
+                    tag = schema_mod.NEG_TAGS[int(ts_in) - 1]
+                except (ValueError, IndexError):
+                    pass
+            note = prompt("Note (optionnel, Entrée = skip) : ").strip() or None
+        responses[(kind, idx)] = (useful, tag, note)
+    if not responses:
+        print("Tout skippé — rien à persister.")
+        return 0
+    rated_at = datetime.now().isoformat(timespec="seconds")
+    fb = build_feedback(review, ts=chosen["ts"], player=player,
+                        model=chosen["model"], rated_at=rated_at, responses=responses)
+    path, overwrote = persist_feedback(player, fb, root)
+    n_useful = sum(1 for it in fb.items if it.useful)
+    print(f"\n{len(fb.items)} items notés ({n_useful} utiles).")
+    if overwrote:
+        print(f"réannotation: écrase feedback précédent pour {fb.ts}")
+    print(f"✓ feedback persisté dans {path}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="feedback.py")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    a = sub.add_parser("annotate", help="juger les insights d'une review")
+    a.add_argument("--player", default="spadzze")
+    a.add_argument("--ts", default=None)
+    a.add_argument("--last", action="store_true")
+
+    s = sub.add_parser("summary", help="agrège les annotations")
+    s.add_argument("--player", default="spadzze")
+    s.add_argument("--tag", default=None, help="filtre par tag")
+    s.add_argument("--model", default=None, help="filtre par modèle")
+
+    args = ap.parse_args(argv)
+    if args.cmd == "annotate":
+        return annotate(args.player, ts=args.ts, last=args.last)
+    if args.cmd == "summary":
+        fbs = load_feedbacks(args.player)
+        if args.model:
+            fbs = [f for f in fbs if f.model == args.model]
+        if args.tag:
+            fbs = [f for f in fbs if any(it.tag == args.tag for it in f.items)]
+        print(f"FEEDBACK — {args.player}")
+        print(render_summary(summarize(fbs)))
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
