@@ -196,3 +196,16 @@ def test_positioning_features_on_real_raw():
     assert set(r.keys()) == P.ALL_FEATURES
     # types : tout est float/int ou None
     assert all(v is None or isinstance(v, (int, float)) for v in r.values())
+
+
+def test_extract_game_includes_position():
+    import sys, glob, os
+    sys.path.insert(0, "src")
+    import riotlib as rl
+    mid = os.path.basename(glob.glob("data/01_raw/*_timeline.json.zst")[0])[:-len("_timeline.json.zst")]
+    match = rl._read_raw(f"{mid}_match")
+    tl = rl._read_raw(f"{mid}_timeline")
+    puuid = match["metadata"]["participants"][0]
+    rec = rl.extract_game(match, tl, puuid)
+    assert "position" in rec
+    assert set(rec["position"].keys()) == P.ALL_FEATURES

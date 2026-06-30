@@ -401,6 +401,11 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "enemy_mid": champ_at(False, "MIDDLE"),
     }
 
+    import positioning  # import paresseux : évite le cycle riotlib<->positioning
+    pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
+    position = positioning.positioning_features(
+        timeline, participant_id, pid_team, my_role or "BOTTOM")
+
     return {
         "match_id": meta["matchId"],
         "puuid": puuid,                          # pour ré-extraction depuis raw sans API
@@ -419,6 +424,7 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "plates_diff_early": my_plates - enemy_plates,
         "frames_in_base_early": frames_in_base,
         "avg_dragon_prox": avg_dragon_prox,
+        "position": position,
     }
 
 
