@@ -83,3 +83,21 @@ def test_territory_aggregates():
     assert r["max_map_depth"] == P._depth(13000, 13000, 100)
     assert r["avg_map_depth"] == P._depth(13000, 13000, 100) / 2  # chez soi clampé à 0
     assert r["frac_overextended"] == 0.5
+
+
+def test_in_base_box():
+    assert P._in_base(2000, 2000, 100) is True
+    assert P._in_base(8000, 8000, 100) is False
+    assert P._in_base(13000, 13000, 200) is True
+    assert P._in_base(8000, 8000, 200) is False
+
+
+def test_base_and_isolation():
+    # pid=1 ; allié 2 à distance connue ; allié 3 plus loin -> min retenu
+    snaps = [
+        (0, 0, {1: (2000, 2000), 2: (2300, 2000), 3: (9000, 9000)}, {}),  # base + allié à 300
+        (60000, 1, {1: (8000, 8000), 2: (8000, 8400)}, {}),               # hors base + allié à 400
+    ]
+    r = P._base_and_isolation(snaps, 1, 100, [1, 2, 3])
+    assert r["frac_base"] == 0.5
+    assert abs(r["avg_dist_to_ally"] - (300 + 400) / 2) < 1e-6

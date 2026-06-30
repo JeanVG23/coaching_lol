@@ -102,3 +102,34 @@ def _zone_presence(snaps: list, pid: int, my_role: str) -> dict:
         "frac_river_early": e_river / e_tot if e_tot else None,
         "frac_roam_mid": m_roam / m_tot if m_tot else None,
     }
+
+
+def _in_base(x: float, y: float, my_team: int) -> bool:
+    """Vérifie si la position est dans la base (boîte d'équipe)."""
+    if my_team == 100:
+        return x < 3500 and y < 3500
+    return x > 11300 and y > 11300
+
+
+def _base_and_isolation(snaps: list, pid: int, my_team: int, allies: list) -> dict:
+    """Calcule la fraction de temps en base et la distance moyenne aux alliés."""
+    n = base = 0
+    dists = []
+    others = [a for a in allies if a != pid]
+    for _t, _m, pos, _lvl in snaps:
+        if pid not in pos:
+            continue
+        n += 1
+        x, y = pos[pid]
+        if _in_base(x, y, my_team):
+            base += 1
+        near = [((pos[a][0] - x) ** 2 + (pos[a][1] - y) ** 2) ** 0.5
+                for a in others if a in pos]
+        if near:
+            dists.append(min(near))
+    if not n:
+        return {"frac_base": None, "avg_dist_to_ally": None}
+    return {
+        "frac_base": base / n,
+        "avg_dist_to_ally": sum(dists) / len(dists) if dists else None,
+    }
