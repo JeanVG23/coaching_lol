@@ -60,3 +60,26 @@ def test_zone_presence_roam_mid_counts_other_lanes():
 
 def test_zone_presence_none_when_no_frames():
     assert P._zone_presence([], 1, "BOTTOM")["frac_own_lane_early"] is None
+
+
+def test_depth_sign_and_symmetry():
+    # team 100 : base bas-gauche (petit x+y) -> profondeur négative chez soi,
+    # positive en terrain ennemi (grand x+y). team 200 : inverse.
+    deep_enemy_for_100 = P._depth(13000, 13000, 100)
+    assert deep_enemy_for_100 > 0
+    assert P._depth(1000, 1000, 100) < 0
+    assert P._depth(13000, 13000, 200) < 0          # même point, chez soi pour 200
+    assert abs(P._depth(13000, 13000, 100) + P._depth(13000, 13000, 200)) < 1e-6
+
+
+def test_territory_aggregates():
+    # team 100 : 1 frame chez soi (depth<0), 1 frame deep enemy (depth>seuil)
+    snaps = [
+        (0, 0, {1: (1000, 1000)}, {}),
+        (60000, 1, {1: (13000, 13000)}, {}),
+    ]
+    r = P._territory(snaps, 1, 100)
+    assert r["frac_enemy_half"] == 0.5
+    assert r["max_map_depth"] == P._depth(13000, 13000, 100)
+    assert r["avg_map_depth"] == P._depth(13000, 13000, 100) / 2  # chez soi clampé à 0
+    assert r["frac_overextended"] == 0.5

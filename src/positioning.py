@@ -47,6 +47,36 @@ def _build_snaps(timeline: dict) -> list[tuple[int, int, dict, dict]]:
     return snaps
 
 
+def _depth(x: float, y: float, my_team: int) -> float:
+    """Profondeur signée dans le terrain ennemi (>0 = chez l'ennemi)."""
+    raw = (x + y - _MAP_MID) / _SQRT2
+    return raw if my_team == 100 else -raw
+
+
+def _territory(snaps: list, pid: int, my_team: int) -> dict:
+    """Calcule la fraction de temps en terrain ennemi, profondeur moyenne/max, over-extension."""
+    depths, n, enemy_half, overext = [], 0, 0, 0
+    for _t, _m, pos, _lvl in snaps:
+        if pid not in pos:
+            continue
+        n += 1
+        d = _depth(pos[pid][0], pos[pid][1], my_team)
+        depths.append(max(0.0, d))
+        if d > 0:
+            enemy_half += 1
+        if d > OVEREXT_THRESHOLD:
+            overext += 1
+    if not n:
+        return {k: None for k in ("frac_enemy_half", "avg_map_depth",
+                                  "max_map_depth", "frac_overextended")}
+    return {
+        "frac_enemy_half": enemy_half / n,
+        "avg_map_depth": sum(depths) / n,
+        "max_map_depth": max(depths),
+        "frac_overextended": overext / n,
+    }
+
+
 def _zone_presence(snaps: list, pid: int, my_role: str) -> dict:
     """Calcule la fraction de temps passé dans chaque zone par phase."""
     own = _ROLE_ZONE.get(my_role, "BOT")
