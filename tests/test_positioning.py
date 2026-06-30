@@ -173,3 +173,26 @@ def test_death_features_none_when_no_death():
     r = P._death_features(tl, snaps, 1, [1], 100)
     assert r["frac_deaths_in_fog"] is None
     assert r["gold_dead_time"] == 0
+
+
+def test_positioning_features_returns_all_keys():
+    snaps_tl = _tl([(0, {1: (1000, 1000, 1), 2: (1100, 1000, 1), 7: (14000, 14000, 1)})])
+    pid_team = {1: 100, 2: 100, 7: 200}
+    r = P.positioning_features(snaps_tl, 1, pid_team, "BOTTOM")
+    assert set(r.keys()) == P.ALL_FEATURES
+    assert len(r) == 17
+
+
+def test_positioning_features_on_real_raw():
+    import sys, glob, os
+    sys.path.insert(0, "src")
+    import riotlib as rl
+    mid = os.path.basename(glob.glob("data/01_raw/*_timeline.json.zst")[0])[:-len("_timeline.json.zst")]
+    match = rl._read_raw(f"{mid}_match")
+    tl = rl._read_raw(f"{mid}_timeline")
+    parts = match["info"]["participants"]
+    pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
+    r = P.positioning_features(tl, 1, pid_team, parts[0].get("teamPosition") or "BOTTOM")
+    assert set(r.keys()) == P.ALL_FEATURES
+    # types : tout est float/int ou None
+    assert all(v is None or isinstance(v, (int, float)) for v in r.values())

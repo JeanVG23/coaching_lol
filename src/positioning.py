@@ -236,3 +236,23 @@ def _death_features(timeline: dict, snaps: list, pid: int, allies: list,
         "frac_deaths_in_fog": fog / deaths if deaths else None,
         "gold_dead_time": dead_time,
     }
+
+
+def positioning_features(timeline: dict, participant_id: int,
+                         pid_team: dict, my_role: str) -> dict:
+    """Orchestrateur : construit les snaps une fois et fusionne tous les helpers.
+
+    Returns a flat dict with exactly the 17 keys of ALL_FEATURES.
+    """
+    my_team = pid_team[participant_id]
+    allies = [p for p, t in pid_team.items() if t == my_team]
+    enemies = [p for p, t in pid_team.items() if t != my_team]
+    snaps = _build_snaps(timeline)
+    out = {}
+    out.update(_zone_presence(snaps, participant_id, my_role))
+    out.update(_territory(snaps, participant_id, my_team))
+    out.update(_base_and_isolation(snaps, participant_id, my_team, allies))
+    out.update(_ward_counts(timeline, participant_id))
+    out.update(_vision_frames(snaps, participant_id, allies, enemies, my_team))
+    out.update(_death_features(timeline, snaps, participant_id, allies, my_team))
+    return out
