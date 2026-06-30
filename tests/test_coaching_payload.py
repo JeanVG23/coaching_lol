@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 import positioning as P
 import payload as PL
 
@@ -60,3 +62,8 @@ def test_build_reads_gold_and_flags_low_sample(tmp_path):
     blob = json.dumps(pl)
     assert all(k not in blob for k in P.ML_ONLY)
     assert any(s["group"] == "positioning" for s in pl["signals"])
+
+
+def test_build_raises_file_not_found(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        PL.build("ghost", "adc", "challenger", "loss", gold_dir=tmp_path)
