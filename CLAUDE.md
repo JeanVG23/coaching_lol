@@ -191,7 +191,7 @@ erreurs détectées, bons moves, scores lane/macro/vision, résumé final géné
    - habitudes à corriger (2)
    - `next_focus[]` — 1 focus pour la prochaine game
    - `confidence`
-   - `evidence[]`
+   - chaque `strength`/`mistake` porte sa **preuve chiffrée** (`evidence` par point, fusionné)
 
 ## Pistes de coach envisagées
 
@@ -225,6 +225,8 @@ data/
   03_gold/{referentiel/<rank>,personal/<player>}/<scope>/aggregate.json   # agrégats benchmarks
   04_dataset/                            # Datasets consolidés (ex: adc_dataset.parquet)
   05_model/                              # Modèles ML et outputs (ex: xgb_highelo.pkl, metrics)
+  06_shap/                               # SHAP/EBM outputs (rankings, shape functions)
+  07_coaching/<player>/reviews.jsonl     # reviews LLM persistées (payload+review horodatés)
 ```
 ⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : c'est de la
 config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` reste ignoré.
@@ -272,6 +274,14 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     > ⚠️ **FLAW ASSUMÉ — transfert de rang.** Le rang d'une game = rang de collecte du joueur ciblé (dossier silver). On le transfère **aux deux ADC** en supposant un **MMR égal dans le lobby** (vrai en solo queue high-elo, matchmaking serré). L'ADC ennemi n'a donc pas son rang réel mesuré mais celui, approché, de la game. Acceptable pour un classif high/low ; à revoir si on descend en elo (écart de MMR intra-lobby plus large). Games collectées sous plusieurs rangs (lobby master∩GM) : rang résolu au **mode**, tie-break sur le rang le plus bas (ne pas gonfler high_elo aux frontières).
   - **`src/02_data_science/`** : `train_ensemble.py` pour séparer High-Elo vs Low-Elo via un **Ensemble à 3 biais inductifs distincts** (XGBoost=GBDT, Random Forest=bagging, EBM=GA²M glass-box). Le SHAP moyen porte sur les 2 arbres ; l'EBM (main effects + interactions par paires) sert de validateur indépendant et expose la structure par paires que l'additif pur rate.
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
+  - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
+    `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
+    COACHING_SAFE, profondeur `descriptive_only`), `prompt.py` (system asymétrie +
+    benchmark-relatif, FR), `schema.py` (Pydantic `Review` : 3 forces / 3 erreurs / 2
+    habitudes / 1 focus / confidence, **preuve chiffrée par point**), `llm_client.py`
+    (client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema,
+    défaut `deepseek-v4-pro`), `coach.py` (CLI : payload→prompt→client→validation→affiche+
+    persiste). Lancer : `python3 src/04_coaching/coach.py --player spadzze --scope adc`.
 - **Tests** : `tests/` (pytest), couvrent la dérivation déterministe + l'extraction comp +
   l'agrégation contextuelle. Lancer : `.venv/bin/python -m pytest tests/`.
 
@@ -309,7 +319,9 @@ reprocher une décision sur une info cachée.
 
 ### Prochaines étapes (Objectifs non atteints)
 
-1. **Brancher Ollama** (MCP `ask-ollama`, structured output) sur le diff perso↔référentiel. L'IA de synthèse finale manque encore à l'appel.
+1. ✅ **Ollama branché** (Phase 2 narration) — `src/04_coaching/` génère un compte-rendu
+   agrégé typé (Ollama Cloud, `deepseek-v4-pro`) depuis le diff perso↔référentiel, persisté
+   dans `data/07_coaching/`. À suivre : compte-rendu par-game + boucle d'éval (scoring d'utilité).
 2. **Benchmark Zeri** densifié (sampling champion ciblé) si la slice reste trop fine.
 3. Stabiliser et valider la **robustesse de l'approche ML/SHAP** (les features sont là, mais la qualité des prescriptions SHAP vs Heuristiques reste à valider).
 4. Poursuivre l'industrialisation : modèles Pydantic et flux consolidé.
