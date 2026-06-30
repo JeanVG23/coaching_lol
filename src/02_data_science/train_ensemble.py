@@ -115,7 +115,7 @@ def main(target: str = "high_elo") -> int:
     spec = TARGETS[target]
     df = pd.read_parquet(DATASET)
     train = df[(df["source"] == "referentiel") & df["rank"].isin(spec["ranks"])].copy()
-    X = train[FEATURES]
+    X = train.reindex(columns=FEATURES)   # colonnes pos_* absentes (silver non ré-extrait) -> NaN, pas KeyError
     y = train["rank"].isin(spec["pos"]).astype(int)
     print(f"  cible='{target}' | {len(train)} games référentiel | "
           f"pos={int(y.sum())} / neg={int((1-y).sum())}")

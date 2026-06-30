@@ -184,10 +184,13 @@ def test_positioning_features_returns_all_keys():
 
 
 def test_positioning_features_on_real_raw():
-    import sys, glob, os
+    import sys, glob, os, pytest
     sys.path.insert(0, "src")
     import riotlib as rl
-    mid = os.path.basename(glob.glob("data/01_raw/*_timeline.json.zst")[0])[:-len("_timeline.json.zst")]
+    files = glob.glob("data/01_raw/*_timeline.json.zst")
+    if not files:
+        pytest.skip("no raw timeline data available")
+    mid = os.path.basename(files[0])[:-len("_timeline.json.zst")]
     match = rl._read_raw(f"{mid}_match")
     tl = rl._read_raw(f"{mid}_timeline")
     parts = match["info"]["participants"]
@@ -199,10 +202,13 @@ def test_positioning_features_on_real_raw():
 
 
 def test_extract_game_includes_position():
-    import sys, glob, os
+    import sys, glob, os, pytest
     sys.path.insert(0, "src")
     import riotlib as rl
-    mid = os.path.basename(glob.glob("data/01_raw/*_timeline.json.zst")[0])[:-len("_timeline.json.zst")]
+    files = glob.glob("data/01_raw/*_timeline.json.zst")
+    if not files:
+        pytest.skip("no raw timeline data available")
+    mid = os.path.basename(files[0])[:-len("_timeline.json.zst")]
     match = rl._read_raw(f"{mid}_match")
     tl = rl._read_raw(f"{mid}_timeline")
     puuid = match["metadata"]["participants"][0]

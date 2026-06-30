@@ -143,7 +143,7 @@ def _ward_counts(timeline: dict, pid: int) -> dict:
             t = ev.get("type")
             if t == "WARD_PLACED" and ev.get("creatorId") == pid:
                 placed += 1
-                if round(ev["timestamp"] / 60000) < 14:
+                if round(ev["timestamp"] / 60000) < 14:   # early = avant la 14e min (warding 14:00 = déjà mid)
                     early += 1
                 if ev.get("wardType") == "CONTROL_WARD":
                     control += 1
