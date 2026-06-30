@@ -21,7 +21,7 @@ import riotlib as rl
 
 APEX = {"challenger", "grandmaster", "master"}
 ALL_RANKS = ["challenger", "grandmaster", "master", "diamond"]
-SCOPES = ["all", "adc", "zeri"]
+SCOPES = ["all", "adc", "zeri", "smolder", "jinx", "caitlyn", "ezreal", "aphelios", "kaisa"]
 
 
 def arg(flag: str, default=None):
@@ -73,22 +73,29 @@ def collect_rank(client: rl.RiotClient, rank: str, n_players: int,
     pool: list[dict] = []
     seen: set[str] = set()
     for i, puuid in enumerate(puuids, 1):
-        kept = 0
+        matches_kept = 0
+        perf_kept = 0
         for mid in client.match_ids(puuid, count=30, queue=rl.QUEUE_SOLO):
             if mid in seen:
                 continue
+            seen.add(mid)
             got = rl.get_match_timeline(client, mid)
             if not got:
                 continue
-            g = rl.extract_game(got[0], got[1], puuid, rank=rank)
-            if not g or g["patch"] != patch:
+                
+            if rl.patch_of(got[0]["info"].get("gameVersion", "")) != patch:
                 continue
-            seen.add(mid)
-            pool.append(g)
-            kept += 1
-            if kept >= n_games:
+                
+            games = rl.extract_all_games(got[0], got[1], rank=rank)
+            if not games:
+                continue
+                
+            pool.extend(games)
+            perf_kept += len(games)
+            matches_kept += 1
+            if matches_kept >= n_games:
                 break
-        print(f"  [{i}/{len(puuids)}] +{kept} games (pool={len(pool)})", file=sys.stderr)
+        print(f"  [{i}/{len(puuids)}] +{perf_kept} performances (pool={len(pool)})", file=sys.stderr)
     return pool
 
 
@@ -121,6 +128,20 @@ def main() -> int:
             return 1
     print(f"→ Patch cible : {patch}", file=sys.stderr)
 
+    # Check for patch mismatch before collecting
+    for rank in ranks:
+        sources_file = rl.SILVER_DIR / "referentiel" / rank / "sources.json"
+        if sources_file.exists():
+            try:
+                existing = json.loads(sources_file.read_text())
+                existing_patch = existing.get("patch")
+                if existing_patch and existing_patch != patch:
+                    print(f"✗ Erreur : Le patch détecté ({patch}) est différent du patch actuel en base ({existing_patch}).", file=sys.stderr)
+                    print("Veuillez d'abord archiver les données avec 'python src/archive_patch.py'.", file=sys.stderr)
+                    return 1
+            except json.JSONDecodeError:
+                pass
+
     for rank in ranks:
         pool = collect_rank(client, rank, n_players, n_games, patch)
         if not pool:
@@ -128,19 +149,28 @@ def main() -> int:
             continue
         # silver
         silver_base = rl.SILVER_DIR / "referentiel" / rank
-        rl.write_jsonl(silver_base / "games.jsonl", pool)
+        merged_pool = rl.merge_jsonl(silver_base / "games.jsonl", pool)
+        
+        existing_players = 0
+        if (silver_base / "sources.json").exists():
+            try:
+                existing_players = json.loads((silver_base / "sources.json").read_text()).get("n_players", 0)
+            except json.JSONDecodeError:
+                pass
+                
         (silver_base / "sources.json").write_text(json.dumps({
             "rank": rank, "patch": patch,
             "collected_at": time.strftime("%Y-%m-%d %H:%M"),
-            "n_players": n_players, "n_games": len(pool),
+            "n_players": existing_players + n_players, "n_games": len(merged_pool),
         }, indent=2))
+        
         # gold
         gold_base = rl.GOLD_DIR / "referentiel" / rank
-        rl.write_gold(gold_base, pool, SCOPES, rank=rank, patch=patch)
+        rl.write_gold(gold_base, merged_pool, SCOPES, rank=rank, patch=patch)
 
         # récap console
         for scope in SCOPES:
-            agg = rl.aggregate(pool, scope, rank=rank, patch=patch)
+            agg = rl.aggregate(merged_pool, scope, rank=rank, patch=patch)
             print(f"  {rank}/{scope:<4} : {agg['n_games']:>3} games, "
                   f"{agg['overall']['deaths_per_game']} morts/game, WR {agg['winrate']:.0%}")
 

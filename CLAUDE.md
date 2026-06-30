@@ -219,9 +219,12 @@ data/
   00_static/                             # données statiques versionnées (hors data/ ignoré)
     champion_traits.json                 # table curée (power_curve/lane_pattern/playstyle/gank_threat/roam)
     ddragon/<version>/championFull.json  # cache Data Dragon (attackrange/tags), figé par version
-  01_raw/                                # JSON API brut, immuable, cache partagé par matchId
+  01_raw/                                # JSON API brut compressé .json.zst (zstd), cache partagé par matchId
+                                          #   ~10 Go -> ~750 Mo (×13). Lecture/écriture transparentes via riotlib._read_raw/_write_raw
   02_silver/{referentiel/<rank>,personal/<player>}/games.jsonl   # 1 ligne = 1 game nettoyée (+ comp)
   03_gold/{referentiel/<rank>,personal/<player>}/<scope>/aggregate.json   # agrégats benchmarks
+  04_dataset/                            # Datasets consolidés (ex: adc_dataset.parquet)
+  05_model/                              # Modèles ML et outputs (ex: xgb_highelo.pkl, metrics)
 ```
 ⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : c'est de la
 config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` reste ignoré.
@@ -230,16 +233,21 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
 
 - **`src/riotlib.py`** — socle partagé : `RiotClient` (routing régional account/match vs
   plateforme league ; rate-limiter ~1.3s/appel), helpers (`approx_zone`, `phase_of`,
-  `patch_of`), `get_match_timeline` (cache raw), `extract_game` (silver, + benchmark de lane
-  + sous-objet `comp` des 6 champions botlane), `aggregate`/`write_gold` (gold, facettes
-  win/loss + dimension `by_lane_context`), chemins médaillon. Importe `champion_profiles`.
+  `patch_of`), `get_match_timeline` (cache raw **compressé zstd** via `_read_raw`/`_write_raw`,
+  lecture tolérante `.json.zst`→`.json.gz`→`.json` pour la migration), `extract_game` (silver,
+  + benchmark de lane + sous-objet `comp` des 6 champions botlane), `aggregate`/`write_gold`
+  (gold, facettes win/loss + dimension `by_lane_context`), chemins médaillon. Importe `champion_profiles`.
 - **`src/champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon +
   table curée, résolution casse-insensible), `derive_context(comp)` → 2 axes coarse
   `lane_pattern` (poke/all_in/scaling/mixed/unknown, du duo ennemi) et `gank_exposure`
   (low/med/high/unknown, jungler+mid ennemis atténués par ton jungler). `fetch_ddragon`
   (one-shot, idempotent). Dégradation propre : champion inconnu → `unknown`, jamais d'erreur.
 - **`src/reextract_silver.py`** — ré-extrait le silver depuis le raw caché (**0 appel API**) ;
-  à relancer après toute évolution d'`extract_game` (ex. ajout du `comp`).
+  à relancer après toute évolution d'`extract_game` (ex. ajout du `comp`). Lit le raw
+  compressé via `riotlib._read_raw`.
+- **`src/compress_raw.py`** — migration one-shot : compresse `01_raw/*.json` en `.json.zst`
+  (zstd, vérification roundtrip avant suppression de l'original). Idempotent. `--dry-run`
+  pour estimer. À relancer si du raw non compressé réapparaît.
 - **`src/list_unknown_champions.py`** — scanner : champions du silver absents de la table
   curée, triés par fréquence (pour compléter `champion_traits.json` au fil de l'eau).
 - **`src/phase1_pull.py`** — spike : détail visuel d'UNE game (déplacements/minute + morts).
@@ -249,6 +257,11 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
 - **`src/compare.py`** — livrable coaching : slice perso vs référentiels, à issue égale.
   Section **benchmark conditionné** par contexte de lane (`context_benchmark`, seuil de
   repli `MIN_CONTEXT_N=8` loggué, `unknown` exclu du bucket dominant).
+- **Pipeline ML (en cours de structuration)** :
+  - **`src/01_data_engineering/`** : `build_dataset.py` consolide en table de features tabulaire ML-ready (Parquet). **1 ligne = 1 ADC d'une game.** Le référentiel ré-extrait **les DEUX ADC de chaque game depuis le raw** (0 API) — le silver ne stocke qu'un joueur ciblé par game, donc s'y limiter ne récupérait l'ADC que des games où le ciblé était ADC (~3 088 rows). En relisant le raw (10 joueurs présents), on densifie à ~games×2 (≈ 7 873 rows sur le patch courant). Le perso (Spadzze) garde sa propre perspective ADC (inférence).
+    > ⚠️ **FLAW ASSUMÉ — transfert de rang.** Le rang d'une game = rang de collecte du joueur ciblé (dossier silver). On le transfère **aux deux ADC** en supposant un **MMR égal dans le lobby** (vrai en solo queue high-elo, matchmaking serré). L'ADC ennemi n'a donc pas son rang réel mesuré mais celui, approché, de la game. Acceptable pour un classif high/low ; à revoir si on descend en elo (écart de MMR intra-lobby plus large). Games collectées sous plusieurs rangs (lobby master∩GM) : rang résolu au **mode**, tie-break sur le rang le plus bas (ne pas gonfler high_elo aux frontières).
+  - **`src/02_data_science/`** : `train_ensemble.py` pour séparer High-Elo vs Low-Elo via un **Ensemble à 3 biais inductifs distincts** (XGBoost=GBDT, Random Forest=bagging, EBM=GA²M glass-box). Le SHAP moyen porte sur les 2 arbres ; l'EBM (main effects + interactions par paires) sert de validateur indépendant et expose la structure par paires que l'additif pur rate.
+  - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
 - **Tests** : `tests/` (pytest), couvrent la dérivation déterministe + l'extraction comp +
   l'agrégation contextuelle. Lancer : `.venv/bin/python -m pytest tests/`.
 
@@ -270,19 +283,19 @@ reprocher une décision sur une info cachée.
   « 1 ennemi = 5/8 de tes morts » >> « meurs moins ».
 - **Phase 1.5 — agrégation multi-games** ✅ — pattern récurrent confirmé sur 14-20 games :
   ~37% des morts ADC = BOT en early game ; l'ennemi ADC signe ~45% des morts.
-- **Phase 1.6 — référentiels multi-rangs** 🚧 — **Challenger collecté** (341 games / 83 ADC,
-  patch 16.13) avec features lane. Reste diamond/master/GM. `compare.py` opérationnel.
+- **Phase 1.6 — référentiels multi-rangs** ✅ — **Collecte globale effectuée** (~4454 games / patch 16.13) couvrant Diamond, Master, Grandmaster et Challenger avec features lane (tâche de fond de 5000 games partiellement atteinte, mais suffisante). `compare.py` et benchmarks contextuels intégrés.
+- **Phase 1.7 — Machine Learning & SHAP** 🚧 — Début de l'industrialisation Data Science. Pipeline découpé en médaillon (`01_data_engineering`, `02_data_science`, `03_data_analyse`). Modèles de classif High-Elo vs Low-Elo (Ensemble **XGBoost / Random Forest / EBM**, 3 biais inductifs) avec extraction d'insights SHAP + cross-check EBM. **Dataset densifié** : extraction des deux ADC par game depuis le raw → ~7 873 rows (patch courant), vs 3 088 quand on se limitait à la perspective collectée.
 - **Premier verdict ADC** : laning = LE levier (≈ -10 à -16 CS @14 vs challenger, *toutes*
   issues) ; mauvaise gestion du retard (gold@20 en lose -1252 vs -322) ; morts = symptôme.
 - Clé **dev** (throttle ~100 req/2min, attentes 429 si saturé) → rate-limiter intégré.
   `.env` (clé `RIOT_API_ID` ; pas de `RIOT_REGION` → passer `--region euw1`), `data/` ignoré.
 
-### Prochaines étapes
+### Prochaines étapes (Objectifs non atteints)
 
-1. Enrichir les **features** de morts (gold/level diff à la mort, solo vs teamfight).
-2. Brancher **Ollama** (MCP `ask-ollama`, structured output) sur le diff perso↔référentiel.
-3. **Benchmark Zeri** densifié (sampling champion ciblé) si la slice reste trop fine.
-4. Industrialiser : DuckDB/Parquet sur le gold, modèles Pydantic.
+1. **Brancher Ollama** (MCP `ask-ollama`, structured output) sur le diff perso↔référentiel. L'IA de synthèse finale manque encore à l'appel.
+2. **Benchmark Zeri** densifié (sampling champion ciblé) si la slice reste trop fine.
+3. Stabiliser et valider la **robustesse de l'approche ML/SHAP** (les features sont là, mais la qualité des prescriptions SHAP vs Heuristiques reste à valider).
+4. Poursuivre l'industrialisation : modèles Pydantic et flux consolidé.
 5. Phase 2 (CV / Live Client) seulement si le coach démontre sa valeur.
 
 ## Notes de développement

@@ -1,0 +1,11 @@
+--- src/03_data_analyse/plotter.py
++++ src/03_data_analyse/plotter.py
+@@ -470,8 +470,0 @@
+-            f"{'Variable (Code)':<35} | {'Signification (Français)':<65} | {'Impact_Force':<12} | {'Diagnostic IA'}"
+-        )
+-
+-        f.write("-" * 150 + "\n")
+-        f.write(header + "\n")
+-        f.write("-" * 150 + "\n")
+-
+-        current_cat = None

@@ -18,7 +18,7 @@ import sys
 
 import riotlib as rl
 
-SCOPES = ["all", "adc", "zeri"]
+SCOPES = ["all", "adc", "zeri", "smolder", "jinx", "caitlyn", "ezreal", "aphelios", "kaisa"]
 
 
 def arg(flag: str, default=None):
@@ -33,6 +33,8 @@ def main() -> int:
     platform = (pos[1] if len(pos) > 1 else env.get("RIOT_REGION", "")).lower()
     n = int(arg("-n", 20))
     role_filter = (arg("--role") or "").upper() or None
+    queue_arg = (arg("--queue") or "solo").lower()
+    queue_id = rl.QUEUE_FLEX if queue_arg == "flex" else rl.QUEUE_SOLO
 
     if not (api_key and riot_id and "#" in riot_id):
         print("✗ RIOT_API_ID + Riot ID requis.", file=sys.stderr)
@@ -52,9 +54,9 @@ def main() -> int:
         print("✗ Riot ID introuvable.", file=sys.stderr)
         return 1
 
-    print(f"→ {n} dernières games ranked…")
+    print(f"→ {n} dernières games ({queue_arg})…")
     games = []
-    for mid in client.match_ids(puuid, count=n, queue=rl.QUEUE_SOLO):
+    for mid in client.match_ids(puuid, count=n, queue=queue_id):
         got = rl.get_match_timeline(client, mid)
         if not got:
             continue
@@ -67,15 +69,15 @@ def main() -> int:
         return 1
 
     # silver
-    rl.write_jsonl(rl.SILVER_DIR / "personal" / player / "games.jsonl", games)
+    merged_games = rl.merge_jsonl(rl.SILVER_DIR / "personal" / player / "games.jsonl", games)
     # gold
     gold_base = rl.GOLD_DIR / "personal" / player
-    rl.write_gold(gold_base, games, SCOPES, player=player)
+    rl.write_gold(gold_base, merged_games, SCOPES, player=player)
 
     # récap console (scope dominant = le rôle principal joué)
-    roles = collections.Counter(g["role"] for g in games)
-    champs = collections.Counter(g["champion"] for g in games)
-    agg_all = rl.aggregate(games, "all", player=player)
+    roles = collections.Counter(g["role"] for g in merged_games)
+    champs = collections.Counter(g["champion"] for g in merged_games)
+    agg_all = rl.aggregate(merged_games, "all", player=player)
     print("\n" + "=" * 60)
     print(f"  {player.upper()} — {agg_all['n_games']} games  |  "
           f"WR {agg_all['winrate']:.0%}  |  {agg_all['overall']['deaths_per_game']} morts/game")
@@ -83,7 +85,7 @@ def main() -> int:
     print(f"  Champions : {dict(champs.most_common(5))}")
     print("=" * 60)
     for scope in SCOPES:
-        a = rl.aggregate(games, scope, player=player)
+        a = rl.aggregate(merged_games, scope, player=player)
         f = a["overall"]
         if a["n_games"]:
             top = sorted(f["by_zone_phase"].items(), key=lambda x: -x[1])[:3]

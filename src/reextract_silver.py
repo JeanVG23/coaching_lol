@@ -1,12 +1,12 @@
 """Ré-extrait le silver depuis le raw caché — 0 appel API.
 
 À lancer après toute évolution de extract_game (ici : ajout de comp). Lit les
-fichiers raw (data/01_raw/<matchId>_match.json + _timeline.json) pour chaque
-(match_id, puuid) déjà présent dans le silver, rejoue extract_game, réécrit.
+fichiers raw (data/01_raw/<matchId>_match(.json.zst) + _timeline(.json.zst))
+pour chaque (match_id, puuid) déjà présent dans le silver, rejoue extract_game,
+réécrit. La lecture passe par rl._read_raw (transparent : .json.zst/.json.gz/.json).
 """
 from __future__ import annotations
 
-import json
 import sys
 
 import riotlib as rl
@@ -17,14 +17,15 @@ def reextract_one(match: dict, timeline: dict, puuid: str, rank):
 
 
 def _load_raw(match_id: str):
-    m = rl.RAW_DIR / f"{match_id}_match.json"
-    t = rl.RAW_DIR / f"{match_id}_timeline.json"
-    if not m.exists() or not t.exists():
-        return None
     try:
-        return json.loads(m.read_text()), json.loads(t.read_text())
-    except json.JSONDecodeError:
+        match = rl._read_raw(f"{match_id}_match")
+        timeline = rl._read_raw(f"{match_id}_timeline")
+    except Exception as e:  # raw corrompu / illisible -> traité comme manquant
+        print(f"  ⚠ raw illisible {match_id}: {e}", file=sys.stderr)
         return None
+    if match is None or timeline is None:
+        return None
+    return match, timeline
 
 
 def _reextract_dir(d, rank):

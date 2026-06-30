@@ -14,7 +14,7 @@ import sys
 
 import riotlib as rl
 
-SCOPES = ["all", "adc", "zeri"]
+SCOPES = ["all", "adc", "zeri", "smolder", "jinx", "caitlyn", "ezreal", "aphelios", "kaisa"]
 
 
 def patch_of_pool(games: list[dict]) -> str:

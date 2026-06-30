@@ -9,12 +9,14 @@ Importé par phase1_pull, aggregate_games, build_referential, compare.
 from __future__ import annotations
 
 import collections
+import gzip
 import json
 import sys
 import time
 from pathlib import Path
 
 import requests
+import zstandard as zstd
 
 import champion_profiles as cp
 
@@ -23,15 +25,21 @@ import champion_profiles as cp
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 # Couches médaillon numérotées pour matérialiser l'ordre du pipeline.
-RAW_DIR = DATA / "01_raw"       # JSON API brut, immuable, partagé
+RAW_DIR = DATA / "01_raw"       # JSON API brut, immuable, partagé (compressé .json.zst)
 SILVER_DIR = DATA / "02_silver" # 1 ligne JSONL = 1 game nettoyée
 GOLD_DIR = DATA / "03_gold"     # agrégats prêts conso (benchmarks)
+
+# Niveau de compression zstd du cache raw : 6 = bon ratio + rapide (les timelines
+# JSON sont très répétitives, le gain vient surtout de la compression elle-même).
+ZSTD_LEVEL = 6
+_RAW_EXTS = (".json.zst", ".json.gz", ".json")  # ordre de recherche à la lecture
 
 # ----------------------------------------------------------------- constantes
 MAP_W, MAP_H = 14870, 14980     # dimensions de la Faille de l'invocateur
 SR_MAP_ID = 11                  # Summoner's Rift (12 = ARAM, etc.)
 RANKED_SOLO = "RANKED_SOLO_5x5"
 QUEUE_SOLO = 420                # ranked solo/duo
+QUEUE_FLEX = 440                # ranked flex
 
 PHASES = [("early", 0, 14), ("mid", 15, 24), ("late", 25, 999)]
 
@@ -119,6 +127,10 @@ class RiotClient:
                 continue
             if r.status_code == 404:
                 return None
+            if r.status_code in (500, 502, 503, 504):
+                print(f"  Erreur serveur {r.status_code}, nouvelle tentative dans 5s...", file=sys.stderr)
+                time.sleep(5)
+                continue
             r.raise_for_status()
             return r.json()
         raise RuntimeError(f"Échec après retries: {url}")
@@ -159,12 +171,37 @@ class RiotClient:
 
 
 # ----------------------------------------------------------- raw (cache brut)
+# Le cache raw est compressé en zstd (.json.zst) pour gagner ~8× de stockage.
+# La lecture est tolérante : elle cherche .json.zst, puis .json.gz, puis .json
+# brut, de façon à rester lisible pendant/après la migration des fichiers existants.
+def _read_raw(base: str) -> dict | None:
+    """Lit un document raw par son préfixe (ex: '<matchId>_match')."""
+    for ext in _RAW_EXTS:
+        p = RAW_DIR / (base + ext)
+        if not p.exists():
+            continue
+        data = p.read_bytes()
+        if ext == ".json.zst":
+            data = zstd.ZstdDecompressor().decompress(data)
+        elif ext == ".json.gz":
+            data = gzip.decompress(data)
+        return json.loads(data)
+    return None
+
+
+def _write_raw(base: str, obj: dict) -> None:
+    """Écrit un document raw compressé en zstd (.json.zst)."""
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    p = RAW_DIR / (base + ".json.zst")
+    p.write_bytes(zstd.ZstdCompressor(level=ZSTD_LEVEL).compress(json.dumps(obj).encode()))
+
+
 def get_match_timeline(client: RiotClient, match_id: str) -> tuple[dict, dict] | None:
     """Charge (match, timeline) depuis raw/ si présents, sinon fetch et cache."""
-    mp = RAW_DIR / f"{match_id}_match.json"
-    tp = RAW_DIR / f"{match_id}_timeline.json"
-    if mp.exists() and tp.exists():
-        return json.loads(mp.read_text()), json.loads(tp.read_text())
+    match = _read_raw(f"{match_id}_match")
+    timeline = _read_raw(f"{match_id}_timeline")
+    if match is not None and timeline is not None:
+        return match, timeline
     try:
         match = client.match(match_id)
         timeline = client.timeline(match_id)
@@ -173,14 +210,13 @@ def get_match_timeline(client: RiotClient, match_id: str) -> tuple[dict, dict] |
         return None
     if not match or not timeline:
         return None
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    mp.write_text(json.dumps(match))
-    tp.write_text(json.dumps(timeline))
+    _write_raw(f"{match_id}_match", match)
+    _write_raw(f"{match_id}_timeline", timeline)
     return match, timeline
 
 
 # ---------------------------------------------------------- silver (1 game)
-LANE_KEYS = ["gd10", "gd14", "gd20", "csd10", "csd14", "xpd10"]  # diffs vs adversaire de lane
+LANE_KEYS = ["gd10", "gd14", "gd20", "csd10", "csd14", "xpd10", "csm10", "csm14", "gpm10", "gpm14", "xppm10"]  # diffs + absolus
 
 
 def _cs(pf: dict) -> int:
@@ -220,11 +256,23 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     pid_role = {i + 1: p.get("teamPosition") or "?" for i, p in enumerate(parts)}
     pid_champ = {i + 1: p["championName"] for i, p in enumerate(parts)}
 
-    # Adversaire de lane = ennemi de même teamPosition
     my_role, my_team = me.get("teamPosition") or "", me["teamId"]
+    enemy_team = 100 if my_team == 200 else 200
     opp_pid = next((i + 1 for i, p in enumerate(parts)
                     if p["teamId"] != my_team and (p.get("teamPosition") or "") == my_role
                     and my_role), None)
+    
+    enemy_jungle_pid = next((i + 1 for i, p in enumerate(parts)
+                             if p["teamId"] != my_team and p.get("teamPosition") == "JUNGLE"), None)
+                             
+    support_pid = next((i + 1 for i, p in enumerate(parts)
+                        if p["teamId"] == my_team and p.get("teamPosition") == "UTILITY"), None)
+                        
+    enemy_adc_pid = next((i + 1 for i, p in enumerate(parts)
+                          if p["teamId"] != my_team and p.get("teamPosition") == "BOTTOM"), None)
+    enemy_supp_pid = next((i + 1 for i, p in enumerate(parts)
+                           if p["teamId"] != my_team and p.get("teamPosition") == "UTILITY"), None)
+    enemy_bot_pids = {enemy_adc_pid, enemy_supp_pid} - {None}
 
     my_fr = _frames_by_minute(timeline, participant_id)
     opp_fr = _frames_by_minute(timeline, opp_pid) if opp_pid else {}
@@ -239,6 +287,11 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "csd10": (_cs(my_fr[10]) - _cs(opp_fr[10])) if 10 in my_fr and 10 in opp_fr else None,
         "csd14": (_cs(my_fr[14]) - _cs(opp_fr[14])) if 14 in my_fr and 14 in opp_fr else None,
         "xpd10": (my_fr[10].get("xp", 0) - opp_fr[10].get("xp", 0)) if 10 in my_fr and 10 in opp_fr else None,
+        "csm10": _cs(my_fr[10]) / 10.0 if 10 in my_fr else None,
+        "csm14": _cs(my_fr[14]) / 14.0 if 14 in my_fr else None,
+        "gpm10": my_fr[10].get("totalGold", 0) / 10.0 if 10 in my_fr else None,
+        "gpm14": my_fr[14].get("totalGold", 0) / 14.0 if 14 in my_fr else None,
+        "xppm10": my_fr[10].get("xp", 0) / 10.0 if 10 in my_fr else None,
     }
     if opp_pid:
         lane["opponent"] = pid_champ[opp_pid]
@@ -250,20 +303,86 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         return None
 
     deaths = []
+    kills = []
+    assists = []
+    support_deaths = []
+    dragon_distances = []
+    my_plates = 0
+    enemy_plates = 0
+    frames_in_base = 0
+    
     for frame in timeline["info"]["frames"]:
+        minute = round(frame["timestamp"] / 60000)
+        
+        if minute < 14:
+            p_frame = frame["participantFrames"].get(str(participant_id))
+            if p_frame and "position" in p_frame:
+                px, py = p_frame["position"].get("x"), p_frame["position"].get("y")
+                if px is not None and py is not None:
+                    if my_team == 100 and px < 3500 and py < 3500:
+                        frames_in_base += 1
+                    elif my_team == 200 and px > 11300 and py > 11300:
+                        frames_in_base += 1
+                        
         for ev in frame.get("events", []):
-            if ev.get("type") == "CHAMPION_KILL" and ev.get("victimId") == participant_id:
-                pos = ev.get("position", {})
-                minute = round(ev["timestamp"] / 60000)
+            if ev.get("type") == "CHAMPION_KILL":
+                ev_minute = round(ev["timestamp"] / 60000)
                 kpid = ev.get("killerId")
-                deaths.append({
-                    "minute": minute,
-                    "phase": phase_of(minute),
-                    "zone": approx_zone(pos.get("x", 0), pos.get("y", 0)),
-                    "killer_role": pid_role.get(kpid, "?"),
-                    "killer_champ": pid_champ.get(kpid, "?"),
-                    "gold_state": gold_state_at(minute),
-                })
+                assisters = ev.get("assistingParticipantIds", [])
+                involved = {kpid}.union(set(assisters)) - {None}
+                
+                if ev.get("victimId") == participant_id:
+                    pos = ev.get("position", {})
+                    is_2v2 = len(involved) > 0 and involved.issubset(enemy_bot_pids)
+                    
+                    deaths.append({
+                        "minute": ev_minute,
+                        "phase": phase_of(ev_minute),
+                        "zone": approx_zone(pos.get("x", 0), pos.get("y", 0)),
+                        "killer_role": pid_role.get(kpid, "?"),
+                        "killer_champ": pid_champ.get(kpid, "?"),
+                        "gold_state": gold_state_at(ev_minute),
+                        "is_solo": len(assisters) == 0,
+                        "is_ganked_by_jungle": (enemy_jungle_pid is not None) and (enemy_jungle_pid in involved),
+                        "is_2v2": is_2v2,
+                    })
+                elif ev.get("victimId") == support_pid:
+                    support_deaths.append(ev_minute)
+                
+                if kpid == participant_id:
+                    my_bot_pids = {participant_id, support_pid} - {None}
+                    is_kill_2v2 = len(involved) > 0 and involved.issubset(my_bot_pids) and ev.get("victimId") in enemy_bot_pids
+                    kills.append({
+                        "minute": ev_minute,
+                        "phase": phase_of(ev_minute),
+                        "is_solo": len(assisters) == 0,
+                        "is_2v2": is_kill_2v2,
+                    })
+                elif participant_id in assisters:
+                    my_bot_pids = {participant_id, support_pid} - {None}
+                    is_assist_2v2 = len(involved) > 0 and involved.issubset(my_bot_pids) and ev.get("victimId") in enemy_bot_pids
+                    assists.append({
+                        "minute": ev_minute,
+                        "phase": phase_of(ev_minute),
+                        "is_2v2": is_assist_2v2,
+                    })
+            elif ev.get("type") == "ELITE_MONSTER_KILL" and ev.get("monsterType") == "DRAGON":
+                minute_before = max(0, round((ev["timestamp"] - 60000) / 60000))
+                p_frame = my_fr.get(minute_before)
+                if p_frame and "position" in p_frame and "position" in ev:
+                    px, py = p_frame["position"].get("x"), p_frame["position"].get("y")
+                    mx, my = ev["position"].get("x"), ev["position"].get("y")
+                    if px is not None and py is not None and mx is not None and my is not None:
+                        dragon_distances.append(((px - mx)**2 + (py - my)**2)**0.5)
+            elif ev.get("type") == "TURRET_PLATE_DESTROYED" and ev.get("laneType") == "BOT_LANE":
+                ev_minute = round(ev["timestamp"] / 60000)
+                if ev_minute < 14:
+                    if ev.get("teamId") == enemy_team:
+                        my_plates += 1
+                    elif ev.get("teamId") == my_team:
+                        enemy_plates += 1
+
+    avg_dragon_prox = round(sum(dragon_distances) / len(dragon_distances)) if dragon_distances else None
 
     def champ_at(team_is_mine: bool, role: str) -> str | None:
         for i, p in enumerate(parts):
@@ -294,7 +413,25 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "lane": lane,
         "comp": comp,
         "deaths": deaths,
+        "kills": kills,
+        "assists": assists,
+        "support_deaths_early": sum(1 for m in support_deaths if m < 14),
+        "plates_diff_early": my_plates - enemy_plates,
+        "frames_in_base_early": frames_in_base,
+        "avg_dragon_prox": avg_dragon_prox,
     }
+
+
+def extract_all_games(match: dict, timeline: dict, rank: str | None = None) -> list[dict]:
+    """Extrait les statistiques pour les 10 joueurs de la partie."""
+    meta = match.get("metadata", {})
+    puuids = meta.get("participants", [])
+    results = []
+    for p in puuids:
+        g = extract_game(match, timeline, p, rank)
+        if g:
+            results.append(g)
+    return results
 
 
 # ------------------------------------------------------------- gold (agrégat)
@@ -396,6 +533,20 @@ def read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def merge_jsonl(path: Path, new_rows: list[dict]) -> list[dict]:
+    """Lit l'existant, fusionne en ignorant les doublons (match_id, puuid), et sauvegarde."""
+    existing = read_jsonl(path)
+    seen = {(r.get("match_id"), r.get("puuid")) for r in existing}
+    merged = existing[:]
+    for r in new_rows:
+        key = (r.get("match_id"), r.get("puuid"))
+        if key not in seen:
+            merged.append(r)
+            seen.add(key)
+    write_jsonl(path, merged)
+    return merged
 
 
 def write_gold(base: Path, games: list[dict], scopes: list[str], **labels) -> None:
