@@ -88,8 +88,13 @@ def main() -> int:
     ap.add_argument("--scope", default="adc")
     ap.add_argument("--outcome", default="loss", choices=["overall", "win", "loss"])
     ap.add_argument("--target", default="challenger")
-    ap.add_argument("--model", default=os.environ.get("OLLAMA_MODEL", DEFAULT_MODEL))
+    ap.add_argument("--model", default=None)
     args = ap.parse_args()
+    # Résolution modèle : --model CLI > OLLAMA_MODEL (shell env) > .env > défaut.
+    # load_env() ne peuple pas os.environ, donc on lit .env explicitement ici.
+    if args.model is None:
+        args.model = (os.environ.get("OLLAMA_MODEL")
+                      or rl.load_env().get("OLLAMA_MODEL", DEFAULT_MODEL))
 
     ts = datetime.now().isoformat(timespec="seconds")
     try:

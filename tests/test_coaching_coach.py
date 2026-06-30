@@ -48,3 +48,23 @@ def test_persist_appends_jsonl(tmp_path):
 def test_render_text_is_french_and_has_sections():
     txt = C.render_text(S.Review.model_validate(_review_dict()))
     assert "Forces" in txt and "Erreurs" in txt and "Focus" in txt
+
+
+def test_main_model_from_dotenv_when_no_flag(monkeypatch, tmp_path):
+    """Sans --model ni OLLAMA_MODEL shell, le modèle vient du .env (load_env)."""
+    monkeypatch.setattr(C.sys, "argv", ["coach.py", "--player", "x", "--scope", "adc"])
+    monkeypatch.delenv("OLLAMA_MODEL", raising=False)
+    monkeypatch.setattr(C.rl, "load_env", lambda: {"OLLAMA_MODEL": "glm-5.2"})
+    monkeypatch.setattr(C.payload_mod, "build",
+                        lambda *a, **k: {"meta": {"scope": "adc", "target": "challenger",
+                                                  "outcome_focus": "loss", "n_games_me": 1}})
+    used = {}
+
+    def fake_gen(model, system, user, sch):
+        used["model"] = model
+        return _review_dict()
+
+    monkeypatch.setattr(C.llm_client, "generate_json", fake_gen)
+    monkeypatch.setattr(C, "persist", lambda *a, **k: tmp_path / "reviews.jsonl")
+    assert C.main() == 0
+    assert used["model"] == "glm-5.2"             # .env honored, pas le défaut deepseek

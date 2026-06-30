@@ -43,15 +43,22 @@ def generate_json(model: str, system: str, user: str, schema: dict,
             r = requests.post(OLLAMA_URL, json=body, headers=headers, timeout=timeout)
         except requests.exceptions.RequestException as e:
             last = e
-            time.sleep(2 * (attempt + 1))
+            if attempt < _MAX_ATTEMPTS - 1:
+                time.sleep(2 * (attempt + 1))
             continue
-        if r.status_code == 401:
+        code = r.status_code
+        if code == 401:
             raise LLMError("401 — vérifie OLLAMA_API_KEY")
-        if r.status_code == 429 or r.status_code >= 500:
-            last = LLMError(f"HTTP {r.status_code}")
-            time.sleep(2 * (attempt + 1))
+        if code == 429 or code >= 500:
+            last = LLMError(f"HTTP {code}")
+            if attempt < _MAX_ATTEMPTS - 1:
+                time.sleep(2 * (attempt + 1))
             continue
-        r.raise_for_status()
-        content = r.json()["message"]["content"]
-        return json.loads(content)
+        if code >= 400:
+            raise LLMError(f"HTTP {code} — requête rejetée par Ollama")
+        try:
+            content = r.json()["message"]["content"]
+            return json.loads(content)
+        except (ValueError, KeyError, TypeError) as e:
+            raise LLMError(f"réponse Ollama inexploitable : {e}")
     raise LLMError(f"échec après {_MAX_ATTEMPTS} tentatives : {last}")
