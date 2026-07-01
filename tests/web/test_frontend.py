@@ -66,6 +66,7 @@ def test_home_page_wired():
     body = _client().get("/").text
     js = _client().get("/static/app.js").text
     assert "function homePage()" in js
-    # le template home itère sur les comptes du scope parent
-    assert 'x-for="a in accounts"' in body
     assert "/api/accounts" in js
+    # marqueurs propres au template home (absents de la nav switcher F1)
+    assert 'class="accounts-grid"' in body
+    assert 'class="account-card"' in body
