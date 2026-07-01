@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>coaching_lol</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>coaching_lol</h1>
+    <p class="subtitle">Coach IA personnel — League of Legends</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Statut du serveur</h2>
+      <p id="status">Connexion au backend…</p>
+    </section>
+
+    <section class="card muted">
+      <h2>À venir</h2>
+      <ul>
+        <li>Gérer plusieurs comptes de coaching</li>
+        <li>Fetcher les dernières games (Riot API)</li>
+        <li>Générer le coaching (LLM)</li>
+        <li>Donner du feedback sur les conseils</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Infrastructure en place — backend FastAPI + frontend statique sur Fly.io.</p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

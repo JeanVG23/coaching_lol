@@ -1,0 +1,25 @@
+# coaching_lol — config Fly.io.
+# Un seul process : backend FastAPI qui sert aussi le frontend statique.
+# Remplace `app` par le nom de TON app Fly (`fly apps create <nom>` ou via la UI).
+app = "coaching-lol"
+primary_region = "cdg"   # Paris ; mets "ams" si tu préfères Amsterdam
+
+[build]
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Outil perso : on laisse la machine s'éteindre entre les usages (économise du temps Fly).
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[http_service.concurrency]
+  type = "requests"
+  soft_limit = 100
+  hard_limit = 250
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
