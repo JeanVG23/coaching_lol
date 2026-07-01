@@ -31,7 +31,34 @@
 
   <main class="container">
     <template x-if="route.name === 'home'">
-      <div x-data="homePage()" x-init="init()"></div>
+      <div x-data="homePage()" x-init="init()">
+        <h1 style="font-size:28px;margin-bottom:4px">Comptes de coaching</h1>
+        <p class="muted" style="margin:0 0 22px">Sélectionnez un compte pour voir son historique, son coaching et son profil ML.</p>
+
+        <template x-if="accountsLoading">
+          <div class="state">Chargement des comptes…</div>
+        </template>
+
+        <template x-if="!accountsLoading && accounts.length === 0">
+          <div class="state">Aucun compte configuré.</div>
+        </template>
+
+        <template x-if="!accountsLoading && accounts.length > 0">
+          <div class="accounts-grid">
+            <template x-for="a in accounts" :key="a.slug">
+              <a class="account-card" :href="'/c/' + a.slug"
+                 @click.prevent="go('/c/' + a.slug)">
+                <div class="ac-slug" x-text="a.slug"></div>
+                <div class="ac-riot faint" x-text="a.riot_id"></div>
+                <div class="ac-stats row">
+                  <span class="num"><span x-text="a.games_count"></span> games</span>
+                  <span class="faint" x-text="a.last_review_ts ? ('· review ' + a.last_review_ts.slice(0,10)) : '· pas de review'"></span>
+                </div>
+              </a>
+            </template>
+          </div>
+        </template>
+      </div>
     </template>
     <template x-if="route.name === 'account'">
       <div x-data="accountPage(route.slug)" x-init="init()"></div>

@@ -60,3 +60,12 @@ def test_app_js_has_router_and_helpers():
     assert "function api(" in js
     assert "function pollJob(" in js
     assert "location.pathname" in js
+
+
+def test_home_page_wired():
+    body = _client().get("/").text
+    js = _client().get("/static/app.js").text
+    assert "function homePage()" in js
+    # le template home itère sur les comptes du scope parent
+    assert 'x-for="a in accounts"' in body
+    assert "/api/accounts" in js

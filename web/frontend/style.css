@@ -112,3 +112,16 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
 
 /* utilities cachées par Alpine s'affichent sans flash */
 [x-cloak] { display:none !important; }
+/* --- home: accounts grid --- */
+.accounts-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px;
+}
+.account-card {
+  display:block; background:var(--panel); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px 18px; color:var(--text);
+  transition:border-color 150ms;
+}
+.account-card:hover { border-color:var(--gold); text-decoration:none; }
+.ac-slug { font-size:16px; font-weight:600; color:var(--text); }
+.ac-riot { font-size:12px; margin:2px 0 10px; }
+.ac-stats { font-size:13px; color:var(--text-dim); }

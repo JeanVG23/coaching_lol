@@ -68,6 +68,13 @@ function app() {
 }
 
 // Placeholder components — remplis par les tâches suivantes.
-function homePage()    { return { init() {} }; }
+function homePage() {
+  return {
+    init() {
+      // Les comptes sont chargés par le store app() parent (GET /api/accounts).
+      // Pas de fetch ici — on consomme `accounts` via le scope hérité dans le HTML.
+    },
+  };
+}
 function accountPage() { return { init() {} }; }
 function readmePage()  { return { init() {} }; }
