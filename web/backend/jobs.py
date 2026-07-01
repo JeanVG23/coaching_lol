@@ -7,6 +7,8 @@ L'état est persisté dans data/08_jobs/jobs.jsonl (survit aux redémarrages).
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -37,8 +39,17 @@ class JobStore:
         return [json.loads(l) for l in self.path.read_text().splitlines() if l.strip()]
 
     def _write(self, jobs: list[dict]) -> None:
-        self.path.write_text("".join(json.dumps(j, ensure_ascii=False) + "\n"
-                                    for j in jobs))
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        content = "".join(json.dumps(j, ensure_ascii=False) + "\n" for j in jobs)
+        fd, tmp = tempfile.mkstemp(dir=self.path.parent, prefix=".jobs_", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(content)
+            os.replace(tmp, self.path)
+        except Exception:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            raise
 
     def create(self, type: str, slug: str) -> dict:
         job = {"id": uuid.uuid4().hex, "type": type, "slug": slug,
