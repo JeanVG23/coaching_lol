@@ -91,3 +91,12 @@ def test_coaching_tab_wired():
     assert "/api/feedback" in js
     assert "NEG_TAGS" in js
     assert "insight-card" in body or "evidence-chip" in body
+
+
+def test_feedback_sends_full_map():
+    """Régression F4 : submitFb doit envoyer la fbMap complète (le backend
+    écrase la ligne par ts — un envoi par insight perdait les notations précédentes)."""
+    js = _client().get("/static/app.js").text
+    assert "Object.entries(newMap)" in js
+    # l'ancien pattern mono-insight ne doit plus être présent
+    assert "responses = { [key]" not in js

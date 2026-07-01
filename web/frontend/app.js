@@ -196,15 +196,25 @@ function accountPage(slug) {
     async submitFb(kind, index, { useful, tag = null, note = null }) {
       if (!this.review) return;
       const key = this.fbKey(kind, index);
+      const entry = tag ? { useful, tag, note } : { useful, note };
+      // Le backend persist_feedback écrase toute la ligne pour ce ts
+      // (1 ligne/review = l'ensemble annoté, comme le flow CLI annotate).
+      // On envoie donc la map complète à chaque POST pour ne pas perdre
+      // les insights déjà notés.
+      const newMap = { ...this.fbMap, [key]: entry };
       this.fbBusy = { ...this.fbBusy, [key]: true };
-      const responses = { [key]: tag ? { useful, tag, note } : { useful, note } };
+      const responses = {};
+      for (const [k, v] of Object.entries(newMap)) {
+        responses[k] = v.tag ? { useful: v.useful, tag: v.tag, note: v.note }
+                             : { useful: v.useful, note: v.note };
+      }
       try {
         await api("/api/feedback", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slug: this.slug, ts: this.review.ts, responses }),
         });
-        this.fbMap = { ...this.fbMap, [key]: tag ? { useful, tag, note } : { useful, note } };
-      } catch (e) { /* erreur 422 si tag manquant — déjà géré par UI (tag imposé) */ }
+        this.fbMap = newMap;
+      } catch (e) { /* 422 si tag manquant — déjà géré par UI (tag imposé) */ }
       finally { this.fbBusy = { ...this.fbBusy, [key]: false }; }
     },
 
