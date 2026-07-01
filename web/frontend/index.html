@@ -5,34 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>coaching_lol</title>
   <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/vendor/alpine.min.js"></script>
 </head>
-<body>
-  <header>
-    <h1>coaching_lol</h1>
-    <p class="subtitle">Coach IA personnel — League of Legends</p>
-  </header>
+<body x-data="app()" x-init="init()" x-cloak>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" @click.prevent="go('/')">coaching_lol</a>
+      <div class="switcher" @click.outside="closeSwitcher()">
+        <button class="switcher-btn" @click="toggleSwitcher()">
+          <span x-text="route.name === 'account' ? route.slug : 'comptes'"></span>
+          <span class="faint">▾</span>
+        </button>
+        <div class="switcher-menu" x-show="switcherOpen" x-transition>
+          <template x-for="a in accounts" :key="a.slug">
+            <a :href="'/c/' + a.slug" @click.prevent="go('/c/' + a.slug); closeSwitcher()"
+               x-text="a.slug"></a>
+          </template>
+          <a href="/" @click.prevent="go('/'); closeSwitcher()" class="faint">— accueil</a>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <a class="nav" href="/readme" @click.prevent="go('/readme')">README</a>
+    </div>
+  </nav>
 
-  <main>
-    <section class="card">
-      <h2>Statut du serveur</h2>
-      <p id="status">Connexion au backend…</p>
-    </section>
-
-    <section class="card muted">
-      <h2>À venir</h2>
-      <ul>
-        <li>Gérer plusieurs comptes de coaching</li>
-        <li>Fetcher les dernières games (Riot API)</li>
-        <li>Générer le coaching (LLM)</li>
-        <li>Donner du feedback sur les conseils</li>
-      </ul>
-    </section>
+  <main class="container">
+    <template x-if="route.name === 'home'">
+      <div x-data="homePage()" x-init="init()"></div>
+    </template>
+    <template x-if="route.name === 'account'">
+      <div x-data="accountPage(route.slug)" x-init="init()"></div>
+    </template>
+    <template x-if="route.name === 'readme'">
+      <div x-data="readmePage()" x-init="init()"></div>
+    </template>
   </main>
 
-  <footer>
-    <p>Infrastructure en place — backend FastAPI + frontend statique sur Fly.io.</p>
-  </footer>
-
   <script src="/static/app.js"></script>
+  <script src="/static/vendor/chart.umd.min.js"></script>
 </body>
 </html>

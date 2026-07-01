@@ -1,0 +1,62 @@
+"""Tests de câblage du frontend statique (servi par FastAPI).
+
+Pas de test d'interactivité Alpine (pas de Playwright) — on verrouille le câblage :
+assets vendored servis, index.html référence les assets et porte les hooks clés,
+app.js définit le routeur et les helpers. L'interactivité est vérifiée manuellement.
+"""
+from fastapi.testclient import TestClient
+
+import main as main_mod
+
+
+def _client():
+    return TestClient(main_mod.app)
+
+
+def test_index_served_at_root():
+    r = _client().get("/")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    body = r.text
+    assert 'x-data="app()"' in body
+    assert '/static/vendor/alpine.min.js' in body
+    assert '/static/vendor/chart.umd.min.js' in body
+    assert '/static/style.css' in body
+    assert '/static/app.js' in body
+
+
+def test_spa_catch_all_serves_index():
+    c = _client()
+    for path in ("/c/spadzze", "/readme"):
+        r = c.get(path)
+        assert r.status_code == 200
+        assert 'x-data="app()"' in r.text
+
+
+def test_assets_served():
+    c = _client()
+    for path, ct in [
+        ("/static/style.css", "text/css"),
+        ("/static/app.js", "javascript"),
+        ("/static/vendor/alpine.min.js", "javascript"),
+        ("/static/vendor/chart.umd.min.js", "javascript"),
+    ]:
+        r = c.get(path)
+        assert r.status_code == 200, path
+        assert ct in r.headers["content-type"], path
+        assert len(r.content) > 1000, path
+
+
+def test_style_css_has_tokens():
+    css = _client().get("/static/style.css").text
+    for token in ("--bg:#0e1116", "--panel:#16181d", "--gold:#c8aa6e",
+                  "--win:#3fb950", "--loss:#f85149", "tabular-nums"):
+        assert token in css, token
+
+
+def test_app_js_has_router_and_helpers():
+    js = _client().get("/static/app.js").text
+    assert "function app()" in js
+    assert "function api(" in js
+    assert "function pollJob(" in js
+    assert "location.pathname" in js
