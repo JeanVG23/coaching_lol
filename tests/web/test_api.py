@@ -112,3 +112,31 @@ def test_fetch_writes_to_patched_jobs_path(tmp_path, monkeypatch):
     # The job MUST be persisted in the patched (tmp) path, not the real data dir.
     assert patched.exists()
     assert jid in patched.read_text()
+
+
+def test_fetch_job_progresses_to_done(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    calls = []
+
+    def fake_work(account, n=1, on_progress=None):
+        if on_progress:
+            on_progress("1/1")
+        calls.append("done")
+        return {"n_games": 1}
+
+    with patch("routers.jobs.pipeline.fetch_games", fake_work):
+        r = c.post("/api/fetch", json={"slug": "spadzze", "n": 1})
+    jid = r.json()["job_id"]
+    for _ in range(100):
+        got = c.get(f"/api/jobs/{jid}").json()
+        if got["status"] in ("done", "error"):
+            break
+        time.sleep(0.05)
+    assert c.get(f"/api/jobs/{jid}").json()["status"] == "done"
+    assert calls == ["done"]
+
+
+def test_unknown_account_404(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    assert c.post("/api/fetch", json={"slug": "ghost"}).status_code == 404
+    assert c.post("/api/coach", json={"slug": "ghost"}).status_code == 404
