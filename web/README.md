@@ -45,8 +45,13 @@ Dockerfile           # image unique (back + statique)
 
 ## Périmètre V1
 
-> Cadrage fonctionnel validé (2026-07-01). Spec détaillée à venir dans
+> Cadrage fonctionnel validé (2026-07-01). Spec détaillée dans
 > `docs/superpowers/specs/2026-07-01-web-app-design.md`.
+>
+> **Esthétique : sombre raffinée, classe/épuré (côté Apple, pas Razer).** Patterns UX
+> inspirés d'op.gg/u.gg (rangées games denses, switcher de compte, onglets), mais fond
+> charbon neutre, accent or discret, zéro néon. Densité équilibrée : le data reste
+> compact, le narratif respire. Palette + principes de détail dans la spec.
 
 ### Pages
 

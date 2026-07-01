@@ -123,13 +123,65 @@ prérequis ML pour V2, hors scope de cette spec.
 
 - **Alpine.js** (~15 KB, pas de build) : réactivité légère saupoudrée dans le HTML —
   gère l'état (job en cours, insights d'une review, sélecteurs, dropdown de compte).
-- **Tailwind** (CSS précompilé) : styling. Palette LoL (or `#c8aa6e`, fond `#0e1014`,
-  panel `#161a22`).
+- **Tailwind** (CSS précompilé) : styling. Palette raffisée (cf. Langage visuel).
 - **Chart.js** : graphique SHAP local (barres horizontales triables + tooltip).
 
 Raison : on garde le modèle « front statique servi par FastAPI » (pas de Vite, pas de
 build Node, Docker reste simple), tout en évitant le JS impératif verbeux. C'est le
 point doux pour ~3 pages avec 3-4 endroits réactifs.
+
+## Langage visuel
+
+> **Direction : classe/épuré, côté Apple, pas Razer.** On reprend les patterns UX qui
+> marchent chez op.gg/u.gg/lolalytics (rangées games scannables, switcher de compte,
+> onglets), mais l'esthétique est sombre raffinée, pas gamer.
+
+### Ambiance : sombre raffiné
+
+Fond charbon **neutre** (pas le bleu LoL saturé), panels légèrement plus clairs, accent
+or discret, **zéro néon / lueur / glow**. Typographie propre (Inter, échelle restreinte),
+whitespace généreux autour du narratif. Cohérent avec les splash arts LoL (sombres),
+lisible en session longue. C'est un « dark mode Apple », pas Razer.
+
+Palette exacte (CSS) :
+
+| Rôle | Valeur | Usage |
+|---|---|---|
+| `bg` | `#0e1116` | fond de page |
+| `panel` | `#16181d` | cartes, panels, rangées |
+| `panel-2` | `#1d2026` | panel survolé / onglet actif |
+| `border` | `#2a2d34` | bordures fines, séparateurs |
+| `text` | `#e8e9ec` | texte principal |
+| `text-dim` | `#9a9da4` | texte secondaire (stats, labels) |
+| `text-faint` | `#6b6e75` | tiers (timestamps, hints) |
+| `gold` | `#c8aa6e` | accent LoL (lien actif, focus, W) |
+| `win` | `#3fb950` | bordure gauche win, badge vert |
+| `loss` | `#f85149` | bordure gauche loss, badge rouge |
+| `notable` | `#d29922` | evidence chip « notable » |
+
+### Densité : équilibrée
+
+Quand op.gg (dense/scannable) et Apple (spacieux) conflit : le **data reste dense, le
+narratif respire**.
+
+- **Dense** : rangées de l'historique games (compactes, scannables, bordure gauche W/L,
+  icône champion, KDA, durée, timestamp en une ligne), grille de cartes comptes.
+- **Spacieux** : header de profil, cartes de coaching (Forces/Erreurs/Habitudes/Focus),
+  blocs SHAP, README. Autour de ces blocs : padding généreux, séparateurs fins, pas de
+  densité d'info par écran.
+
+### Principes de détail
+
+- **Bordures > ombres.** Séparateurs 1 px `border`, pas de drop-shadow lourde (ombre
+  légère `0 1px 2px rgba(0,0,0,.3)` au besoin sur cartes élevées).
+- **Pas de glow.** Pas de `box-shadow` colorée, pas de `text-shadow`, pas de néon. Le
+  gold `#c8aa6e` apparaît en couleur pleine, jamais en halo.
+- **Coins peu arrondis** (`rounded-md` = 6 px) — classe, pas bulle.
+- **Typographie** : Inter, graisses 400/500/600 uniquement (pas de 700+ criard), échelle
+  restreinte (12/13/14/16/20/28). Chiffres tabulaires pour les stats (`font-variant-numeric: tabular-nums`).
+- **États** : survol = `panel-2` + bordure `border` qui passe à `gold` sur le focus ;
+  pas de scale/transform.
+- **Animation** : transitions courtes (150 ms) sur couleur uniquement, pas de mouvement.
 
 ## Architecture async
 
