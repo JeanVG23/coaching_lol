@@ -293,8 +293,13 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     `annotate`/`summary` : boucle d'éval par-insight — `y/n/s` + tag fixe `NEG_TAGS`
     sur jugement négatif, persiste `data/07_coaching/<player>/feedback.jsonl` (1 ligne/
     review, réannotation écrase par `ts`), `summary` agrège taux par section + top tags +
-    par modèle + tendance low_sample `<10`). Aucun réseau. Lancer :
+    par modèle + tendance low_sample `<10` + jusqu'à 2 verbatims de note libre par tag
+    (`tag_notes` : le tag dit *quoi* est faux, le verbatim dit *pourquoi* — guide la
+    correction du prompt/des features sans deviner). Aucun réseau. Lancer :
     `python3 src/04_coaching/feedback.py annotate --player spadzze [--last|--ts]`.
+    Le champ `note` (déjà modélisé dans `FeedbackItem`) est maintenant aussi exposé côté
+    web (`web/frontend/`) : textarea sous chaque item déjà noté (✓/✗), envoyé via
+    `POST /api/feedback` comme le CLI.
 - **Tests** : `tests/` (pytest), couvrent la dérivation déterministe + l'extraction comp +
   l'agrégation contextuelle. Lancer : `.venv/bin/python -m pytest tests/`.
 

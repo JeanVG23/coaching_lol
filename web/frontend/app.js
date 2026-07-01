@@ -89,7 +89,7 @@ function accountPage(slug) {
     // coaching
     scope: "adc", outcome: "loss", target: "challenger",
     reviews: [], review: null, reviewsLoading: true,
-    fbMap: {}, fbBusy: {},
+    fbMap: {}, fbBusy: {}, noteDraft: {},
     coachOpen: false,
     // shap (F5)
     shap: null, shapLoading: false, shapSort: "abs", chart: null,
@@ -253,10 +253,14 @@ function accountPage(slug) {
       try {
         const list = await api(`/api/c/${this.slug}/feedback`);
         const mine = list.find(f => f.ts === this.review.ts);
-        const m = {};
-        if (mine) for (const it of (mine.items || []))
-          m[`${it.kind},${it.index}`] = { useful: it.useful, tag: it.tag, note: it.note };
+        const m = {}, notes = {};
+        if (mine) for (const it of (mine.items || [])) {
+          const key = `${it.kind},${it.index}`;
+          m[key] = { useful: it.useful, tag: it.tag, note: it.note };
+          notes[key] = it.note || "";
+        }
         this.fbMap = m;
+        this.noteDraft = notes;
       } catch (e) { /* fbMap stays empty */ }
     },
 
@@ -275,6 +279,19 @@ function accountPage(slug) {
     async pickTag(kind, index, tag) {
       await this.submitFb(kind, index, { useful: false, tag });
       this.coachOpen = false;
+    },
+
+    noteValue(kind, index) {
+      const key = this.fbKey(kind, index);
+      return key in this.noteDraft ? this.noteDraft[key] : (this.fbState(kind, index)?.note || "");
+    },
+
+    async saveNote(kind, index) {
+      const state = this.fbState(kind, index);
+      if (!state) return; // note rattachée au vote existant (y/n) — pas de vote seul
+      const key = this.fbKey(kind, index);
+      const note = (this.noteDraft[key] || "").trim() || null;
+      await this.submitFb(kind, index, { useful: state.useful, tag: state.tag, note });
     },
 
     async submitFb(kind, index, { useful, tag = null, note = null }) {

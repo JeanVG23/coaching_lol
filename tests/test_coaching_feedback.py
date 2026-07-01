@@ -122,8 +122,8 @@ def _fb(ts, model, items):
     return S.Feedback(ts=ts, player="spadzze", rated_at="r", model=model, items=items)
 
 
-def _it(kind, useful, tag=None):
-    return S.FeedbackItem(kind=kind, index=0, useful=useful, tag=tag)
+def _it(kind, useful, tag=None, note=None):
+    return S.FeedbackItem(kind=kind, index=0, useful=useful, tag=tag, note=note)
 
 
 def test_summarize_empty():
@@ -176,6 +176,35 @@ def test_summarize_trend_when_enough():
     assert s["low_sample"] is False
     assert s["trend"] is not None
     assert s["trend"]["prior"] == 0.0 and s["trend"]["recent"] == 1.0
+
+
+def test_summarize_collects_notes_per_tag():
+    fbs = [_fb("t1", "m", [
+        _it("mistake", False, "asymetrie", note="le jungle était visible pourtant"),
+        _it("mistake", False, "asymetrie", note=None),   # tag sans note -> ignoré
+        _it("strength", False, "trop-vague", note="pas assez concret"),
+        _it("habit", True, note="peu importe, useful=True -> jamais collecté"),
+    ])]
+    s = F.summarize(fbs)
+    assert s["tag_notes"]["asymetrie"] == ["le jungle était visible pourtant"]
+    assert s["tag_notes"]["trop-vague"] == ["pas assez concret"]
+    assert "habit" not in str(s["tag_notes"])  # note d'un item useful=True jamais rattachée à un tag
+
+
+def test_render_summary_includes_note_verbatims():
+    fbs = [_fb("t1", "kimi-k2.6", [
+        _it("mistake", False, "asymetrie", note="le jungle était visible pourtant"),
+    ])]
+    txt = F.render_summary(F.summarize(fbs))
+    assert "le jungle était visible pourtant" in txt
+
+
+def test_render_summary_caps_notes_at_two_per_tag():
+    fbs = [_fb("t1", "m", [_it("mistake", False, "asymetrie", note=f"note{i}")
+                           for i in range(4)])]
+    txt = F.render_summary(F.summarize(fbs))
+    assert "note0" in txt and "note1" in txt
+    assert "note2" not in txt and "note3" not in txt
 
 
 def test_render_summary_has_sections():

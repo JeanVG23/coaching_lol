@@ -206,6 +206,14 @@
                         <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
                       </template>
                     </div>
+                    <template x-if="fbState(k,i)">
+                      <div class="fb-note">
+                        <textarea class="fb-note-input" rows="2" placeholder="Note (optionnel)…"
+                          :value="noteValue(k,i)"
+                          @input="noteDraft[k+','+i] = $event.target.value"></textarea>
+                        <button class="fb-note-save" @click="saveNote(k,i)" :disabled="fbBusy[k+','+i]">Enregistrer</button>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </template>
@@ -225,6 +233,14 @@
                         <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
                       </template>
                     </div>
+                    <template x-if="fbState(k,i)">
+                      <div class="fb-note">
+                        <textarea class="fb-note-input" rows="2" placeholder="Note (optionnel)…"
+                          :value="noteValue(k,i)"
+                          @input="noteDraft[k+','+i] = $event.target.value"></textarea>
+                        <button class="fb-note-save" @click="saveNote(k,i)" :disabled="fbBusy[k+','+i]">Enregistrer</button>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </template>
@@ -243,6 +259,14 @@
                         <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
                       </template>
                     </div>
+                    <template x-if="fbState(k,i)">
+                      <div class="fb-note">
+                        <textarea class="fb-note-input" rows="2" placeholder="Note (optionnel)…"
+                          :value="noteValue(k,i)"
+                          @input="noteDraft[k+','+i] = $event.target.value"></textarea>
+                        <button class="fb-note-save" @click="saveNote(k,i)" :disabled="fbBusy[k+','+i]">Enregistrer</button>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </template>
@@ -260,6 +284,14 @@
                       <button class="tag-opt" @click="pickTag('focus',0,t)" x-text="t"></button>
                     </template>
                   </div>
+                  <template x-if="fbState('focus',0)">
+                    <div class="fb-note">
+                      <textarea class="fb-note-input" rows="2" placeholder="Note (optionnel)…"
+                        :value="noteValue('focus',0)"
+                        @input="noteDraft['focus,0'] = $event.target.value"></textarea>
+                      <button class="fb-note-save" @click="saveNote('focus',0)" :disabled="fbBusy['focus,0']">Enregistrer</button>
+                    </div>
+                  </template>
                 </div>
               </div>
               <div class="confidence faint" x-text="'confiance : ' + (review.review.confidence * 100).toFixed(0) + '%'"></div>

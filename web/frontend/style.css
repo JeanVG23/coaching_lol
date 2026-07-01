@@ -177,7 +177,7 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
 .evidence-chip.kind-strength { border-left-color:var(--win); }
 .evidence-chip.kind-mistake { border-left-color:var(--loss); }
 
-.fb-row { display:flex; gap:6px; align-items:center; margin-top:10px; position:relative; }
+.fb-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:10px; position:relative; }
 .fb-btn {
   width:28px; height:28px; border-radius:var(--radius); border:1px solid var(--border);
   background:var(--bg); color:var(--text-dim); cursor:pointer; font-size:13px;
@@ -197,6 +197,20 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
   padding:6px 10px; border-radius:4px; cursor:pointer; font-size:12px; font-family:inherit;
 }
 .tag-opt:hover { background:var(--panel-2); color:var(--text); }
+.fb-note { flex-basis:100%; display:flex; gap:6px; align-items:flex-start; }
+.fb-note-input {
+  flex:1; resize:vertical; min-height:36px; font:inherit; font-size:12px;
+  color:var(--text); background:var(--bg); border:1px solid var(--border);
+  border-radius:var(--radius); padding:6px 8px;
+}
+.fb-note-input:focus { outline:none; border-color:var(--gold); }
+.fb-note-save {
+  flex-shrink:0; font-size:12px; color:var(--text-dim); background:var(--bg);
+  border:1px solid var(--border); border-radius:var(--radius); padding:0 10px;
+  cursor:pointer; transition:border-color 150ms, color 150ms;
+}
+.fb-note-save:hover { border-color:var(--gold); color:var(--text); }
+.fb-note-save:disabled { opacity:.5; cursor:default; }
 .confidence { margin-top:12px; font-size:12px; }
 
 .reviews-history { margin-top:18px; }

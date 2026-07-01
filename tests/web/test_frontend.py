@@ -109,6 +109,17 @@ def test_coaching_tab_wired():
     assert "insight-card" in body or "evidence-chip" in body
 
 
+def test_feedback_note_textarea_wired():
+    """Le champ note (Pydantic FeedbackItem.note, déjà accepté par l'API) était
+    modélisé de bout en bout (schema/API/CLI) mais jamais exposé côté web — seuls
+    les boutons y/n/tag existaient. Verrouille l'ajout du textarea + saveNote."""
+    body = _client().get("/c/spadzze").text
+    js = _client().get("/static/app.js").text
+    assert "fb-note-input" in body
+    assert "saveNote" in js
+    assert "noteDraft" in js
+
+
 def test_feedback_sends_full_map():
     """Régression F4 : submitFb doit envoyer la fbMap complète (le backend
     écrase la ligne par ts — un envoi par insight perdait les notations précédentes)."""

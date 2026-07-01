@@ -5,7 +5,9 @@ Sous-commandes :
   annotate  : choisir une review persistée, juger chaque insight (utile/faux + tag),
               persister dans data/07_coaching/<player>/feedback.jsonl.
   summary   : agréger les annotations (taux utile, par section, top tags, par
-              modèle, tendance). Aucun appel réseau.
+              modèle, tendance) — chaque top tag affiche jusqu'à 2 verbatims de
+              notes libres associées, pour guider la correction du prompt/des
+              features sans deviner ce qui cloche derrière un tag. Aucun appel réseau.
 
 Usage :
   python3 src/04_coaching/feedback.py annotate --player spadzze [--ts <ts> | --last]
@@ -102,6 +104,7 @@ def persist_feedback(player: str, fb: schema_mod.Feedback,
 _KINDS = ("strength", "mistake", "habit", "focus")
 _TREND_RECENT = 5
 _LOW_SAMPLE = 10
+_NOTES_PER_TAG = 2
 
 
 def load_feedbacks(player: str, root=None) -> list[schema_mod.Feedback]:
@@ -128,6 +131,10 @@ def summarize(fbs: list[schema_mod.Feedback]) -> dict:
         by_kind[kind] = {"n": len(ki), "useful": u,
                          "rate": (u / len(ki)) if ki else None}
     tag_counts = Counter(it.tag for it in items if (not it.useful) and it.tag)
+    tag_notes: dict[str, list[str]] = {}
+    for it in items:
+        if (not it.useful) and it.tag and it.note:
+            tag_notes.setdefault(it.tag, []).append(it.note)
     by_model: dict[str, dict] = {}
     for fb in fbs:
         if not fb.items:
@@ -153,6 +160,7 @@ def summarize(fbs: list[schema_mod.Feedback]) -> dict:
     return {"n_reviews": len(fbs), "n_items": n_items,
             "global_rate": (n_useful / n_items) if n_items else 0.0,
             "by_kind": by_kind, "top_tags": tag_counts.most_common(),
+            "tag_notes": tag_notes,
             "by_model": by_model, "low_sample": low_sample, "trend": trend}
 
 
@@ -172,6 +180,8 @@ def render_summary(stats: dict) -> str:
         lines.append("\nTop tags (conseils jugés faux) :")
         for tag, c in stats["top_tags"]:
             lines.append(f"  {tag:24} ×{c}")
+            for note in stats["tag_notes"].get(tag, [])[:_NOTES_PER_TAG]:
+                lines.append(f"      » {note!r}")
     if stats["by_model"]:
         lines.append("\nPar modèle :")
         for m, bm in sorted(stats["by_model"].items()):
