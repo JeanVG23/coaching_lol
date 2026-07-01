@@ -89,6 +89,8 @@ function accountPage(slug) {
     reviews: [], review: null, reviewsLoading: true,
     fbMap: {}, fbBusy: {},
     coachOpen: false,
+    // shap (F5)
+    shap: null, shapLoading: false, shapSort: "abs", chart: null,
 
     init() { this.loadGames(); },
 
@@ -132,6 +134,62 @@ function accountPage(slug) {
       if (t === "coaching" && this.reviews.length === 0 && this.reviewsLoading) {
         this.loadReviews();
       }
+      if (t === "shap" && this.shap === null) { this.loadShap(); }
+    },
+
+    async loadShap() {
+      this.shapLoading = true;
+      try {
+        this.shap = await api(`/api/c/${this.slug}/shap`);
+        if (this.shap.available) this.$nextTick(() => this.renderChart());
+      } catch (e) { this.shap = { available: false, drivers: [] }; }
+      finally { this.shapLoading = false; }
+    },
+
+    sortedDrivers() {
+      const d = (this.shap?.drivers || []).slice();
+      if (this.shapSort === "abs") d.sort((a, b) => Math.abs(b.mean_shap) - Math.abs(a.mean_shap));
+      else d.sort((a, b) => b.mean_shap - a.mean_shap);
+      return d.slice(0, 16); // top 16 pour la lisibilité
+    },
+
+    renderChart() {
+      this.destroyChart();
+      const cv = this.$root.querySelector("#shap-canvas");
+      if (!cv || !window.Chart) return;
+      const d = this.sortedDrivers();
+      this.chart = new Chart(cv, {
+        type: "bar",
+        data: {
+          labels: d.map(x => x.feature),
+          datasets: [{
+            data: d.map(x => x.mean_shap),
+            backgroundColor: d.map(x => x.mean_shap >= 0 ? "#c8aa6e" : "#f85149"),
+            borderRadius: 3, borderSkipped: false,
+          }],
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: {
+            label: c => `SHAP ${c.raw.toFixed(4)}`,
+          } } },
+          scales: {
+            x: { grid: { color: "#2a2d34" }, ticks: { color: "#9a9da4", font: { size: 11 } } },
+            y: { grid: { display: false }, ticks: { color: "#e8e9ec", font: { size: 11 } } },
+          },
+        },
+      });
+    },
+
+    toggleSort() {
+      this.shapSort = this.shapSort === "abs" ? "val" : "abs";
+      this.renderChart();
+    },
+
+    destroyChart() {
+      if (this.chart) { this.chart.destroy(); this.chart = null; }
     },
 
     async loadReviews() {

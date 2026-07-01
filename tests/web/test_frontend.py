@@ -100,3 +100,11 @@ def test_feedback_sends_full_map():
     assert "Object.entries(newMap)" in js
     # l'ancien pattern mono-insight ne doit plus être présent
     assert "responses = { [key]" not in js
+
+
+def test_shap_tab_wired():
+    body = _client().get("/c/spadzze").text
+    js = _client().get("/static/app.js").text
+    assert "/api/c/" in js and "/shap" in js
+    assert "new Chart(" in js
+    assert "shap-wrap" in body or "shap-empty" in body

@@ -201,3 +201,10 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
 .reviews-history { margin-top:18px; }
 .reviews-history summary { cursor:pointer; font-size:13px; padding:8px 0; }
 .hist-row { font-size:12px; padding:5px 0; border-top:1px solid var(--border); }
+
+/* --- shap --- */
+.shap-wrap {
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px; height:520px; position:relative;
+}
+.shap-empty { padding:48px 20px; line-height:1.7; }

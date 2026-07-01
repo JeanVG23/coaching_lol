@@ -272,8 +272,36 @@
       </template>
     </div>
   </template>
-  <!-- onglet shap : placeholder (tâche F5) -->
-  <template x-if="tab === 'shap'"><div class="state">Profil ML — à venir.</div></template>
+  <!-- onglet shap : profil ML (tâche F5) -->
+  <template x-if="tab === 'shap'">
+    <div>
+      <template x-if="shapLoading"><div class="state">Chargement du profil ML…</div></template>
+      <template x-if="!shapLoading && shap && !shap.available">
+        <div class="shap-empty state">
+          Profil ML indisponible pour ce compte.<br>
+          <span class="faint">Le SHAP local est pré-calculé pour certains comptes seulement (V1).</span>
+        </div>
+      </template>
+      <template x-if="!shapLoading && shap && shap.available">
+        <div>
+          <div class="row" style="margin-bottom:12px">
+            <h2>Profil ML — contributions SHAP</h2>
+            <div class="spacer"></div>
+            <button class="btn" @click="toggleSort()"
+                    x-text="shapSort === 'abs' ? 'tri : |valeur|' : 'tri : valeur'"></button>
+          </div>
+          <p class="muted" style="font-size:13px;margin:0 0 14px">
+            Contribution moyenne de chaque feature au classement High-Elo vs Low-Elo.
+            <span style="color:var(--gold)">or</span> = pousse vers High-Elo,
+            <span style="color:var(--loss)">rouge</span> = pousse vers Low-Elo.
+          </p>
+          <div class="shap-wrap">
+            <canvas id="shap-canvas"></canvas>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
 </div>
     </template>
     <template x-if="route.name === 'readme'">
