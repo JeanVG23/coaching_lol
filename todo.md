@@ -45,6 +45,28 @@
 
 - [ ] **Benchmark Zeri** densifié (sampling champion ciblé) si la slice `zeri` reste trop fine pour des conseils fiables.
 
+## 🌐 Dev web — interface Fly.io (FastAPI + front statique)
+
+> Infrastructure scaffolding en place (`web/`, `Dockerfile`, `fly.toml`) et déployable.
+> Voir `web/README.md` et spec à venir `docs/superpowers/specs/2026-07-01-web-app-design.md`.
+
+- [x] **Infra scaffolding** — FastAPI (API `/api/*` + sert front statique) sur Fly.io.
+  Smoke test local validé (`/api/health`, `/`, `/static`).
+- [ ] **1. Cadrage fonctionnel V1** — périmètre : ce qu'on embarque maintenant vs plus tard.
+  Décision prise : un compte de coaching = un **slug** (`spadzze`, `aceofspadzze`, smurfs…).
+  Auth **reportée** (URL publique acceptée pour l'instant, faible proba de découverte).
+- [ ] **2. Modèle de données + persistance** — entités (compte/slug, game, review, feedback),
+  SQLite vs JSONL, mapping des dossiers `data/` actuels vers un schéma requêtable.
+- [ ] **3. Stack front** — choix du framework d'interactivité (vanilla / HTMX / Alpine /
+  Svelte/React) + Tailwind (styling). Décision avant les vues.
+- [ ] **4. Architecture async** — jobs longs (fetch N games + coaching = minutes) :
+  background task + polling, ou SSE, ou file. Shape l'UX (« en cours… »).
+- [ ] **5. UX / vues** — wireframes + parcours utilisateur.
+- [ ] **6. Infra Fly réelle** — volume persistant pour `data/` (exclu de l'image via
+  `.dockerignore`) + secrets (`fly secrets set RIOT_API_ID OLLAMA_API_KEY`).
+- [ ] **7. Code** — endpoints (`/api/accounts`, `/api/fetch`, `/api/coach`, `/api/feedback`)
+  + vues frontend.
+
 ## 🟦 Phase 2 — CV / Live Client (gated)
 
 - [ ] **Computer vision pour les trous** — uniquement si le coach basé timeline **démontre sa valeur** (boucle d'éval positive). Sinon le problème vient des features, pas de la vision.
