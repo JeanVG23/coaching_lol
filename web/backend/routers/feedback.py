@@ -23,8 +23,12 @@ def post_feedback(req: FeedbackReq):
     review = feedback.schema_mod.Review.model_validate(review_dict["review"])
     responses = {}
     for k, v in req.responses.items():
-        kind, idx = k.split(",")
-        responses[(kind, int(idx))] = (v["useful"], v.get("tag"), v.get("note"))
+        try:
+            kind, idx = k.split(",")
+            idx = int(idx)
+        except ValueError:
+            raise HTTPException(422, f"clé de réponse invalide : {k!r} (attendu 'kind,index')")
+        responses[(kind, idx)] = (v["useful"], v.get("tag"), v.get("note"))
     from datetime import datetime
     fb = feedback.build_feedback(review, req.ts, req.slug, review_dict["model"],
                                   datetime.now().isoformat(timespec="seconds"), responses)

@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -96,3 +97,18 @@ def test_feedback_post(tmp_path, monkeypatch):
         r = c.post("/api/feedback", json={"slug": "spadzze", "ts": "2026-06-30T17:53:39",
                 "responses": {"strength,0": {"useful": True}}})
     assert r.status_code == 200 and r.json()["ok"] is True
+
+def test_fetch_writes_to_patched_jobs_path(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    patched = tmp_path / "jobs.jsonl"
+    assert patched.exists() is False or patched.stat().st_size == 0
+    with patch("routers.jobs.pipeline.fetch_games", return_value={"n_games": 1}):
+        r = c.post("/api/fetch", json={"slug": "spadzze", "n": 1})
+    jid = r.json()["job_id"]
+    for _ in range(100):
+        if c.get(f"/api/jobs/{jid}").json()["status"] in ("done", "error"):
+            break
+        time.sleep(0.05)
+    # The job MUST be persisted in the patched (tmp) path, not the real data dir.
+    assert patched.exists()
+    assert jid in patched.read_text()
