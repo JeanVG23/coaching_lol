@@ -81,3 +81,13 @@ def test_account_page_history_wired():
     assert "/api/jobs/" in js
     assert 'class="game-row"' in body or "game-row" in body
     assert "job-banner" in body
+
+
+def test_coaching_tab_wired():
+    body = _client().get("/c/spadzze").text
+    js = _client().get("/static/app.js").text
+    assert "/api/coach" in js
+    assert "/api/c/" in js and "/reviews" in js
+    assert "/api/feedback" in js
+    assert "NEG_TAGS" in js
+    assert "insight-card" in body or "evidence-chip" in body

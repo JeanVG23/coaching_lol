@@ -138,8 +138,141 @@
     </div>
   </template>
 
-  <!-- onglets coaching + shap : placeholders (tâches F4/F5) -->
-  <template x-if="tab === 'coaching'"><div class="state">Coaching — à venir.</div></template>
+  <!-- onglet coaching (tâche F4) -->
+  <template x-if="tab === 'coaching'">
+    <div>
+      <!-- sélecteurs + générer -->
+      <div class="action-bar row wrap">
+        <span class="muted" style="font-size:13px">Coaching :</span>
+        <select class="select" x-model="scope">
+          <option value="all">scope : all</option>
+          <option value="adc">scope : adc</option>
+          <option value="zeri">scope : zeri</option>
+        </select>
+        <select class="select" x-model="outcome">
+          <option value="loss">issue : loss</option>
+          <option value="win">issue : win</option>
+          <option value="overall">issue : overall</option>
+        </select>
+        <select class="select" x-model="target">
+          <option value="challenger">target : challenger</option>
+        </select>
+        <button class="btn btn-primary" @click="genCoach()"
+                :disabled="job && job.status === 'running'">Générer le coaching</button>
+      </div>
+
+      <template x-if="reviewsLoading"><div class="state">Chargement des reviews…</div></template>
+      <template x-if="!reviewsLoading && !review">
+        <div class="state">Aucune review. Règle les sélecteurs et génère le coaching.</div>
+      </template>
+
+      <template x-if="!reviewsLoading && review">
+        <div>
+          <!-- bandeau meta -->
+          <div class="meta-strip row wrap">
+            <span class="num" x-text="meta()?.n_games_me + ' games (perso)'"></span>
+            <span class="faint" x-text="'vs ' + (meta()?.n_games_ref || 0) + ' (réf)'"></span>
+            <span class="num" x-text="'WR ' + ((meta()?.winrate_me || 0) * 100).toFixed(0) + '%'"></span>
+            <template x-if="meta()?.low_sample">
+              <span class="badge badge-loss">low sample</span>
+            </template>
+            <span class="faint" x-text="review.model"></span>
+            <span class="faint" x-text="review.ts"></span>
+          </div>
+
+          <!-- 4 cartes -->
+          <div class="insight-grid">
+            <div class="card insight-col">
+              <h3>Forces</h3>
+              <template x-for="(it, i) in review.review.strengths" :key="'s'+i">
+                <div class="insight-card">
+                  <p x-text="it.point"></p>
+                  <span class="evidence-chip kind-strength" x-text="it.evidence"></span>
+                  <div class="fb-row" x-data="{ k: 'strength', i }">
+                    <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                    <button class="fb-btn" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                    <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
+                      <template x-for="t in NEG_TAGS" :key="t">
+                        <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="card insight-col">
+              <h3>Erreurs</h3>
+              <template x-for="(it, i) in review.review.mistakes" :key="'m'+i">
+                <div class="insight-card">
+                  <p x-text="it.point"></p>
+                  <span class="evidence-chip kind-mistake" x-text="it.evidence"></span>
+                  <div class="fb-row" x-data="{ k: 'mistake', i }">
+                    <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                    <button class="fb-btn" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                    <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
+                      <template x-for="t in NEG_TAGS" :key="t">
+                        <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="card insight-col">
+              <h3>Habitudes</h3>
+              <template x-for="(h, i) in review.review.habits" :key="'h'+i">
+                <div class="insight-card">
+                  <p x-text="h"></p>
+                  <div class="fb-row" x-data="{ k: 'habit', i }">
+                    <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                    <button class="fb-btn" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                    <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
+                      <template x-for="t in NEG_TAGS" :key="t">
+                        <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <div class="card insight-col">
+              <h3>Focus prochain</h3>
+              <div class="insight-card">
+                <p x-text="review.review.next_focus"></p>
+                <div class="fb-row" x-data="{ k: 'focus', i: 0 }">
+                  <button class="fb-btn" :class="fbState('focus',0)?.useful === true ? 'on-win' : ''" @click="setFb('focus',0,true)" :disabled="fbBusy['focus,0']">✓</button>
+                  <button class="fb-btn" :class="fbState('focus',0)?.useful === false ? 'on-loss' : ''" @click="setFb('focus',0,false)" :disabled="fbBusy['focus,0']">✗</button>
+                  <div class="tag-menu" x-show="coachOpen === 'focus,0'" x-transition>
+                    <template x-for="t in NEG_TAGS" :key="t">
+                      <button class="tag-opt" @click="pickTag('focus',0,t)" x-text="t"></button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+              <div class="confidence faint" x-text="'confiance : ' + (review.review.confidence * 100).toFixed(0) + '%'"></div>
+            </div>
+          </div>
+
+          <!-- historique des reviews précédentes (replié) -->
+          <template x-if="reviews.length > 1">
+            <details class="reviews-history">
+              <summary class="muted">Reviews précédentes (<span x-text="reviews.length - 1"></span>)</summary>
+              <template x-for="(rv, idx) in reviews.slice(0, -1)" :key="rv.ts">
+                <div class="hist-row faint">
+                  <span x-text="rv.ts"></span> · <span x-text="rv.model"></span> ·
+                  <span x-text="rv.scope + '/' + rv.outcome_focus"></span>
+                </div>
+              </template>
+            </details>
+          </template>
+        </div>
+      </template>
+    </div>
+  </template>
+  <!-- onglet shap : placeholder (tâche F5) -->
   <template x-if="tab === 'shap'"><div class="state">Profil ML — à venir.</div></template>
 </div>
     </template>
