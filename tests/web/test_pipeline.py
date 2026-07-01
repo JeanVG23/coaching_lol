@@ -42,6 +42,8 @@ def test_fetch_games_progress_and_writes_silver_gold(tmp_path):
 
     with patch("riotlib.RiotClient.puuid_from_riot_id", fake_puuid), \
          patch("riotlib.RiotClient.match_ids", fake_match_ids), \
+         patch("riotlib.RiotClient.entries_by_puuid", lambda self, puuid: []), \
+         patch("pipeline.rl.SILVER_DIR", tmp_path), \
          patch("riotlib.get_match_timeline", fake_get_timeline), \
          patch("riotlib.extract_game",
                lambda m, t, p: {"match_id": "m1", "puuid": p, "rank": "emerald",
@@ -60,6 +62,75 @@ def test_fetch_games_progress_and_writes_silver_gold(tmp_path):
     assert res["n_games"] == 2
     assert progresses[-1] == "2/2"
     assert wg.called
+
+
+def test_fetch_games_caches_current_rank(tmp_path):
+    account = {"slug": "spadzze", "riot_id": "Spadzze#euw", "region": "euw1"}
+    fake_match = {"info": {"participants": [{"puuid": "p1", "championName": "Zeri"}]}}
+    fake_timeline = {"info": {"frames": []}}
+
+    def fake_entries(self, puuid):
+        return [
+            {"queueType": "RANKED_FLEX_SR", "tier": "GOLD", "rank": "I",
+             "leaguePoints": 10, "wins": 1, "losses": 1},
+            {"queueType": "RANKED_SOLO_5x5", "tier": "DIAMOND", "rank": "II",
+             "leaguePoints": 42, "wins": 120, "losses": 100},
+        ]
+
+    with patch("riotlib.RiotClient.puuid_from_riot_id", lambda self, g, t: "p1"), \
+         patch("riotlib.RiotClient.match_ids", lambda self, puuid, count, queue: ["m1"]), \
+         patch("riotlib.RiotClient.entries_by_puuid", fake_entries), \
+         patch("riotlib.get_match_timeline", lambda client, mid: (fake_match, fake_timeline)), \
+         patch("riotlib.extract_game",
+               lambda m, t, p: {"match_id": "m1", "puuid": p, "rank": "emerald",
+                                "patch": "16.13", "champion": "Zeri", "role": "BOTTOM",
+                                "win": True, "queue": 420, "lane": "BOT", "comp": {},
+                                "deaths": 3, "kills": 8, "assists": 5,
+                                "support_deaths_early": 0, "plates_diff_early": 1,
+                                "frames_in_base_early": 2, "avg_dragon_prox": 0.4,
+                                "position": {}}), \
+         patch("riotlib.merge_jsonl", lambda path, new: new), \
+         patch("riotlib.write_gold"), \
+         patch("pipeline.rl.SILVER_DIR", tmp_path), \
+         patch("pipeline.settings.riot_api_key", lambda: "k"):
+        pipeline.fetch_games(account, n=1)
+
+    rank_path = tmp_path / "personal" / "spadzze" / "rank.json"
+    assert rank_path.exists()
+    data = json.loads(rank_path.read_text())
+    assert data["tier"] == "DIAMOND"
+    assert data["division"] == "II"
+    assert data["league_points"] == 42
+    assert data["wins"] == 120 and data["losses"] == 100
+    assert "fetched_at" in data
+
+
+def test_fetch_games_writes_unranked_when_no_solo_entry(tmp_path):
+    account = {"slug": "spadzze", "riot_id": "Spadzze#euw", "region": "euw1"}
+    fake_match = {"info": {"participants": [{"puuid": "p1", "championName": "Zeri"}]}}
+    fake_timeline = {"info": {"frames": []}}
+
+    with patch("riotlib.RiotClient.puuid_from_riot_id", lambda self, g, t: "p1"), \
+         patch("riotlib.RiotClient.match_ids", lambda self, puuid, count, queue: ["m1"]), \
+         patch("riotlib.RiotClient.entries_by_puuid", lambda self, puuid: []), \
+         patch("riotlib.get_match_timeline", lambda client, mid: (fake_match, fake_timeline)), \
+         patch("riotlib.extract_game",
+               lambda m, t, p: {"match_id": "m1", "puuid": p, "rank": "emerald",
+                                "patch": "16.13", "champion": "Zeri", "role": "BOTTOM",
+                                "win": True, "queue": 420, "lane": "BOT", "comp": {},
+                                "deaths": 3, "kills": 8, "assists": 5,
+                                "support_deaths_early": 0, "plates_diff_early": 1,
+                                "frames_in_base_early": 2, "avg_dragon_prox": 0.4,
+                                "position": {}}), \
+         patch("riotlib.merge_jsonl", lambda path, new: new), \
+         patch("riotlib.write_gold"), \
+         patch("pipeline.rl.SILVER_DIR", tmp_path), \
+         patch("pipeline.settings.riot_api_key", lambda: "k"):
+        pipeline.fetch_games(account, n=1)
+
+    data = json.loads((tmp_path / "personal" / "spadzze" / "rank.json").read_text())
+    assert data["tier"] is None
+    assert "fetched_at" in data
 
 
 def test_run_coach_calls_payload_build_and_persist(tmp_path):

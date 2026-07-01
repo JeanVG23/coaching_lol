@@ -19,6 +19,13 @@ primary_region = "cdg"   # Paris ; mets "ams" si tu préfères Amsterdam
   soft_limit = 100
   hard_limit = 250
 
+# Volume mono-machine : data/ (silver/gold/shap/coaching/jobs) persiste entre déploiements.
+# App volontairement limitée à 1 machine (fly scale count 1) — un volume ne se
+# partage pas entre plusieurs machines, et un 2e writer casserait la cohérence.
+[mounts]
+  source = "coaching_lol_data"
+  destination = "/app/data"
+
 [[vm]]
   memory = "512mb"
   cpu_kind = "shared"

@@ -234,7 +234,9 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
 `GOLD_DIR`). Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancien.
 
 - **`src/riotlib.py`** — socle partagé : `RiotClient` (routing régional account/match vs
-  plateforme league ; rate-limiter ~1.3s/appel), helpers (`approx_zone`, `phase_of`,
+  plateforme league ; rate-limiter ~1.3s/appel ; `entries_by_puuid` = rang courant via
+  league-v4, utilisé par le coach web pour afficher un repère de fraîcheur des données),
+  helpers (`approx_zone`, `phase_of`,
   `patch_of`), `get_match_timeline` (cache raw **compressé zstd** via `_read_raw`/`_write_raw`,
   lecture tolérante `.json.zst`→`.json.gz`→`.json` pour la migration), `extract_game` (silver,
   + benchmark de lane + sous-objet `comp` des 6 champions botlane + sous-objet `position`

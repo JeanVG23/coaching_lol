@@ -67,6 +67,9 @@
     <h1 style="font-size:28px" x-text="slug"></h1>
     <div class="row faint" style="margin-top:4px;font-size:13px">
       <span class="num"><span x-text="total"></span> games en cache</span>
+      <span class="rank-badge" x-show="!rankLoading" x-text="'· ' + rankLabel()"></span>
+      <span class="faint" x-show="rank && rank.fetched_at"
+            x-text="'(rang au dernier fetch : ' + (rank && rank.fetched_at ? rank.fetched_at.slice(0,10) : '') + ')'"></span>
     </div>
   </div>
 

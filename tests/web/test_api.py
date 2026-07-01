@@ -67,6 +67,22 @@ def test_shap_endpoint(tmp_path, monkeypatch):
     assert r.status_code == 200 and r.json()["available"] is True
 
 
+def test_rank_endpoint_returns_cached_rank(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    r = c.get("/api/c/spadzze/rank")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["tier"] == "DIAMOND" and body["league_points"] == 42
+
+
+def test_rank_endpoint_never_fetched_returns_null_shape(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    r = c.get("/api/c/ghost/rank")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["tier"] is None and body["fetched_at"] is None
+
+
 def test_fetch_creates_job(tmp_path, monkeypatch):
     c = _client(tmp_path, monkeypatch)
     with patch("routers.jobs.pipeline.fetch_games", return_value={"n_games": 5}):

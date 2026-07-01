@@ -26,8 +26,16 @@ fly deploy                          # build le Dockerfile + pousse l'image
 fly open                            # ouvre l'URL publique
 ```
 
-> La donnée (`data/`) n'est PAS dans l'image (cf. `.dockerignore`). Elle vivra sur un
-> volume persistant Fly, monté au moment où on câblera le coaching réel.
+> La donnée (`data/`) n'est PAS dans l'image (cf. `.dockerignore`). Elle vit sur un
+> volume persistant Fly (`coaching_lol_data`, monté sur `/app/data`) — provisionné,
+> déployé et vérifié en prod (games/rang/coaching) le 2026-07-01. App volontairement
+> limitée à **1 machine** (`fly scale count 1`) : un volume Fly est mono-machine, un
+> 2e writer casserait la cohérence des lectures/écritures (route au hasard entre les
+> deux → games « disparaissant » selon la machine qui répond). Le référentiel gold
+> (benchmarks challenger, ~1 Mo d'agrégats — pas les games brutes) n'est pas
+> reproductible via l'API web (vient de `build_referential.py` en local) : à repousser
+> manuellement sur le volume après un `fly deploy` propre via
+> `fly ssh sftp put -R data/03_gold/referentiel /app/data/03_gold/referentiel`.
 
 ## Structure
 
@@ -63,9 +71,12 @@ Dockerfile
    dernière review). **Pas de création de compte depuis l'UI** — la liste est
    fixée côté serveur (le propriétaire seul peut l'éditer).
 2. **`/c/{slug}` — Page compte.** Le cœur du site. Sections :
+   - **Header** : nb de games en cache + rang solo/duo courant (mis en cache au
+     dernier fetch, avec la date) — repère de fraîcheur pour savoir s'il faut
+     refetcher.
    - **Fetch** : bouton « Mettre à jour les games » (job = pull Riot → silver →
-     gold, déterministe). Champ N (défaut 20, configurable). Statut du job en
-     temps réel (« en cours… 12/20 » → « ✅ 18 games »).
+     gold + rang, déterministe). Champ N (défaut 20, configurable). Statut du job
+     en temps réel (« en cours… 12/20 » → « ✅ 18 games »).
    - **Historique** : tableau succinct des dernières games (champion, rôle,
      durée, KDA, win/loss), pagination légère.
    - **Coaching** : sélecteurs (scope `all`/`adc`/`zeri`, issue `loss`/`win`/
@@ -112,13 +123,18 @@ SHAP explorateur global (rang/scope filtrable).
 Computer vision (Phase 2 du projet, gated sur la démonstration de valeur du
 coach timeline).
 
-## Endpoints prévus
+## Endpoints
 
 - `GET  /api/accounts` — liste des slugs préconfigurés (+ indicateur par compte)
-- `POST /api/fetch` — mettre à jour les games d'un slug (pull Riot → silver →
-  gold, job async)
+- `GET  /api/c/{slug}/games` — historique paginé, trié par ordre chronologique réel
+  (numéro de séquence du match_id — l'ordre d'append du fichier n'est pas fiable
+  après un merge multi-fetch)
+- `GET  /api/c/{slug}/rank` — rang solo/duo courant, mis en cache à chaque fetch
+  (pas de live à la volée) : repère de fraîcheur des données pour l'utilisateur
+- `POST /api/fetch` — mettre à jour les games + le rang d'un slug (pull Riot →
+  silver → gold, job async)
 - `GET  /api/jobs/{id}` — suivi des jobs longs (fetch + coaching)
 - `POST /api/coach` — générer le coaching (LLM, job async)
-- `GET  /api/reviews` — historique des reviews d'un slug
+- `GET  /api/c/{slug}/reviews` — historique des reviews d'un slug
 - `POST /api/feedback` — annoter les conseils (boucle d'éval)
-- `GET  /api/shap` — SHAP local d'un slug (graphique interactif)
+- `GET  /api/c/{slug}/shap` — SHAP local d'un slug (graphique interactif)

@@ -169,6 +169,10 @@ class RiotClient:
                          f"/lol/league-exp/v4/entries/{queue}/{tier}/{division}",
                          page=page) or []
 
+    def entries_by_puuid(self, puuid: str) -> list[dict]:
+        """Rang(s) d'un joueur, un élément par file (solo/flex). [] si unranked."""
+        return self._get(self.platform, f"/lol/league/v4/entries/by-puuid/{puuid}") or []
+
 
 # ----------------------------------------------------------- raw (cache brut)
 # Le cache raw est compressé en zstd (.json.zst) pour gagner ~8× de stockage.

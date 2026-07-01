@@ -84,6 +84,7 @@ function accountPage(slug) {
     gamesLoading: true, gamesError: null,
     fetchN: 20,
     job: null, // {type, status, progress, error}
+    rank: null, rankLoading: true,
     // coaching
     scope: "adc", outcome: "loss", target: "challenger",
     reviews: [], review: null, reviewsLoading: true,
@@ -92,7 +93,7 @@ function accountPage(slug) {
     // shap (F5)
     shap: null, shapLoading: false, shapSort: "abs", chart: null,
 
-    init() { this.loadGames(); },
+    init() { this.loadGames(); this.loadRank(); },
 
     async loadGames() {
       this.gamesLoading = true; this.gamesError = null;
@@ -101,6 +102,19 @@ function accountPage(slug) {
         this.games = d.items; this.total = d.total;
       } catch (e) { this.gamesError = String(e); }
       finally { this.gamesLoading = false; }
+    },
+
+    async loadRank() {
+      this.rankLoading = true;
+      try { this.rank = await api(`/api/c/${this.slug}/rank`); }
+      catch (e) { this.rank = null; }
+      finally { this.rankLoading = false; }
+    },
+
+    rankLabel() {
+      if (!this.rank || !this.rank.tier) return "Rang inconnu — lance un fetch";
+      const tier = this.rank.tier.charAt(0) + this.rank.tier.slice(1).toLowerCase();
+      return `${tier} ${this.rank.division} · ${this.rank.league_points} LP`;
     },
 
     async prevPage() { if (this.page > 1) { this.page--; this.loadGames(); } },
@@ -124,7 +138,7 @@ function accountPage(slug) {
         j => { this.job = j; },
         j => {
           this.job = j;
-          if (j.status === "done" && j.type === "fetch") this.loadGames();
+          if (j.status === "done" && j.type === "fetch") { this.loadGames(); this.loadRank(); }
         },
       );
     },

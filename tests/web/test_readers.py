@@ -41,6 +41,18 @@ def test_read_games_pagination():
     assert len(res2["items"]) == 1
 
 
+def test_read_games_sorted_by_match_id_descending(tmp_path):
+    data_root = tmp_path
+    games_dir = data_root / "02_silver" / "personal" / "spadzze"
+    games_dir.mkdir(parents=True)
+    (games_dir / "games.jsonl").write_text("\n".join(
+        json.dumps({"match_id": mid, "puuid": "p"})
+        for mid in ["EUW1_100", "EUW1_300", "EUW1_200"]  # ordre d'append non-chronologique
+    ))
+    res = readers.read_games("spadzze", page=1, size=10, data_root=data_root)
+    assert [g["match_id"] for g in res["items"]] == ["EUW1_300", "EUW1_200", "EUW1_100"]
+
+
 def test_read_reviews_returns_list():
     revs = readers.read_reviews("spadzze", data_root=FIX)
     assert len(revs) == 1
@@ -62,6 +74,18 @@ def test_read_shap_available():
 def test_read_shap_unavailable_for_unknown():
     s = readers.read_shap("ghost", data_root=FIX)
     assert s == {"available": False, "drivers": []}
+
+
+def test_read_rank_returns_none_when_never_fetched(tmp_path):
+    assert readers.read_rank("spadzze", data_root=tmp_path) is None
+
+
+def test_read_rank_returns_cached_data():
+    r = readers.read_rank("spadzze", data_root=FIX)
+    assert r["tier"] == "DIAMOND"
+    assert r["division"] == "II"
+    assert r["league_points"] == 42
+    assert r["fetched_at"] == "2026-06-30T12:00:00"
 
 
 def test_account_summaries():

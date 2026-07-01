@@ -29,6 +29,7 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
 .muted { color:var(--text-dim); }
 .faint { color:var(--text-faint); }
 .num { font-variant-numeric:tabular-nums; }
+.rank-badge { color:var(--gold); }
 
 /* --- top-bar --- */
 .topbar {
