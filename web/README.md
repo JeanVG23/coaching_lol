@@ -38,6 +38,7 @@ web/
     index.html       # page (affiche le statut backend pour l'instant)
     style.css
     app.js           # fetch /api/health
+    vendor/          # alpine.min.js, chart.min.js (vendored, pas de build)
 fly.toml             # config Fly.io
 Dockerfile           # image unique (back + statique)
 .dockerignore        # exclut data/ (lourd) et l'env local

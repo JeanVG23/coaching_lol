@@ -118,17 +118,21 @@ prérequis ML pour V2, hors scope de cette spec.
 
 ## Stack front
 
-**Alpine.js + Tailwind + Chart.js**, CSS Tailwind **précompilé** (CLI standalone,
-`style.css` généré commité, pas de build Node à l'exécution).
+**Alpine.js + CSS sur-mesure + Chart.js**. Un seul `style.css` écrit à la main (tokens =
+variables CSS + petits composants `.card`/`.row`/`.chip`), **pas de build Node**, pas de
+CLI Tailwind à relancer. Cohérent avec le `style.css` déjà en place (variables CSS).
 
-- **Alpine.js** (~15 KB, pas de build) : réactivité légère saupoudrée dans le HTML —
-  gère l'état (job en cours, insights d'une review, sélecteurs, dropdown de compte).
-- **Tailwind** (CSS précompilé) : styling. Palette raffisée (cf. Langage visuel).
-- **Chart.js** : graphique SHAP local (barres horizontales triables + tooltip).
+- **Alpine.js** (~15 KB, vendored, pas de build) : réactivité légère saupoudrée dans le
+  HTML — gère l'état (job en cours, insights d'une review, sélecteurs, dropdown de compte,
+  polling de jobs).
+- **CSS sur-mesure** : styling. Tokens + composants, palette raffisée (cf. Langage
+  visuel). Pas de classes utilitaires ; on compose des composants nommés réutilisables.
+- **Chart.js** (vendored) : graphique SHAP local (barres horizontales triables + tooltip).
 
 Raison : on garde le modèle « front statique servi par FastAPI » (pas de Vite, pas de
-build Node, Docker reste simple), tout en évitant le JS impératif verbeux. C'est le
-point doux pour ~3 pages avec 3-4 endroits réactifs.
+build Node, Docker reste simple), tout en évitant le JS impératif verbeux. Pour ~3 pages
+avec une esthétique bespoke très ciblée (Apple-like, palette raffinée), un CSS tokens
+sur-mesure sert mieux le rendu qu'un Tailwind précompilé et élimine le build step.
 
 ## Langage visuel
 
@@ -176,7 +180,7 @@ narratif respire**.
   légère `0 1px 2px rgba(0,0,0,.3)` au besoin sur cartes élevées).
 - **Pas de glow.** Pas de `box-shadow` colorée, pas de `text-shadow`, pas de néon. Le
   gold `#c8aa6e` apparaît en couleur pleine, jamais en halo.
-- **Coins peu arrondis** (`rounded-md` = 6 px) — classe, pas bulle.
+- **Coins peu arrondis** (6 px) — classe, pas bulle.
 - **Typographie** : Inter, graisses 400/500/600 uniquement (pas de 700+ criard), échelle
   restreinte (12/13/14/16/20/28). Chiffres tabulaires pour les stats (`font-variant-numeric: tabular-nums`).
 - **États** : survol = `panel-2` + bordure `border` qui passe à `gold` sur le focus ;
