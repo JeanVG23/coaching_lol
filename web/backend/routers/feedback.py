@@ -1,5 +1,7 @@
+from datetime import datetime
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 import feedback
 import settings
@@ -11,6 +13,12 @@ class FeedbackReq(BaseModel):
     slug: str
     ts: str
     responses: dict[str, dict]  # "kind,index" -> {useful, tag?, note?}
+
+
+class FeedbackResponse(BaseModel):
+    useful: bool
+    tag: feedback.schema_mod.TagKind | None = None
+    note: str | None = None
 
 
 @router.post("/api/feedback")
@@ -28,9 +36,16 @@ def post_feedback(req: FeedbackReq):
             idx = int(idx)
         except ValueError:
             raise HTTPException(422, f"clé de réponse invalide : {k!r} (attendu 'kind,index')")
-        responses[(kind, idx)] = (v["useful"], v.get("tag"), v.get("note"))
-    from datetime import datetime
-    fb = feedback.build_feedback(review, req.ts, req.slug, review_dict["model"],
-                                  datetime.now().isoformat(timespec="seconds"), responses)
+        try:
+            r = FeedbackResponse.model_validate(v)
+        except ValidationError as e:
+            raise HTTPException(422, f"réponse invalide pour {k!r} : {e.errors()}")
+        responses[(kind, idx)] = (r.useful, r.tag, r.note)
+    rated_at = datetime.now().isoformat(timespec="seconds")
+    try:
+        fb = feedback.build_feedback(review, req.ts, req.slug, review_dict["model"],
+                                      rated_at, responses)
+    except ValidationError as e:
+        raise HTTPException(422, f"feedback invalide (tag requis si useful=False) : {e.errors()}")
     feedback.persist_feedback(req.slug, fb)
     return {"ok": True}

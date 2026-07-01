@@ -140,3 +140,24 @@ def test_unknown_account_404(tmp_path, monkeypatch):
     c = _client(tmp_path, monkeypatch)
     assert c.post("/api/fetch", json={"slug": "ghost"}).status_code == 404
     assert c.post("/api/coach", json={"slug": "ghost"}).status_code == 404
+
+
+def test_feedback_missing_useful_422(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    r = c.post("/api/feedback", json={"slug": "spadzze", "ts": "2026-06-30T17:53:39",
+            "responses": {"strength,0": {"tag": "asymetrie"}}})  # no "useful"
+    assert r.status_code == 422
+
+
+def test_feedback_not_useful_without_tag_422(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    with patch("routers.feedback.feedback.load_review", return_value={
+            "ts": "2026-06-30T17:53:39", "model": "kimi-k2.6",
+            "review": {"strengths": [{"point": "x", "evidence": "e"}]*3,
+                       "mistakes": [{"point": "y", "evidence": "e"}]*3,
+                       "habits": ["h1", "h2"], "next_focus": "f",
+                       "confidence": 0.6}}):
+        r = c.post("/api/feedback", json={"slug": "spadzze",
+                "ts": "2026-06-30T17:53:39",
+                "responses": {"strength,0": {"useful": False}}})  # no tag
+    assert r.status_code == 422
