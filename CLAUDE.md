@@ -275,6 +275,11 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   - **`src/01_data_engineering/`** : `build_dataset.py` consolide en table de features tabulaire ML-ready (Parquet). **1 ligne = 1 ADC d'une game.** Le référentiel ré-extrait **les DEUX ADC de chaque game depuis le raw** (0 API) — le silver ne stocke qu'un joueur ciblé par game, donc s'y limiter ne récupérait l'ADC que des games où le ciblé était ADC (~3 088 rows). En relisant le raw (10 joueurs présents), on densifie à ~games×2 (≈ 7 873 rows sur le patch courant). Le perso (Spadzze) garde sa propre perspective ADC (inférence).
     > ⚠️ **FLAW ASSUMÉ — transfert de rang.** Le rang d'une game = rang de collecte du joueur ciblé (dossier silver). On le transfère **aux deux ADC** en supposant un **MMR égal dans le lobby** (vrai en solo queue high-elo, matchmaking serré). L'ADC ennemi n'a donc pas son rang réel mesuré mais celui, approché, de la game. Acceptable pour un classif high/low ; à revoir si on descend en elo (écart de MMR intra-lobby plus large). Games collectées sous plusieurs rangs (lobby master∩GM) : rang résolu au **mode**, tie-break sur le rang le plus bas (ne pas gonfler high_elo aux frontières).
   - **`src/02_data_science/`** : `train_ensemble.py` pour séparer High-Elo vs Low-Elo via un **Ensemble à 3 biais inductifs distincts** (XGBoost=GBDT, Random Forest=bagging, EBM=GA²M glass-box). Le SHAP moyen porte sur les 2 arbres ; l'EBM (main effects + interactions par paires) sert de validateur indépendant et expose la structure par paires que l'additif pur rate.
+    `calibrate_rank.py` — calibration proba→rang pour le placement ML web
+    (`web/backend/ml_rank.py`) : le modèle `high_elo` est binaire (M/D vs GM/C), donc
+    on calibre la proba moyenne ensemble (xgb+rf) par rang réel sur le référentiel
+    (`data/05_model/rank_calibration.json`), puis on place un joueur au rang calibré
+    le plus proche de sa proba moyenne sur ses dernières games ADC.
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
@@ -320,6 +325,15 @@ reprocher une décision sur une info cachée.
   signal au-delà du laning — **AUC dia_chall 0.655 → 0.724 (+0.069)**, top-3 discriminants EBM
   tous positionnels (`avg_dist_to_ally`, `wards_killed`, `wards_placed_early`). Incrément 2
   (coaching) : 14 features câblées dans `aggregate`/`compare` (médianes à issue égale).
+  ⚠️ `xgb_highelo.pkl`/`rf_highelo.pkl`/`ebm_highelo.pkl` étaient restés périmés (23
+  features pré-positioning, alors que `features.json` en listait 39) — un ré-entraînement
+  (`train_ensemble.py --target high_elo`) était nécessaire avant de pouvoir servir ces
+  modèles en inférence web. **AUC out-of-fold high_elo = 0.589** (frontière Master|GM
+  intrinsèquement peu séparable sur des features macro, à la différence de dia_chall).
+- **Rang ML estimé (web)** ✅ — onglet Historique de `/c/{slug}` affiche un rang placé par
+  l'ensemble xgb+rf sur les dernières games ADC du joueur, calibré par
+  `calibrate_rank.py` (proba moyenne → rang référentiel le plus proche). Confiance
+  affichée explicitement (signal faible, cf. AUC ci-dessus) — pas de fausse certitude.
 - **Premier verdict ADC** : laning = LE levier (≈ -10 à -16 CS @14 vs challenger, *toutes*
   issues) ; mauvaise gestion du retard (gold@20 en lose -1252 vs -322) ; morts = symptôme.
 - Clé **dev** (throttle ~100 req/2min, attentes 429 si saturé) → rate-limiter intégré.

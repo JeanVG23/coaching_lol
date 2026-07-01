@@ -131,6 +131,11 @@ coach timeline).
   après un merge multi-fetch)
 - `GET  /api/c/{slug}/rank` — rang solo/duo courant, mis en cache à chaque fetch
   (pas de live à la volée) : repère de fraîcheur des données pour l'utilisateur
+- `GET  /api/c/{slug}/predicted-rank` — rang **estimé par le modèle ML** (ensemble
+  xgb+rf `high_elo`) sur les 20 dernières games ADC (BOTTOM) en cache, calibré par
+  `src/02_data_science/calibrate_rank.py`. `null` si < 3 games ADC en cache. Signal
+  faible sur la frontière Master|GM (AUC 0.589, cf. CLAUDE.md) — la confiance
+  (`proba`) est renvoyée explicitement, pas juste le label.
 - `POST /api/fetch` — mettre à jour les games + le rang d'un slug (pull Riot →
   silver → gold, job async)
 - `GET  /api/jobs/{id}` — suivi des jobs longs (fetch + coaching)

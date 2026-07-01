@@ -21,7 +21,7 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
-from routers import accounts, games, jobs, reviews, feedback, shap, rank  # noqa: E402
+from routers import accounts, games, jobs, reviews, feedback, shap, rank, predicted_rank  # noqa: E402
 
 app = FastAPI(title="coaching_lol", version="0.1.0")
 
@@ -32,6 +32,7 @@ app.include_router(jobs.router)
 app.include_router(feedback.router)
 app.include_router(shap.router)
 app.include_router(rank.router)
+app.include_router(predicted_rank.router)
 
 
 @app.get("/api/health")

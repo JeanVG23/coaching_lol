@@ -91,6 +91,14 @@ def test_account_header_rank_wired():
     assert "rank-badge" in body or "rankLabel" in body
 
 
+def test_history_tab_predicted_rank_wired():
+    body = _client().get("/c/spadzze").text
+    js = _client().get("/static/app.js").text
+    assert "/api/c/" in js and "/predicted-rank" in js
+    assert "loadPredictedRank" in js
+    assert "predictedRank" in body
+
+
 def test_coaching_tab_wired():
     body = _client().get("/c/spadzze").text
     js = _client().get("/static/app.js").text

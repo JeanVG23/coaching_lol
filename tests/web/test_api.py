@@ -83,6 +83,23 @@ def test_rank_endpoint_never_fetched_returns_null_shape(tmp_path, monkeypatch):
     assert body["tier"] is None and body["fetched_at"] is None
 
 
+def test_predicted_rank_endpoint(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    with patch("routers.predicted_rank.ml_rank.predict_rank",
+               return_value={"predicted_rank": "master", "proba": 0.5, "n_games_used": 3}):
+        r = c.get("/api/c/spadzze/predicted-rank")
+    assert r.status_code == 200
+    assert r.json() == {"predicted_rank": "master", "proba": 0.5, "n_games_used": 3}
+
+
+def test_predicted_rank_endpoint_insufficient_data(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    with patch("routers.predicted_rank.ml_rank.predict_rank", return_value=None):
+        r = c.get("/api/c/spadzze/predicted-rank")
+    assert r.status_code == 200
+    assert r.json()["predicted_rank"] is None
+
+
 def test_fetch_creates_job(tmp_path, monkeypatch):
     c = _client(tmp_path, monkeypatch)
     with patch("routers.jobs.pipeline.fetch_games", return_value={"n_games": 5}):

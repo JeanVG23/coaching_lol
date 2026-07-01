@@ -107,6 +107,13 @@
   <!-- onglet Historique -->
   <template x-if="tab === 'history'">
     <div>
+      <template x-if="predictedRank && predictedRank.predicted_rank">
+        <div class="meta-strip row wrap">
+          <span>🤖 Rang ML estimé (<span x-text="predictedRank.n_games_used"></span> dernières games ADC) :</span>
+          <span class="badge" x-text="rankTierLabel(predictedRank.predicted_rank)"></span>
+          <span class="faint" x-text="'confiance ' + Math.round(predictedRank.proba * 100) + '%'"></span>
+        </div>
+      </template>
       <template x-if="gamesLoading"><div class="state">Chargement…</div></template>
       <template x-if="gamesError"><div class="state err" x-text="gamesError"></div></template>
       <template x-if="!gamesLoading && !gamesError && games.length === 0">

@@ -85,6 +85,7 @@ function accountPage(slug) {
     fetchN: 20,
     job: null, // {type, status, progress, error}
     rank: null, rankLoading: true,
+    predictedRank: null, predictedRankLoading: true,
     // coaching
     scope: "adc", outcome: "loss", target: "challenger",
     reviews: [], review: null, reviewsLoading: true,
@@ -93,7 +94,7 @@ function accountPage(slug) {
     // shap (F5)
     shap: null, shapLoading: false, shapSort: "abs", chart: null,
 
-    init() { this.loadGames(); this.loadRank(); },
+    init() { this.loadGames(); this.loadRank(); this.loadPredictedRank(); },
 
     async loadGames() {
       this.gamesLoading = true; this.gamesError = null;
@@ -117,6 +118,17 @@ function accountPage(slug) {
       return `${tier} ${this.rank.division} · ${this.rank.league_points} LP`;
     },
 
+    async loadPredictedRank() {
+      this.predictedRankLoading = true;
+      try { this.predictedRank = await api(`/api/c/${this.slug}/predicted-rank`); }
+      catch (e) { this.predictedRank = null; }
+      finally { this.predictedRankLoading = false; }
+    },
+
+    rankTierLabel(tier) {
+      return tier.charAt(0).toUpperCase() + tier.slice(1);
+    },
+
     async prevPage() { if (this.page > 1) { this.page--; this.loadGames(); } },
     async nextPage() {
       if (this.page * this.size < this.total) { this.page++; this.loadGames(); }
@@ -138,7 +150,7 @@ function accountPage(slug) {
         j => { this.job = j; },
         j => {
           this.job = j;
-          if (j.status === "done" && j.type === "fetch") { this.loadGames(); this.loadRank(); }
+          if (j.status === "done" && j.type === "fetch") { this.loadGames(); this.loadRank(); this.loadPredictedRank(); }
         },
       );
     },
