@@ -33,15 +33,17 @@ fly open                            # ouvre l'URL publique
 
 ```
 web/
-  backend/main.py    # FastAPI : /api/* + sert index.html et /static
+  backend/main.py     # FastAPI : /api/* + sert index.html et /static
   frontend/
-    index.html       # page (affiche le statut backend pour l'instant)
-    style.css
-    app.js           # fetch /api/health
-    vendor/          # alpine.min.js, chart.min.js (vendored, pas de build)
-fly.toml             # config Fly.io
-Dockerfile           # image unique (back + statique)
-.dockerignore        # exclut data/ (lourd) et l'env local
+    index.html        # shell SPA (top-bar + templates par page)
+    style.css         # tokens + composants (CSS sur-mesure, pas de build)
+    app.js            # composants Alpine (app/homePage/accountPage/readmePage) + helpers
+    vendor/
+      alpine.min.js   # Alpine 3.x vendored
+      chart.umd.min.js# Chart.js 4.x vendored
+fly.toml
+Dockerfile
+.dockerignore
 ```
 
 ## Périmètre V1

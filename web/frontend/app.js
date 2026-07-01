@@ -286,4 +286,6 @@ function accountPage(slug) {
     },
   };
 }
-function readmePage()  { return { init() {} }; }
+function readmePage() {
+  return { init() { /* page statique, rien à fetcher */ } };
+}

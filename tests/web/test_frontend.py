@@ -108,3 +108,13 @@ def test_shap_tab_wired():
     assert "/api/c/" in js and "/shap" in js
     assert "new Chart(" in js
     assert "shap-wrap" in body or "shap-empty" in body
+
+
+def test_readme_page_wired():
+    body = _client().get("/readme").text
+    js = _client().get("/static/app.js").text
+    assert "function readmePage()" in js
+    # contenu vulgarisé clé présent dans le HTML servi
+    assert "asymétrie" in body.lower() or "asymetrie" in body.lower()
+    assert "benchmark" in body.lower()
+    assert "positionnement" in body.lower()

@@ -305,7 +305,40 @@
 </div>
     </template>
     <template x-if="route.name === 'readme'">
-      <div x-data="readmePage()" x-init="init()"></div>
+      <div x-data="readmePage()" x-init="init()" class="readme">
+  <h1 style="font-size:28px;margin-bottom:6px">Comment fonctionne le coaching</h1>
+  <p class="muted" style="margin:0 0 24px">Les recos sont benchmarkées, vérifiables, et respectent ce que tu savais vraiment.</p>
+
+  <div class="card">
+    <h2>Positionnement &gt; stats brutes</h2>
+    <p>Les outils classiques (op.gg, u.gg) s'appuient sur des agrégats — KDA, gold, tourelles. Ils produisent des conseils pauvres (« meurs moins »). Ce coach reconstruit <strong>les déplacements réels</strong> depuis la timeline Riot (positions de tous les champions toutes les 60 s) pour dire <em>« place-toi ici plutôt que là »</em>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Respect de l'asymétrie d'information</h2>
+    <p>Le coach ne te reproche <strong>jamais</strong> une décision basée sur une info que tu n'avais pas. Ex. : il ne dira pas « tu n'aurais pas dû push, le jungle ennemi était botside » si tu n'avais aucune vision dessus. On raisonne uniquement sur l'information réellement disponible au joueur. L'info complète post-game sert à <em>labelliser</em>, pas à juger.</p>
+  </div>
+
+  <div class="card">
+    <h2>Benchmark challenger, pas opinion absolue</h2>
+    <p>« Tu recalls à 1450 g en moyenne, les challengers de ton matchup à 1100 » est concret et <strong>vérifiable</strong>. Les benchmarks viennent directement des timelines high-elo de l'API Riot, à issue et contexte de lane égaux. Une reco sans preuve chiffrée n'est pas une reco.</p>
+  </div>
+
+  <div class="card">
+    <h2>Ce que mesurent les features</h2>
+    <ul>
+      <li><strong>Lane</strong> — gold/CS/XP diff @10/@14/@20 vs adversaire direct.</li>
+      <li><strong>Positionnement</strong> — présence par zone, roam mid, over-extension, vision posée/détruite, temps mort (gold dead time). Calculées sans vision computer, depuis la timeline.</li>
+      <li><strong>Morts</strong> — répartition par zone/phase, morts en fog vs en vision, gold state au moment de la mort.</li>
+      <li><strong>Profil ML</strong> — contributions SHAP au classement High-Elo vs Low-Elo (modèle XGBoost/RF/EBM). Indique quelles features poussent ton profil vers un rang ou l'autre.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>La boucle de feedback</h2>
+    <p>Chaque insight (force / erreur / habitude / focus) est annotable : ✓ utile, ✗ faux ou inutile (avec un tag : <em>asymétrie</em>, <em>stat inventée</em>, <em>profondeur en faute</em>, <em>trop vague</em>, <em>non actionnable</em>, <em>autre</em>). Ces annotations mesurent si le coach s'améliore — un conseil benchmarké est intrinsèquement plus vérifiable qu'une opinion.</p>
+  </div>
+</div>
     </template>
   </main>
 
