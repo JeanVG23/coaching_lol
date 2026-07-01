@@ -125,3 +125,31 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
 .ac-slug { font-size:16px; font-weight:600; color:var(--text); }
 .ac-riot { font-size:12px; margin:2px 0 10px; }
 .ac-stats { font-size:13px; color:var(--text-dim); }
+
+/* --- account: header + actions + job --- */
+.prof-header { margin-bottom:18px; }
+.action-bar {
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  padding:12px 16px; margin-bottom:14px;
+}
+.job-banner {
+  position:sticky; top:52px; z-index:10;
+  background:var(--panel-2); border:1px solid var(--border); border-left:3px solid var(--gold);
+  border-radius:var(--radius); padding:9px 14px; margin-bottom:16px; font-size:13px;
+}
+.job-banner.err { border-left-color:var(--loss); color:var(--loss); }
+
+/* --- account: game rows (dense, scannable, op.gg-like) --- */
+.game-row {
+  display:grid; grid-template-columns:32px 1fr 150px 56px; gap:12px; align-items:center;
+  padding:8px 12px; border:1px solid var(--border); border-left:3px solid var(--border);
+  border-radius:var(--radius); background:var(--panel);
+}
+.game-row + .game-row { margin-top:6px; }
+.game-row.w { border-left-color:var(--win); }
+.game-row.l { border-left-color:var(--loss); }
+.champ-icon { width:32px; height:32px; border-radius:4px; display:block; background:var(--bg); }
+.champ-fallback { font-size:11px; color:var(--text-dim); width:32px; text-align:center; }
+.gr-champ { font-weight:500; }
+.gr-kda { font-size:13px; color:var(--text-dim); text-align:right; }
+.gr-patch { font-size:12px; text-align:right; }

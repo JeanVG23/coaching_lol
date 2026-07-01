@@ -70,3 +70,14 @@ def test_home_page_wired():
     # marqueurs propres au template home (absents de la nav switcher F1)
     assert 'class="accounts-grid"' in body
     assert 'class="account-card"' in body
+
+
+def test_account_page_history_wired():
+    body = _client().get("/c/spadzze").text
+    js = _client().get("/static/app.js").text
+    assert "function accountPage(" in js
+    assert "/api/c/" in js and "/games" in js
+    assert "/api/fetch" in js
+    assert "/api/jobs/" in js
+    assert 'class="game-row"' in body or "game-row" in body
+    assert "job-banner" in body
