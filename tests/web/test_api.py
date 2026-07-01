@@ -1,0 +1,98 @@
+from pathlib import Path
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
+
+
+def _client(tmp_path, monkeypatch):
+    # Redirect JOBS_FILE + data root to tmp before importing main
+    import settings
+    monkeypatch.setattr(settings, "JOBS_FILE", tmp_path / "jobs.jsonl")
+    monkeypatch.setattr(settings, "ACCOUNTS_FILE", tmp_path / "accounts.json")
+    settings.ACCOUNTS_FILE.write_text('[{"slug":"spadzze","riot_id":"Spadzze#euw","region":"euw1"}]')
+    # Point readers at fixture data
+    import readers
+    fix = Path(__file__).resolve().parent / "fixtures"
+    monkeypatch.setattr(readers, "rl", _rl_proxy(fix), raising=False)
+    import main
+    return TestClient(main.app)
+
+
+class _RlProxy:
+    """Shim so readers' `data_root or rl.DATA` picks the fixture dir."""
+    def __init__(self, data):
+        self.DATA = data
+
+
+def _rl_proxy(fix):
+    return _RlProxy(fix)
+
+
+def test_health(client=None):
+    import main
+    c = TestClient(main.app)
+    r = c.get("/api/health")
+    assert r.status_code == 200 and r.json()["status"] == "ok"
+
+
+def test_accounts_endpoint(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    r = c.get("/api/accounts")
+    assert r.status_code == 200
+    body = r.json()
+    assert body[0]["slug"] == "spadzze"
+    assert body[0]["games_count"] == 3
+
+
+def test_games_endpoint(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    r = c.get("/api/c/spadzze/games?size=2")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 3 and len(body["items"]) == 2
+
+
+def test_games_bad_params_422(tmp_path, monkeypatch):
+    """Validation route-layer : page>=1 et size in [1,200]."""
+    c = _client(tmp_path, monkeypatch)
+    assert c.get("/api/c/spadzze/games?page=0").status_code == 422
+    assert c.get("/api/c/spadzze/games?size=0").status_code == 422
+    assert c.get("/api/c/spadzze/games?size=201").status_code == 422
+
+
+def test_shap_endpoint(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    r = c.get("/api/c/spadzze/shap")
+    assert r.status_code == 200 and r.json()["available"] is True
+
+
+def test_fetch_creates_job(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    with patch("routers.jobs.pipeline.fetch_games", return_value={"n_games": 5}):
+        r = c.post("/api/fetch", json={"slug": "spadzze", "n": 5})
+    assert r.status_code == 200
+    jid = r.json()["job_id"]
+    r2 = c.get(f"/api/jobs/{jid}")
+    assert r2.status_code == 200 and r2.json()["id"] == jid
+
+
+def test_jobs_missing_404(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    assert c.get("/api/jobs/nope").status_code == 404
+
+
+def test_coach_creates_job(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    with patch("routers.jobs.pipeline.run_coach", return_value={"ts": "t"}):
+        r = c.post("/api/coach", json={"slug": "spadzze", "scope": "adc",
+                                       "outcome": "loss", "target": "challenger"})
+    assert r.status_code == 200 and "job_id" in r.json()
+
+
+def test_feedback_post(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    with patch("routers.feedback.feedback.build_feedback", return_value="FB"), \
+         patch("routers.feedback.feedback.persist_feedback", return_value=("p", False)):
+        r = c.post("/api/feedback", json={"slug": "spadzze", "ts": "2026-06-30T17:53:39",
+                "responses": {"strength,0": {"useful": True}}})
+    assert r.status_code == 200 and r.json()["ok"] is True
