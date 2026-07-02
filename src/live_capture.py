@@ -158,3 +158,50 @@ def capture(out_dir: Path, interval: float = POLL_INTERVAL_S,
     duration = (end_time - start_time).total_seconds()
     print(f"Capture terminée : {jsonl_path.name} ({duration:.0f}s)")
     return jsonl_path, meta_path
+
+
+def _candidate_games(client, rl_module, puuid: str, count: int = 15) -> list[dict]:
+    """Résume les games récentes du joueur pour le matching (cache raw réutilisé
+    par rl_module.get_match_timeline)."""
+    candidates = []
+    for mid in client.match_ids(puuid, count=count):
+        match, _ = rl_module.get_match_timeline(client, mid)
+        info = match["info"]
+        participant = next(p for p in info["participants"] if p["puuid"] == puuid)
+        game_start = datetime.fromtimestamp(info["gameStartTimestamp"] / 1000,
+                                             tz=timezone.utc)
+        candidates.append({
+            "match_id": mid,
+            "champion": participant["championName"],
+            "game_start": game_start.isoformat(),
+            "game_duration_s": info["gameDuration"],
+        })
+    return candidates
+
+
+def match_pending_captures(pending_dir: Path, matched_dir: Path, client, rl_module,
+                            puuid: str) -> None:
+    matched_dir.mkdir(parents=True, exist_ok=True)
+    candidates = _candidate_games(client, rl_module, puuid)
+
+    for meta_path in sorted(pending_dir.glob("*_meta.json")):
+        jsonl_path = meta_path.with_name(meta_path.name.replace("_meta.json", ".jsonl"))
+        if not jsonl_path.exists():
+            print(f"⚠ {meta_path.name}: .jsonl manquant, ignoré.")
+            continue
+        try:
+            capture_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            print(f"⚠ {meta_path.name}: meta corrompu, ignoré.")
+            continue
+
+        match_id = find_matching_game(
+            capture_meta, candidates,
+            warn=lambda msg, f=meta_path.name: print(f"⚠ {f}: {msg}"))
+        if match_id is None:
+            print(f"… {meta_path.name}: aucune game correspondante pour l'instant.")
+            continue
+
+        jsonl_path.rename(matched_dir / f"{match_id}_live.jsonl")
+        meta_path.rename(matched_dir / f"{match_id}_live_meta.json")
+        print(f"✓ {meta_path.name} → {match_id}_live.jsonl")

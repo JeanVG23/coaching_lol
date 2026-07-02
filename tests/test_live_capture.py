@@ -135,3 +135,67 @@ def test_capture_writes_snapshots_until_game_ends(tmp_path):
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
     assert meta["champion"] == "Zeri"
     assert "start" in meta and "end" in meta and "machine" in meta
+
+
+class _FakeClient:
+    def match_ids(self, puuid, count=15):
+        return ["EUW1_111"]
+
+
+class _FakeRiotLib:
+    def get_match_timeline(self, client, match_id):
+        match = {
+            "info": {
+                "gameStartTimestamp": int(datetime(2026, 7, 2, 18, 0, 0,
+                                                    tzinfo=timezone.utc).timestamp() * 1000),
+                "gameDuration": 1800,
+                "participants": [{"puuid": "PUUID1", "championName": "Zeri"}],
+            }
+        }
+        return match, {}
+
+
+def _write_capture(pending_dir, stem, champion, start, end):
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    (pending_dir / f"{stem}.jsonl").write_text('{"t": "x", "data": {}}\n', encoding="utf-8")
+    meta = {"start": start, "end": end, "champion": champion, "machine": "TEST-PC"}
+    (pending_dir / f"{stem}_meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+def test_match_pending_captures_moves_matched_files(tmp_path):
+    pending = tmp_path / "pending"
+    matched = tmp_path / "matched"
+    _write_capture(pending, "20260702T180000Z_Zeri", "Zeri",
+                    _iso(2026, 7, 2, 18, 0, 2), _iso(2026, 7, 2, 18, 30, 0))
+
+    LC.match_pending_captures(pending, matched, _FakeClient(), _FakeRiotLib(), "PUUID1")
+
+    assert not (pending / "20260702T180000Z_Zeri.jsonl").exists()
+    assert (matched / "EUW1_111_live.jsonl").exists()
+    assert (matched / "EUW1_111_live_meta.json").exists()
+
+
+def test_match_pending_captures_skips_corrupt_meta(tmp_path, capsys):
+    pending = tmp_path / "pending"
+    matched = tmp_path / "matched"
+    pending.mkdir(parents=True)
+    (pending / "bad.jsonl").write_text("{}\n", encoding="utf-8")
+    (pending / "bad_meta.json").write_text("{not json", encoding="utf-8")
+
+    LC.match_pending_captures(pending, matched, _FakeClient(), _FakeRiotLib(), "PUUID1")
+
+    assert (pending / "bad.jsonl").exists()  # laissé en place, pas déplacé
+    assert not matched.exists() or not any(matched.iterdir())
+
+
+def test_match_pending_captures_skips_missing_jsonl(tmp_path):
+    pending = tmp_path / "pending"
+    matched = tmp_path / "matched"
+    pending.mkdir(parents=True)
+    meta = {"start": _iso(2026, 7, 2, 18, 0, 0), "end": _iso(2026, 7, 2, 18, 30, 0),
+            "champion": "Zeri", "machine": "TEST-PC"}
+    (pending / "orphan_meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+    LC.match_pending_captures(pending, matched, _FakeClient(), _FakeRiotLib(), "PUUID1")
+
+    assert (pending / "orphan_meta.json").exists()  # toujours là, jamais traité
