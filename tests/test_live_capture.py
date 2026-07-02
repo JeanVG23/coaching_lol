@@ -71,3 +71,67 @@ def test_find_matching_game_tolerance_boundary():
                         "game_start": _iso(2026, 7, 2, 18, 5, 1), "game_duration_s": 1800}]
     assert LC.find_matching_game(capture_meta, beyond_boundary,
                                   start_tolerance_s=300) is None
+
+
+import http.server
+import json
+import threading
+from pathlib import Path
+
+
+class _FakeLiveClientHandler(http.server.BaseHTTPRequestHandler):
+    responses = []
+    call_count = 0
+
+    def do_GET(self):
+        cls = type(self)
+        if cls.call_count >= len(cls.responses):
+            self.send_response(500)
+            self.end_headers()
+            return
+        payload = cls.responses[cls.call_count]
+        cls.call_count += 1
+        body = json.dumps(payload).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format, *args):
+        pass  # silence les logs HTTP pendant les tests
+
+
+def _run_fake_server(responses):
+    _FakeLiveClientHandler.responses = responses
+    _FakeLiveClientHandler.call_count = 0
+    server = http.server.HTTPServer(("127.0.0.1", 0), _FakeLiveClientHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread
+
+
+def test_capture_writes_snapshots_until_game_ends(tmp_path):
+    snapshot = {
+        "activePlayer": {"riotIdGameName": "Spadzze"},
+        "allPlayers": [{"riotIdGameName": "Spadzze", "championName": "Zeri"}],
+    }
+    server, thread = _run_fake_server([snapshot, snapshot, snapshot])
+    try:
+        port = server.server_address[1]
+        url = f"http://127.0.0.1:{port}/liveclientdata/allgamedata"
+        result = LC.capture(Path(tmp_path), interval=0.05, fail_threshold=2, url=url)
+    finally:
+        server.shutdown()
+        thread.join(timeout=2)
+
+    assert result is not None
+    jsonl_path, meta_path = result
+    lines = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) == 3
+    for line in lines:
+        row = json.loads(line)
+        assert row["data"] == snapshot
+
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert meta["champion"] == "Zeri"
+    assert "start" in meta and "end" in meta and "machine" in meta
