@@ -205,3 +205,47 @@ def match_pending_captures(pending_dir: Path, matched_dir: Path, client, rl_modu
         jsonl_path.rename(matched_dir / f"{match_id}_live.jsonl")
         meta_path.rename(matched_dir / f"{match_id}_live_meta.json")
         print(f"✓ {meta_path.name} → {match_id}_live.jsonl")
+
+
+def arg(flag: str, default=None):
+    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
+
+
+def main() -> int:
+    if "--match" in sys.argv:
+        import riotlib as rl  # import différé : uniquement nécessaire en mode --match
+
+        idx = sys.argv.index("--match")
+        pos = [a for a in sys.argv[idx + 1:] if not a.startswith("-")]
+        env = rl.load_env()
+        riot_id = pos[0] if pos else env.get("RIOT_ID")
+        platform_name = (pos[1] if len(pos) > 1 else env.get("RIOT_REGION", "")).lower()
+        api_key = env.get("RIOT_API_ID")
+
+        if not (api_key and riot_id and "#" in riot_id and platform_name):
+            print("✗ Usage: live_capture.py --match \"Riot#Id\" <platform> "
+                  "(ou RIOT_API_ID/RIOT_ID/RIOT_REGION dans .env)", file=sys.stderr)
+            return 1
+        regional = rl.PLATFORM_TO_REGIONAL.get(platform_name)
+        if not regional:
+            print(f"✗ Région inconnue: {platform_name!r}", file=sys.stderr)
+            return 1
+
+        game_name, tag_line = riot_id.split("#", 1)
+        client = rl.RiotClient(api_key, regional, platform_name)
+        puuid = client.puuid_from_riot_id(game_name, tag_line)
+        if not puuid:
+            print("✗ Riot ID introuvable.", file=sys.stderr)
+            return 1
+
+        pending_dir = Path(arg("--pending", "data/01_raw_live/pending"))
+        matched_dir = Path(arg("--matched", "data/01_raw_live/matched"))
+        match_pending_captures(pending_dir, matched_dir, client, rl, puuid)
+        return 0
+
+    capture(Path(arg("--out", ".")))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
