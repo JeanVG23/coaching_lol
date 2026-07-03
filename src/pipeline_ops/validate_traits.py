@@ -162,63 +162,121 @@ def _detect_lane_visits(match: dict, timeline: dict, target_puuid: str,
                         target_role: str, max_minute: int = 15) -> dict:
     """Pour UN joueur, compte les visites de lane pendant les N premières minutes.
 
+    v2 (post data-driven validation) : sépare les "vraies" tentatives de gank
+    du bruit (wards, scuttle, traverse map). Deux nouveaux signaux :
+
+    - `gank_kills_v2` : un kill où le jungler est killer/assist **dans les 3
+      minutes après une frame en lane avec ennemi**. C'est le signal "tue-t-on
+      après être passé en lane ?" — corrélé au vrai gank, pas à la ward.
+    - `real_gank_frames` : frames en lane avec ennemi **ET** une frame en lane
+      supplémentaire dans les 2 minutes précédentes/suivantes (séjour prolongé
+      = gank attempt, pas ward éclair).
+
     Returns:
         {
-          "lane_visits": int,        # nb de frames en zone lane (TOP/MID/BOT)
-          "gank_frames": int,        # frames en lane avec ennemi dans la même zone
-          "gank_kills": int,         # CHAMPION_KILL events pendant ces frames
-          "early_deaths": int,       # morts du target en early game
+          "lane_visits": int,            # frames en zone lane (TOP/MID/BOT)
+          "gank_frames": int,            # frames en lane avec ennemi dans la zone
+          "gank_kills": int,             # CHAMPION_KILL events pendant ces frames (v1)
+          "gank_kills_v2": int,          # kills dans 3min après visite lane (v2)
+          "real_gank_frames": int,       # frames en lane avec ennemi ET séjour prolongé (v2)
+          "early_deaths": int,           # morts du target en early game
         }
     """
     meta = match.get("metadata", {})
     puuid_to_idx = {p: i + 1 for i, p in enumerate(meta.get("participants", []))}
     if target_puuid not in puuid_to_idx:
-        return {"lane_visits": 0, "gank_frames": 0, "gank_kills": 0, "early_deaths": 0}
+        return {"lane_visits": 0, "gank_frames": 0, "gank_kills": 0,
+                "gank_kills_v2": 0, "real_gank_frames": 0, "early_deaths": 0}
     my_idx = puuid_to_idx[target_puuid]
     my_team = 100 if my_idx <= 5 else 200
     enemy_idxs = set(range(1, 11)) - set(range(1, 6) if my_team == 100 else range(6, 11))
 
-    lane_visits = gank_frames = gank_kills = early_deaths = 0
-    # Cache : pour chaque frame, calcule une fois la zone de chaque joueur
+    from riotlib import approx_zone
+
+    # Pré-indexe les CHAMPION_KILL events par minute (pour amélioration 1)
+    kills_by_minute: dict[int, list] = defaultdict(list)
+    for fr in timeline.get("info", {}).get("frames", []):
+        minute = round(fr["timestamp"] / 60000)
+        if minute > max_minute + 3:
+            break
+        for ev in fr.get("events", []):
+            if ev.get("type") == "CHAMPION_KILL":
+                kills_by_minute[minute].append(ev)
+
+    # Passe 1 : collecte les (minute, in_lane, enemy_in_zone) pour chaque frame
+    # In_lane = True si la frame est en zone lane.
+    # enemy_in_zone = True si un ennemi est dans la même zone.
+    per_frame_status: list[tuple[int, bool, bool]] = []
     for fr in timeline.get("info", {}).get("frames", []):
         minute = round(fr["timestamp"] / 60000)
         if minute > max_minute:
-            break
+            per_frame_status.append((minute, False, False))  # au-delà, pas en lane
+            continue
         pf = fr.get("participantFrames", {})
         my_pf = pf.get(str(my_idx), {})
         my_pos = my_pf.get("position") or {}
         if not my_pos.get("x"):
+            per_frame_status.append((minute, False, False))
             continue
-        from riotlib import approx_zone
         my_zone = approx_zone(my_pos["x"], my_pos["y"])
-        if my_zone not in _LANE_ZONES:
+        in_lane = my_zone in _LANE_ZONES
+        enemy_in_zone = False
+        if in_lane:
+            for eidx in enemy_idxs:
+                epf = pf.get(str(eidx), {})
+                epos = epf.get("position") or {}
+                if not epos.get("x"):
+                    continue
+                if approx_zone(epos["x"], epos["y"]) == my_zone:
+                    enemy_in_zone = True
+                    break
+        per_frame_status.append((minute, in_lane, enemy_in_zone))
+
+    # Passe 2 : compte les métriques finales.
+    lane_visits = gank_frames_v1 = gank_kills_v1 = gank_kills_v2 = 0
+    real_gank_frames = early_deaths = 0
+    # Précalcule : minutes où le jungler est en lane avec ennemi.
+    gank_minutes = {m for m, in_lane, e in per_frame_status if in_lane and e}
+
+    for minute, in_lane, enemy_in_zone in per_frame_status:
+        if not in_lane or minute > max_minute:
             continue
         lane_visits += 1
-        # Y a-t-il un ennemi dans la même zone ?
-        enemy_in_zone = False
-        for eidx in enemy_idxs:
-            epf = pf.get(str(eidx), {})
-            epos = epf.get("position") or {}
-            if not epos.get("x"):
-                continue
-            if approx_zone(epos["x"], epos["y"]) == my_zone:
-                enemy_in_zone = True
-                break
         if enemy_in_zone:
-            gank_frames += 1
-        # Kills pendant ce frame : un kill adjacent à un gank ?
-        for ev in fr.get("events", []):
-            if ev.get("type") != "CHAMPION_KILL":
-                continue
+            gank_frames_v1 += 1
+            # Amélioration 2 : frame "vrai gank" = une AUTRE frame en lane
+            # avec ennemi existe dans [minute-2, minute+2] (séjour prolongé).
+            has_neighbor = any(
+                m != minute and m in gank_minutes
+                for m in range(max(0, minute - 2), minute + 3)
+            )
+            if has_neighbor:
+                real_gank_frames += 1
+
+        # v1 kill counter (inchangé pour rétro-compat) : kill dans ce frame
+        # où jungler est killer/assist.
+        for ev in kills_by_minute.get(minute, []):
             assisting = ev.get("assistingParticipantIds") or []
             if ev.get("killerId") == my_idx or my_idx in assisting:
-                gank_kills += 1
+                gank_kills_v1 += 1
             if ev.get("victimId") == my_idx and minute <= 14:
                 early_deaths += 1
+
+        # Amélioration 1 : kill dans les 3 minutes après cette frame,
+        # où le jungler est killer/assist.
+        for kmin in range(minute, min(minute + 3, max_minute + 1)):
+            for ev in kills_by_minute.get(kmin, []):
+                assisting = ev.get("assistingParticipantIds") or []
+                if ev.get("killerId") == my_idx or my_idx in assisting:
+                    gank_kills_v2 += 1
+                    break  # 1 kill max par frame de visite
+
     return {
         "lane_visits": lane_visits,
-        "gank_frames": gank_frames,
-        "gank_kills": gank_kills,
+        "gank_frames": gank_frames_v1,
+        "gank_kills": gank_kills_v1,
+        "gank_kills_v2": gank_kills_v2,
+        "real_gank_frames": real_gank_frames,
         "early_deaths": early_deaths,
     }
 
@@ -269,6 +327,8 @@ def compute_gank_stats_from_raw(
             "lane_visits_mean": fmean(r["lane_visits"] for r in recs),
             "gank_frames_mean": fmean(r["gank_frames"] for r in recs),
             "gank_kills_mean": fmean(r["gank_kills"] for r in recs),
+            "gank_kills_v2_mean": fmean(r["gank_kills_v2"] for r in recs),
+            "real_gank_frames_mean": fmean(r["real_gank_frames"] for r in recs),
             "raw": recs,
         }
     return out
@@ -554,13 +614,15 @@ def group_gank_stats_by_label(
     Returns:
         {label: {"n_champions": int, "n_games": int, "score_median": float, ...}}
 
-    Utilise `gank_kills_mean` (par champion), pas le count par game.
+    Utilise `gank_kills_v2_mean` (kills où le jungler est killer/assist dans
+    les 3min après une visite de lane) — c'est le signal le plus discriminant.
+    Fallback sur `gank_kills_mean` (v1) si v2 absent.
     """
     by_label: dict[str, list[float]] = defaultdict(list)
     counts: dict[str, int] = defaultdict(int)
     for champ, data in per_champ.items():
         trait = traits.get(champ, {})
-        value = data.get("gank_kills_mean")
+        value = data.get("gank_kills_v2_mean", data.get("gank_kills_mean"))
         if value is None:
             continue
         for axis in ("playstyle", "gank_threat"):
@@ -696,7 +758,7 @@ def main() -> int:
     # Distribution par label
     by_label_gank = group_gank_stats_by_label(per_champ_gank, traits)
     if by_label_gank:
-        print(f"\n  Distribution par label (gank_frames moyen) :")
+        print(f"\n  Distribution par label (gank_kills_v2_mean) :")
         print(f"  {'label':<24} {'n_champs':>9} {'n_games':>9} {'médian':>8} {'P25':>6} {'P75':>6}")
         for label, st in sorted(by_label_gank.items()):
             print(f"  {label:<24} {st['n_champions']:>9} {st['n_games']:>9} "
@@ -916,7 +978,7 @@ def build_proposals(
         evidence: dict = {}
         if role == "JUNGLE":
             data = per_champ_gank.get(champ, {})
-            v = data.get("gank_kills_mean")
+            v = data.get("gank_kills_v2_mean", data.get("gank_kills_mean"))
             if v is not None:
                 for axis in ("playstyle", "gank_threat"):
                     label_dists = {k.split("=")[1]: v for k, v in by_label_gank.items()
@@ -995,8 +1057,8 @@ def build_proposals(
 # Axes et leur signal utilisé pour la validation.
 # Chaque axe : (clé dans per_champ_*, group_dist_*, "above" ou "below" est bon)
 _AXIS_SIGNAL = {
-    "playstyle": ("per_champ_gank", "gank_kills_mean", "above"),  # ganking > farming
-    "gank_threat": ("per_champ_gank", "gank_kills_mean", "above"),
+    "playstyle": ("per_champ_gank", "gank_kills_v2_mean", "above"),  # ganking > farming
+    "gank_threat": ("per_champ_gank", "gank_kills_v2_mean", "above"),
     "roam": ("per_champ_roam", "roam_mean", "above"),
     "lane_pattern": ("per_champ_lp", "early_kp_mean", "above"),  # all_in > poke en KP
     "power_curve": ("per_champ_pc", "winrate_long", "above"),  # late > early en late

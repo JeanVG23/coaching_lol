@@ -191,9 +191,16 @@ def test_detect_lane_visits_returns_dict():
                 if not match or not timeline:
                     continue
                 res = vt._detect_lane_visits(match, timeline, game["puuid"], "JUNGLE")
-                assert set(res.keys()) == {"lane_visits", "gank_frames", "gank_kills", "early_deaths"}
+                # v2 : 6 clés (gank_kills_v2 + real_gank_frames ajoutées)
+                expected_keys = {"lane_visits", "gank_frames", "gank_kills",
+                                 "gank_kills_v2", "real_gank_frames", "early_deaths"}
+                assert set(res.keys()) == expected_keys, f"keys mismatch: {set(res.keys())}"
                 assert res["lane_visits"] >= res["gank_frames"]
                 assert res["gank_frames"] >= res["gank_kills"]
+                # gank_kills_v2 doit être >= gank_kills (v2 est plus large temporellement)
+                assert res["gank_kills_v2"] >= res["gank_kills"]
+                # real_gank_frames <= gank_frames (sous-ensemble filtré)
+                assert res["real_gank_frames"] <= res["gank_frames"]
                 return
     pytest.skip("no jungler game with raw data found")
 
@@ -248,7 +255,11 @@ def test_nearest_label_handles_empty():
 def test_build_report_minimal():
     """Smoke test : construit un rapport avec 1 champion."""
     traits = {"LeeSin": {"playstyle": "ganking", "gank_threat": "high"}}
-    per_champ_gank = {"LeeSin": {"n": 50, "gank_kills_mean": 2.6, "lane_visits_mean": 7.0, "gank_frames_mean": 7.0, "raw": []}}
+    # v2 : utilise gank_kills_v2_mean (signal principal après refonte du gank detector)
+    per_champ_gank = {"LeeSin": {"n": 50, "gank_kills_v2_mean": 2.6,
+                                  "gank_kills_mean": 2.6,
+                                  "lane_visits_mean": 7.0,
+                                  "gank_frames_mean": 7.0, "raw": []}}
     by_label_gank = {
         "playstyle=ganking": {"n_champions": 5, "n_games": 5, "score_median": 2.5, "score_p25": 2.0, "score_p75": 3.0, "score_mean": 2.5},
         "gank_threat=high": {"n_champions": 5, "n_games": 5, "score_median": 2.5, "score_p25": 2.0, "score_p75": 3.0, "score_mean": 2.5},
@@ -269,8 +280,7 @@ def test_build_report_minimal():
     assert "axes" in report
     assert "champions" in report
     assert "LeeSin" in report["champions"]
-    # LeeSin 2.6 est dans [P25=2.0, P75=3.0] et à 0.1 du médian 2.5
-    # → 0.1 < 0.3 * 1.01 = 0.303 → validated
+    # LeeSin gank_kills_v2 2.6, group median 2.5 → validated
     assert report["champions"]["LeeSin"]["verdicts"]["playstyle"]["verdict"] == "validated"
 
 
