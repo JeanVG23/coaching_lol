@@ -113,6 +113,6 @@ for m in deepseek-v4-pro glm-5.2 minimax-m3 kimi-k2.6; do
   python3 src/04_coaching/coach.py --player spadzze --scope adc --outcome loss --model $m
 done
 # comparer : chaque run append une ligne dans data/07_coaching/spadzze/reviews.jsonl
-.venv/bin/python -c "import json,pathlib; [print(r['model'], r['review']['confidence']) \
+poetry run python3 -c "import json,pathlib; [print(r['model'], r['review']['confidence']) \
   for r in (json.loads(l) for l in pathlib.Path('data/07_coaching/spadzze/reviews.jsonl').read_text().splitlines() if l.strip())]"
 ```

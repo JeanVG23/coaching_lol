@@ -12,7 +12,7 @@ résolu au mode (tie-break rang le plus bas, cf. ml_features.resolve_rank).
 0 appel API (relit un dataset déjà construit).
 
 Sortie : data/04_dataset/adc_player_dataset.parquet (+ .csv pour inspection).
-Usage : .venv/bin/python src/01_data_engineering/build_player_dataset.py
+Usage : poetry run python3 src/01_data_engineering/build_player_dataset.py
 """
 from __future__ import annotations
 

@@ -29,7 +29,7 @@ généralisation, même rôle de validation + interactions en bonus.
 
 Anti-fuite : on EXCLUT `win` et toute colonne dérivée du rang.
 Sorties : data/05_model/{xgb,rf,ebm}_highelo.pkl, metrics.json, features.json
-Usage : .venv/bin/python src/02_data_science/train_ensemble.py
+Usage : poetry run python3 src/02_data_science/train_ensemble.py
 """
 from __future__ import annotations
 

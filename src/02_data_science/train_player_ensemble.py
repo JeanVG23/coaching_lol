@@ -23,7 +23,7 @@ l'observabilité en prod.
 
 Sorties : data/05_model/{xgb,rf,ebm}_player_highelo.pkl, player_features.json,
 player_metrics.json
-Usage : .venv/bin/python src/02_data_science/train_player_ensemble.py
+Usage : poetry run python3 src/02_data_science/train_player_ensemble.py
 """
 from __future__ import annotations
 

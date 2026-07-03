@@ -23,7 +23,7 @@ Sorties (par cible, sous data/06_shap/<target>/) :
   - shap_bar.png / shap_beeswarm.png : visuels SHAP-sur-arbres (cross-check).
   - diagnostics.json : auto-diagnostic LOWESS sur contributions EBM.
 
-Usage : .venv/bin/python src/03_data_analyse/shap_analysis.py [--target high_elo|dia_chall]
+Usage : poetry run python3 src/03_data_analyse/shap_analysis.py [--target high_elo|dia_chall]
 """
 from __future__ import annotations
 

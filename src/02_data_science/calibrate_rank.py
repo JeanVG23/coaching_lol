@@ -10,7 +10,7 @@ web (`web/backend/ml_rank.py`) compare ensuite la proba moyenne d'un joueur au
 rang calibré le plus proche.
 
 Sortie : data/05_model/rank_calibration.json
-Usage : .venv/bin/python src/02_data_science/calibrate_rank.py
+Usage : poetry run python3 src/02_data_science/calibrate_rank.py
 """
 from __future__ import annotations
 

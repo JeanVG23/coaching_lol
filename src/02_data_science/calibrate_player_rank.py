@@ -8,7 +8,7 @@ ensemble (xgb+rf) par rang réel sur le dataset per-player, pour placer un joueu
 les 4 rangs dans web/backend/ml_rank.py.
 
 Sortie : data/05_model/player_rank_calibration.json
-Usage : .venv/bin/python src/02_data_science/calibrate_player_rank.py
+Usage : poetry run python3 src/02_data_science/calibrate_player_rank.py
 """
 from __future__ import annotations
 

@@ -23,7 +23,7 @@ Les trous (gd20/csd14 None sur games courtes) sont LAISSÉS en NaN : XGBoost gè
 valeurs manquantes nativement (pas d'imputation arbitraire).
 
 Sortie : data/04_dataset/adc_dataset.parquet (+ .csv pour inspection).
-Usage : .venv/bin/python src/01_data_engineering/build_dataset.py
+Usage : poetry run python3 src/01_data_engineering/build_dataset.py
 """
 from __future__ import annotations
 
