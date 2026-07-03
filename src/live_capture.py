@@ -165,7 +165,10 @@ def _candidate_games(client, rl_module, puuid: str, count: int = 15) -> list[dic
     par rl_module.get_match_timeline)."""
     candidates = []
     for mid in client.match_ids(puuid, count=count):
-        match, _ = rl_module.get_match_timeline(client, mid)
+        got = rl_module.get_match_timeline(client, mid)
+        if not got:
+            continue
+        match, _ = got
         info = match["info"]
         participant = next(p for p in info["participants"] if p["puuid"] == puuid)
         game_start = datetime.fromtimestamp(info["gameStartTimestamp"] / 1000,

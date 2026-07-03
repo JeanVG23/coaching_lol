@@ -155,6 +155,29 @@ class _FakeRiotLib:
         return match, {}
 
 
+class _FlakyFakeClient:
+    def match_ids(self, puuid, count=15):
+        return ["EUW1_FAILED", "EUW1_111"]
+
+
+class _FlakyFakeRiotLib:
+    """Simule un fetch qui échoue pour une game (comme le vrai get_match_timeline
+    -> None sur erreur réseau/404) mêlé à une game valide."""
+
+    def get_match_timeline(self, client, match_id):
+        if match_id == "EUW1_FAILED":
+            return None
+        match = {
+            "info": {
+                "gameStartTimestamp": int(datetime(2026, 7, 2, 18, 0, 0,
+                                                    tzinfo=timezone.utc).timestamp() * 1000),
+                "gameDuration": 1800,
+                "participants": [{"puuid": "PUUID1", "championName": "Zeri"}],
+            }
+        }
+        return match, {}
+
+
 def _write_capture(pending_dir, stem, champion, start, end):
     pending_dir.mkdir(parents=True, exist_ok=True)
     (pending_dir / f"{stem}.jsonl").write_text('{"t": "x", "data": {}}\n', encoding="utf-8")
@@ -199,3 +222,15 @@ def test_match_pending_captures_skips_missing_jsonl(tmp_path):
     LC.match_pending_captures(pending, matched, _FakeClient(), _FakeRiotLib(), "PUUID1")
 
     assert (pending / "orphan_meta.json").exists()  # toujours là, jamais traité
+
+
+def test_match_pending_captures_skips_candidate_with_failed_fetch(tmp_path):
+    pending = tmp_path / "pending"
+    matched = tmp_path / "matched"
+    _write_capture(pending, "20260702T180000Z_Zeri", "Zeri",
+                    _iso(2026, 7, 2, 18, 0, 2), _iso(2026, 7, 2, 18, 30, 0))
+
+    LC.match_pending_captures(pending, matched, _FlakyFakeClient(), _FlakyFakeRiotLib(),
+                               "PUUID1")
+
+    assert (matched / "EUW1_111_live.jsonl").exists()
