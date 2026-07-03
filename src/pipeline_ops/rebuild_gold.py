@@ -11,7 +11,9 @@ Usage :
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import riotlib as rl
 
 SCOPES = ["all", "adc", "zeri", "smolder", "jinx", "caitlyn", "ezreal", "aphelios", "kaisa"]

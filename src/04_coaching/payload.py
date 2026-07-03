@@ -11,7 +11,8 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # accès src/
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))  # accès src/core/
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "reporting"))  # accès compare
 import riotlib as rl
 import positioning
 import compare

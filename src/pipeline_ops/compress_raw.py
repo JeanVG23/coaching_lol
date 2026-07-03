@@ -10,9 +10,9 @@ Idempotent : saute tout fichier `.json` dont le `.json.zst` existe déjà. Gère
 les éventuels `.json.gz` (décompresse gz puis recompresse en zst).
 
 Usage:
-    python3 src/compress_raw.py            # migration réelle
-    python3 src/compress_raw.py --dry-run  # simule, n'écrit/supprime rien
-    python3 src/compress_raw.py --jobs 8   # parallélisme (défaut: nb cores)
+    python3 src/pipeline_ops/compress_raw.py            # migration réelle
+    python3 src/pipeline_ops/compress_raw.py --dry-run  # simule, n'écrit/supprime rien
+    python3 src/pipeline_ops/compress_raw.py --jobs 8   # parallélisme (défaut: nb cores)
 """
 from __future__ import annotations
 
@@ -23,7 +23,9 @@ import os
 import sys
 import time
 from multiprocessing import Pool
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import riotlib as rl
 
 # Les workers héritent de ZSTD_LEVEL via rl. On importe zstandard ici aussi pour

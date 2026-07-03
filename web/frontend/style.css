@@ -98,6 +98,17 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
 .badge-win { background:rgba(63,185,80,.14); color:var(--win); }
 .badge-loss { background:rgba(248,81,73,.14); color:var(--loss); }
 
+.mono {
+  font-family:Menlo, Consolas, monospace; font-size:12px;
+  background:var(--panel-2); border:1px solid var(--border); border-radius:4px;
+  padding:1px 5px; color:var(--gold);
+}
+
+.readme-table { width:100%; border-collapse:collapse; font-size:13px; }
+.readme-table th, .readme-table td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+.readme-table th { color:var(--text-dim); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; }
+.readme-table tr:last-child td { border-bottom:none; }
+
 /* tabs */
 .tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:18px; }
 .tab {

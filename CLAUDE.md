@@ -210,11 +210,25 @@ intrinsèquement plus vérifiable que les opinions absolues du LLM.
 
 ## Architecture du code (médaillon, numérotée pour l'ordre du pipeline)
 
-Code dans `src/`, données dans `data/` (couches numérotées). Lancer depuis la racine :
-`python3 src/<script>.py` (Python met `src/` sur le path → `import riotlib` marche).
+Code dans `src/`, données dans `data/` (couches numérotées). `src/` est rangé par rôle
+(pas de vrac à la racine) : `core/` (libs partagées), `collection/` (appels API Riot /
+Live Client), `pipeline_ops/` (maintenance médaillon, 0 appel API), `reporting/`
+(livrable heuristique pré-ML), `experiments/` (spikes historiques), puis les dossiers
+numérotés `01_data_engineering` → `04_coaching` (pipeline ML, inchangés). Lancer depuis
+la racine : `python3 src/<dossier>/<script>.py` — chaque script insère lui-même
+`src/core/` dans `sys.path` avant `import riotlib` (convention flat-import, pas de
+package Python dans `src/`).
 
 ```
 src/                                     # tout le code Python
+  core/           riotlib.py, positioning.py, champion_profiles.py
+  collection/     build_referential.py, aggregate_games.py, live_capture.py
+  pipeline_ops/   reextract_silver.py, rebuild_gold.py, compress_raw.py,
+                  archive_patch.py, list_unknown_champions.py
+  reporting/      compare.py
+  experiments/    phase1_pull.py
+  01_data_engineering/ → 04_coaching/   # pipeline ML, inchangé (+ audit_leakage.py
+                                         # dans 02_data_science, diagnostic OOF/AUC)
 data/
   00_static/                             # données statiques versionnées (hors data/ ignoré)
     champion_traits.json                 # table curée (power_curve/lane_pattern/playstyle/gank_threat/roam)
@@ -230,10 +244,10 @@ data/
 ```
 ⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : c'est de la
 config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` reste ignoré.
-⚠️ Les chemins des couches sont définis dans `src/riotlib.py` (`RAW_DIR`/`SILVER_DIR`/
+⚠️ Les chemins des couches sont définis dans `src/core/riotlib.py` (`RAW_DIR`/`SILVER_DIR`/
 `GOLD_DIR`). Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancien.
 
-- **`src/riotlib.py`** — socle partagé : `RiotClient` (routing régional account/match vs
+- **`src/core/riotlib.py`** — socle partagé : `RiotClient` (routing régional account/match vs
   plateforme league ; rate-limiter ~1.3s/appel ; `entries_by_puuid` = rang courant via
   league-v4, utilisé par le coach web pour afficher un repère de fraîcheur des données),
   helpers (`approx_zone`, `phase_of`,
@@ -243,29 +257,40 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   via `positioning`), `aggregate`/`write_gold` (gold, facettes win/loss + dimension
   `by_lane_context` + bloc `positioning` = médianes des 14 features COACHING_SAFE via
   `_fmedian`, sans arrondi entier), chemins médaillon. Importe `champion_profiles`.
-- **`src/positioning.py`** — features macro-positionnement depuis la timeline (0 CV, module
-  pur). `positioning_features` → 17 scalaires nichés sous `record["position"]`. Manifeste
-  d'asymétrie mécanique : `COACHING_SAFE` (14 exactes → ML + coaching) vs `ML_ONLY` (3 proxys
-  vision → jamais prescrits). ⚠️ Profondeur (`avg/max_map_depth`) : sens contre-intuitif
-  (valeur haute → diamond, rang INFÉRIEUR) → marqueur de risque, jamais à prescrire.
-- **`src/champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon +
+- **`src/core/positioning.py`** — features macro-positionnement depuis la timeline (0 CV,
+  module pur). `positioning_features` → 17 scalaires nichés sous `record["position"]`.
+  Manifeste d'asymétrie mécanique : `COACHING_SAFE` (14 exactes → ML + coaching) vs
+  `ML_ONLY` (3 proxys vision → jamais prescrits). ⚠️ Profondeur (`avg/max_map_depth`) :
+  sens contre-intuitif (valeur haute → diamond, rang INFÉRIEUR) → marqueur de risque,
+  jamais à prescrire.
+- **`src/core/champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon +
   table curée, résolution casse-insensible), `derive_context(comp)` → 2 axes coarse
   `lane_pattern` (poke/all_in/scaling/mixed/unknown, du duo ennemi) et `gank_exposure`
   (low/med/high/unknown, jungler+mid ennemis atténués par ton jungler). `fetch_ddragon`
   (one-shot, idempotent). Dégradation propre : champion inconnu → `unknown`, jamais d'erreur.
-- **`src/reextract_silver.py`** — ré-extrait le silver depuis le raw caché (**0 appel API**) ;
-  à relancer après toute évolution d'`extract_game` (ex. ajout du `comp`). Lit le raw
-  compressé via `riotlib._read_raw`.
-- **`src/compress_raw.py`** — migration one-shot : compresse `01_raw/*.json` en `.json.zst`
-  (zstd, vérification roundtrip avant suppression de l'original). Idempotent. `--dry-run`
-  pour estimer. À relancer si du raw non compressé réapparaît.
-- **`src/list_unknown_champions.py`** — scanner : champions du silver absents de la table
-  curée, triés par fréquence (pour compléter `champion_traits.json` au fil de l'eau).
-- **`src/phase1_pull.py`** — spike : détail visuel d'UNE game (déplacements/minute + morts).
-- **`src/aggregate_games.py`** — pipeline perso : N games → silver + gold (all/adc/zeri).
-- **`src/build_referential.py`** — collecte les benchmarks par rang (league-v4/-exp-v4).
-- **`src/rebuild_gold.py`** — régénère tout le gold depuis le silver, sans appel API.
-- **`src/compare.py`** — livrable coaching : slice perso vs référentiels, à issue égale.
+- **`src/pipeline_ops/reextract_silver.py`** — ré-extrait le silver depuis le raw caché
+  (**0 appel API**) ; à relancer après toute évolution d'`extract_game` (ex. ajout du
+  `comp`). Lit le raw compressé via `riotlib._read_raw`.
+- **`src/pipeline_ops/compress_raw.py`** — migration one-shot : compresse `01_raw/*.json`
+  en `.json.zst` (zstd, vérification roundtrip avant suppression de l'original).
+  Idempotent. `--dry-run` pour estimer. À relancer si du raw non compressé réapparaît.
+- **`src/pipeline_ops/list_unknown_champions.py`** — scanner : champions du silver absents
+  de la table curée, triés par fréquence (pour compléter `champion_traits.json` au fil
+  de l'eau).
+- **`src/pipeline_ops/archive_patch.py`** — archive raw/silver/gold/dataset du patch
+  courant avant de passer au suivant.
+- **`src/experiments/phase1_pull.py`** — spike : détail visuel d'UNE game (déplacements/
+  minute + morts).
+- **`src/collection/aggregate_games.py`** — pipeline perso : N games → silver + gold
+  (all/adc/zeri).
+- **`src/collection/build_referential.py`** — collecte les benchmarks par rang
+  (league-v4/-exp-v4).
+- **`src/collection/live_capture.py`** — capture locale de la Live Client Data API
+  pendant une game ; zéro dépendance hors stdlib (copiable seul sur une machine sans le
+  reste du repo).
+- **`src/pipeline_ops/rebuild_gold.py`** — régénère tout le gold depuis le silver, sans
+  appel API.
+- **`src/reporting/compare.py`** — livrable coaching : slice perso vs référentiels, à issue égale.
   Section **benchmark conditionné** par contexte de lane (`context_benchmark`, seuil de
   repli `MIN_CONTEXT_N=8` loggué, `unknown` exclu du bucket dominant). Section **benchmark
   positionnement** (`POS_ROWS`, 14 features COACHING_SAFE, médianes à issue égale) avec
@@ -280,6 +305,15 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     on calibre la proba moyenne ensemble (xgb+rf) par rang réel sur le référentiel
     (`data/05_model/rank_calibration.json`), puis on place un joueur au rang calibré
     le plus proche de sa proba moyenne sur ses dernières games ADC.
+    **Pipeline per-player (features de constance)** : `src/core/ml_features.py`
+    (FEATURES canonique + `aggregate_player_features` mean/std/p10/p50/p90, partagé
+    train/serve) → `src/01_data_engineering/build_player_dataset.py` (1 ligne = 1
+    joueur ≥5 games ADC référentiel) → `train_player_ensemble.py` (ensemble xgb/rf/ebm,
+    StratifiedKFold, conserve le test d'hypothèse dispersion vs tendance centrale du
+    POC dans `player_metrics.json`) → `calibrate_player_rank.py`. Implémente en prod
+    `poc/per_player_hypothesis.py` : `web/backend/ml_rank.py` utilise désormais ce
+    modèle (seuil `MIN_ADC_GAMES=5`, pas de fallback en dessous) au lieu de la moyenne
+    per-game. Cf. `docs/superpowers/specs/2026-07-03-per-player-consistency-design.md`.
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
@@ -339,6 +373,11 @@ reprocher une décision sur une info cachée.
   l'ensemble xgb+rf sur les dernières games ADC du joueur, calibré par
   `calibrate_rank.py` (proba moyenne → rang référentiel le plus proche). Confiance
   affichée explicitement (signal faible, cf. AUC ci-dessus) — pas de fausse certitude.
+- **Rang ML per-player (constance)** ✅ — `web/backend/ml_rank.py` bascule sur le
+  modèle per-player (features mean/std/p10/p50/p90, seuil 5 games ADC), qui reprend
+  en prod l'hypothèse validée par `poc/per_player_hypothesis.py` (dispersion/plancher
+  > tendance centrale). AUC per-player vs AUC per-game précédent (0.589) : voir
+  `data/05_model/player_metrics.json` pour la valeur mesurée lors de l'entraînement.
 - **Premier verdict ADC** : laning = LE levier (≈ -10 à -16 CS @14 vs challenger, *toutes*
   issues) ; mauvaise gestion du retard (gold@20 en lose -1252 vs -322) ; morts = symptôme.
 - Clé **dev** (throttle ~100 req/2min, attentes 429 si saturé) → rate-limiter intégré.
@@ -363,9 +402,9 @@ reprocher une décision sur une info cachée.
 
 - Scripts encore au stade prototype ; migration Pydantic + Parquet/DuckDB prévue à
   l'industrialisation (cf. prochaines étapes).
-- Lancer la collecte : `python3 src/build_referential.py --region euw1 [--rank R] [--players N]`.
-- Régénérer le gold après un changement de features : `python3 src/rebuild_gold.py`.
-- Verdict : `python3 src/compare.py --scope adc --outcome {loss,win,overall}`.
+- Lancer la collecte : `python3 src/collection/build_referential.py --region euw1 [--rank R] [--players N]`.
+- Régénérer le gold après un changement de features : `python3 src/pipeline_ops/rebuild_gold.py`.
+- Verdict : `python3 src/reporting/compare.py --scope adc --outcome {loss,win,overall}`.
 - Garder la sortie LLM strictement typée (schéma JSON + validation Pydantic) pour éviter
   les résumés qui partent en vrille.
 - Heuristiques déterministes (explicables, debuggables) avant tout ML supervisé.

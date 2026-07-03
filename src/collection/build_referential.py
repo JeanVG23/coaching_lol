@@ -16,7 +16,9 @@ from __future__ import annotations
 import json
 import sys
 import time
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import riotlib as rl
 
 APEX = {"challenger", "grandmaster", "master"}
@@ -28,20 +30,55 @@ def arg(flag: str, default=None):
     return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
 
 
-def get_player_puuids(client: rl.RiotClient, rank: str, n: int) -> list[str]:
+def has_flag(flag: str) -> bool:
+    return flag in sys.argv
+
+
+def known_puuids(rank: str) -> set[str]:
+    """Puuids déjà présents dans le silver du rang (évite le re-échantillonnage
+    des mêmes top joueurs à chaque run — densification réelle par deeper paging)."""
+    path = rl.SILVER_DIR / "referentiel" / rank / "games.jsonl"
+    seen_path = rl.SILVER_DIR / "referentiel" / rank / "seen_puuids.txt"
+    known = set()
+    
+    if path.exists():
+        with open(path) as f:
+            for line in f:
+                try:
+                    known.add(json.loads(line).get("puuid"))
+                except json.JSONDecodeError:
+                    continue
+                    
+    if seen_path.exists():
+        with open(seen_path) as f:
+            for line in f:
+                known.add(line.strip())
+                
+    known.discard(None)
+    known.discard("")
+    return known
+
+
+def get_player_puuids(client: rl.RiotClient, rank: str, n: int,
+                      skip: set[str] | None = None, max_pages: int = 5,
+                      start_page: int = 1) -> list[str]:
+    skip = skip or set()
     if rank in APEX:
         entries = client.apex_league(rank)
         entries.sort(key=lambda e: e.get("leaguePoints", 0), reverse=True)
-        puuids = [e["puuid"] for e in entries if e.get("puuid")]
+        puuids = [e["puuid"] for e in entries
+                  if e.get("puuid") and e["puuid"] not in skip]
+        puuids = puuids[start_page * 100:]   # offset sur la liste triée par LP
     elif rank == "diamond":
         puuids = []
         for div in ("I", "II", "III", "IV"):
-            page = 1
-            while len(puuids) < n and page <= 5:
+            page = start_page
+            while len(puuids) < n and page <= max_pages:
                 entries = client.league_exp_entries("DIAMOND", div, page=page)
                 if not entries:
                     break
-                puuids += [e["puuid"] for e in entries if e.get("puuid")]
+                puuids += [e["puuid"] for e in entries
+                           if e.get("puuid") and e["puuid"] not in skip]
                 page += 1
             if len(puuids) >= n:
                 break
@@ -66,23 +103,63 @@ def detect_patch(client: rl.RiotClient, puuids: list[str]) -> str | None:
     return seen.most_common(1)[0][0] if seen else None
 
 
+def _write_sources(silver_base, rank: str, patch: str, n_games: int) -> None:
+    """Met à jour sources.json en préservant n_players (cumul des runs précédents).
+    Utilisé par les checkpoints : on ne touche pas à n_players ici (incrément final
+    fait par main), on rafraîchit juste n_games + collected_at pour refléter le
+    checkpoint courant."""
+    sf = silver_base / "sources.json"
+    existing: dict = {}
+    if sf.exists():
+        try:
+            existing = json.loads(sf.read_text())
+        except json.JSONDecodeError:
+            pass
+    existing.update({"rank": rank, "patch": patch,
+                     "collected_at": time.strftime("%Y-%m-%d %H:%M"),
+                     "n_games": n_games})
+    sf.write_text(json.dumps(existing, indent=2))
+
+
 def collect_rank(client: rl.RiotClient, rank: str, n_players: int,
-                 n_games: int, patch: str) -> list[dict]:
-    puuids = get_player_puuids(client, rank, n_players)
-    print(f"\n=== {rank.upper()} : {len(puuids)} joueurs samplés ===", file=sys.stderr)
+                 n_games: int, patch: str,
+                 skip: set[str] | None = None, max_pages: int = 5,
+                 days_back: int = 28, start_page: int = 1,
+                 silver_base=None, checkpoint_every: int = 25,
+                 target_role: str | None = None,
+                 max_match_history: int = 50) -> list[dict]:
+    puuids = get_player_puuids(client, rank, n_players, skip=skip,
+                               max_pages=max_pages, start_page=start_page)
+                               
+    if silver_base is not None and puuids:
+        seen_path = silver_base / "seen_puuids.txt"
+        seen_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(seen_path, "a") as f:
+            for p in puuids:
+                f.write(p + "\n")
+                
+    print(f"\n=== {rank.upper()} : {len(puuids)} joueurs samplés "
+          f"(skip-known={'on' if skip else 'off'}, max_pages={max_pages}, "
+          f"start_page={start_page}) ===", file=sys.stderr)
+    # Filtre startTime : ne demander que les matches des `days_back` derniers jours.
+    # Le patch courant (~2 semaines) est inclus ; on évite de fetcher des timelines
+    # de patches précédents juste pour les filtrer (joueur inactif = 1 appel, pas 30).
+    start_time = int(time.time()) - days_back * 86400
+    print(f"  filtre match_ids startTime = {days_back}j avant now", file=sys.stderr)
     pool: list[dict] = []
     seen: set[str] = set()
     for i, puuid in enumerate(puuids, 1):
         matches_kept = 0
         perf_kept = 0
-        for mid in client.match_ids(puuid, count=30, queue=rl.QUEUE_SOLO):
+        for mid in client.match_ids(puuid, count=max_match_history, queue=rl.QUEUE_SOLO,
+                                    start_time=start_time):
             if mid in seen:
                 continue
             seen.add(mid)
-            got = rl.get_match_timeline(client, mid)
+            got = rl.get_match_timeline(client, mid, target_puuid=puuid if target_role else None, target_role=target_role)
             if not got:
                 continue
-                
+
             if rl.patch_of(got[0]["info"].get("gameVersion", "")) != patch:
                 continue
                 
@@ -96,6 +173,15 @@ def collect_rank(client: rl.RiotClient, rank: str, n_players: int,
             if matches_kept >= n_games:
                 break
         print(f"  [{i}/{len(puuids)}] +{perf_kept} performances (pool={len(pool)})", file=sys.stderr)
+
+        # Checkpoint incrémental : on écrit le silver tous les `checkpoint_every`
+        # joueurs. Si le process est tué en cours de route, on perd au plus
+        # checkpoint_every-1 joueurs de travail au lieu de tout le batch.
+        if silver_base is not None and i % checkpoint_every == 0:
+            merged = rl.merge_jsonl(silver_base / "games.jsonl", pool)
+            _write_sources(silver_base, rank, patch, len(merged))
+            print(f"  · checkpoint @ {i}/{len(puuids)} → silver={len(merged)} games",
+                  file=sys.stderr)
     return pool
 
 
@@ -115,6 +201,11 @@ def main() -> int:
     n_games = int(arg("--games", 20))
     ranks = (arg("--rank") or ",".join(ALL_RANKS)).split(",")
     patch_override = arg("--patch")
+    skip_known = has_flag("--skip-known")
+    max_pages = int(arg("--max-pages", 5))
+    start_page = int(arg("--start-page", 1))
+    target_role = arg("--target-role")
+    max_match_history = int(arg("--max-match-history", 50))
 
     client = rl.RiotClient(api_key, regional, platform)
 
@@ -143,12 +234,19 @@ def main() -> int:
                 pass
 
     for rank in ranks:
-        pool = collect_rank(client, rank, n_players, n_games, patch)
+        skip = known_puuids(rank) if skip_known else None
+        if skip is not None:
+            print(f"  [{rank}] skip-known: {len(skip)} puuids déjà en silver → "
+                  f"échantillonnage plus profond", file=sys.stderr)
+        silver_base = rl.SILVER_DIR / "referentiel" / rank
+        pool = collect_rank(client, rank, n_players, n_games, patch,
+                            skip=skip, max_pages=max_pages, start_page=start_page,
+                            silver_base=silver_base, target_role=target_role,
+                            max_match_history=max_match_history)
         if not pool:
             print(f"  ⚠ {rank}: aucun game collecté.", file=sys.stderr)
             continue
-        # silver
-        silver_base = rl.SILVER_DIR / "referentiel" / rank
+        # silver (final merge — les checkpoints ont déjà écrit une partie ; idempotent)
         merged_pool = rl.merge_jsonl(silver_base / "games.jsonl", pool)
         
         existing_players = 0

@@ -22,7 +22,7 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # accès src/
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))  # accès src/core/
 import riotlib as rl
 
 import schema as schema_mod

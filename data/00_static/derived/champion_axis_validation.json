@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-03T11:59:23.843700+00:00",
+  "generated_at": "2026-07-03T12:16:39.480495+00:00",
   "config": {
     "min_games": 20,
-    "n_total_games": 35699
+    "n_total_games": 36466
   },
   "axes": {
     "playstyle": {
@@ -10,57 +10,57 @@
         "playstyle=skirmish": {
           "n_champions": 11,
           "n_games": 11,
-          "score_median": 2.488888888888889,
-          "score_mean": 2.5284397563038405,
-          "score_p25": 2.409377784377784,
-          "score_p75": 2.5322623900450547
+          "score_median": 5.447204968944099,
+          "score_mean": 5.5782831676251945,
+          "score_p25": 5.151890621662038,
+          "score_p75": 5.758097202620055
         },
         "gank_threat=med": {
           "n_champions": 12,
           "n_games": 12,
-          "score_median": 2.436850311850312,
-          "score_mean": 2.4468322851155073,
-          "score_p25": 2.307427421063785,
-          "score_p75": 2.5001031920748487
+          "score_median": 5.40102183931076,
+          "score_mean": 5.445811324059865,
+          "score_p25": 4.9550254452926215,
+          "score_p75": 5.703573399558499
         },
         "playstyle=farming": {
           "n_champions": 14,
           "n_games": 14,
-          "score_median": 2.2926697808120733,
-          "score_mean": 2.3045809816716427,
-          "score_p25": 2.1062695924764894,
-          "score_p75": 2.5429042904290426
+          "score_median": 5.2683284457478,
+          "score_mean": 5.12082327174924,
+          "score_p25": 4.613230519480519,
+          "score_p75": 5.522656940760389
         },
         "gank_threat=high": {
           "n_champions": 24,
           "n_games": 24,
-          "score_median": 2.55379513633014,
-          "score_mean": 2.577620680727252,
-          "score_p25": 2.3755714285714284,
-          "score_p75": 2.8269391159299415
+          "score_median": 5.764251108133182,
+          "score_mean": 5.725093606512909,
+          "score_p25": 5.293627450980392,
+          "score_p75": 6.039903054691788
         },
         "playstyle=ganking": {
           "n_champions": 20,
           "n_games": 20,
-          "score_median": 2.541537267080745,
-          "score_mean": 2.5559884718751507,
-          "score_p25": 2.2837966101694915,
-          "score_p75": 2.8269391159299415
+          "score_median": 5.72957531898686,
+          "score_mean": 5.685853388067585,
+          "score_p25": 5.406127450980392,
+          "score_p75": 6.039903054691788
         },
         "gank_threat=low": {
           "n_champions": 9,
           "n_games": 9,
-          "score_median": 2.3043478260869565,
-          "score_mean": 2.2190951934897925,
-          "score_p25": 1.9285714285714286,
-          "score_p75": 2.504950495049505
+          "score_median": 5.181818181818182,
+          "score_mean": 4.890858440521109,
+          "score_p25": 4.571428571428571,
+          "score_p75": 5.487179487179487
         }
       },
       "n_champions": 143,
-      "n_validated": 14,
+      "n_validated": 17,
       "n_above_group": 12,
       "n_below_group": 12,
-      "n_neutral": 7,
+      "n_neutral": 4,
       "n_insufficient_data": 0
     },
     "gank_threat": {
@@ -68,82 +68,82 @@
         "playstyle=skirmish": {
           "n_champions": 11,
           "n_games": 11,
-          "score_median": 2.488888888888889,
-          "score_mean": 2.5284397563038405,
-          "score_p25": 2.409377784377784,
-          "score_p75": 2.5322623900450547
+          "score_median": 5.447204968944099,
+          "score_mean": 5.5782831676251945,
+          "score_p25": 5.151890621662038,
+          "score_p75": 5.758097202620055
         },
         "gank_threat=med": {
           "n_champions": 12,
           "n_games": 12,
-          "score_median": 2.436850311850312,
-          "score_mean": 2.4468322851155073,
-          "score_p25": 2.307427421063785,
-          "score_p75": 2.5001031920748487
+          "score_median": 5.40102183931076,
+          "score_mean": 5.445811324059865,
+          "score_p25": 4.9550254452926215,
+          "score_p75": 5.703573399558499
         },
         "playstyle=farming": {
           "n_champions": 14,
           "n_games": 14,
-          "score_median": 2.2926697808120733,
-          "score_mean": 2.3045809816716427,
-          "score_p25": 2.1062695924764894,
-          "score_p75": 2.5429042904290426
+          "score_median": 5.2683284457478,
+          "score_mean": 5.12082327174924,
+          "score_p25": 4.613230519480519,
+          "score_p75": 5.522656940760389
         },
         "gank_threat=high": {
           "n_champions": 24,
           "n_games": 24,
-          "score_median": 2.55379513633014,
-          "score_mean": 2.577620680727252,
-          "score_p25": 2.3755714285714284,
-          "score_p75": 2.8269391159299415
+          "score_median": 5.764251108133182,
+          "score_mean": 5.725093606512909,
+          "score_p25": 5.293627450980392,
+          "score_p75": 6.039903054691788
         },
         "playstyle=ganking": {
           "n_champions": 20,
           "n_games": 20,
-          "score_median": 2.541537267080745,
-          "score_mean": 2.5559884718751507,
-          "score_p25": 2.2837966101694915,
-          "score_p75": 2.8269391159299415
+          "score_median": 5.72957531898686,
+          "score_mean": 5.685853388067585,
+          "score_p25": 5.406127450980392,
+          "score_p75": 6.039903054691788
         },
         "gank_threat=low": {
           "n_champions": 9,
           "n_games": 9,
-          "score_median": 2.3043478260869565,
-          "score_mean": 2.2190951934897925,
-          "score_p25": 1.9285714285714286,
-          "score_p75": 2.504950495049505
+          "score_median": 5.181818181818182,
+          "score_mean": 4.890858440521109,
+          "score_p25": 4.571428571428571,
+          "score_p75": 5.487179487179487
         }
       },
       "n_champions": 143,
-      "n_validated": 13,
+      "n_validated": 15,
       "n_above_group": 11,
       "n_below_group": 11,
-      "n_neutral": 10,
+      "n_neutral": 8,
       "n_insufficient_data": 0
     },
     "roam": {
       "by_label": {
         "low": {
           "n_champions": 23,
-          "n_games": 3012,
+          "n_games": 3069,
           "score_median": 0.4,
-          "score_mean": 0.4290095031130888,
+          "score_mean": 0.42827521126641366,
           "score_p25": 0.3,
           "score_p75": 0.6
         },
         "high": {
           "n_champions": 23,
-          "n_games": 3195,
+          "n_games": 3263,
           "score_median": 0.4,
-          "score_mean": 0.372982530423845,
+          "score_mean": 0.373364119280454,
           "score_p25": 0.2,
           "score_p75": 0.5
         },
         "med": {
           "n_champions": 9,
-          "n_games": 1046,
+          "n_games": 1073,
           "score_median": 0.5,
-          "score_mean": 0.4732332199349408,
+          "score_mean": 0.47351066920032436,
           "score_p25": 0.3,
           "score_p75": 0.6
         }
@@ -159,66 +159,66 @@
       "by_label": {
         "poke": {
           "n_champions": 20,
-          "n_games": 3848,
-          "score_median": 1.0,
-          "score_mean": 1.4737525987525988,
+          "n_games": 3941,
+          "score_median": 1,
+          "score_mean": 1.4646028926668357,
           "score_p25": -6.0,
           "score_p75": 9.0
         },
         "all_in": {
           "n_champions": 19,
-          "n_games": 3497,
-          "score_median": 1,
-          "score_mean": 1.5055762081784387,
+          "n_games": 3582,
+          "score_median": 1.0,
+          "score_mean": 1.4762702400893355,
           "score_p25": -5.0,
           "score_p75": 6.0
         },
         "scaling": {
           "n_champions": 12,
-          "n_games": 2287,
-          "score_median": -2,
-          "score_mean": -1.5330126803672934,
+          "n_games": 2328,
+          "score_median": -2.0,
+          "score_mean": -1.506872852233677,
           "score_p25": -13.0,
           "score_p75": 11.0
         },
         "sustain": {
           "n_champions": 11,
-          "n_games": 1857,
+          "n_games": 1891,
           "score_median": -1,
-          "score_mean": -0.7172859450726979,
+          "score_mean": -0.7303014278159704,
           "score_p25": -5.0,
           "score_p75": 4.0
         }
       },
       "n_champions": 143,
-      "n_validated": 62,
+      "n_validated": 61,
       "n_above_group": 0,
       "n_below_group": 0,
-      "n_neutral": 0,
+      "n_neutral": 1,
       "n_insufficient_data": 0
     },
     "power_curve": {
       "by_label": {
         "late": {
           "n_champions": 17,
-          "score_median": 0.52,
-          "score_mean": 0.5391284481090839,
+          "score_median": 0.5384615384615384,
+          "score_mean": 0.5413728577767775,
           "score_p25": 0.46153846153846156,
           "score_p75": 0.6153846153846154
         },
         "mid": {
           "n_champions": 8,
-          "score_median": 0.48214285714285715,
-          "score_mean": 0.45971747194859575,
-          "score_p25": 0.39810924369747897,
-          "score_p75": 0.5584098737083811
+          "score_median": 0.46898496240601506,
+          "score_mean": 0.453262536752071,
+          "score_p25": 0.39215686274509803,
+          "score_p75": 0.5572742474916388
         },
         "early": {
           "n_champions": 4,
-          "score_median": 0.42000000000000004,
-          "score_mean": 0.44832417582417583,
-          "score_p25": 0.3892857142857143,
-          "score_p75": 0.4790384615384615
+          "score_median": 0.43875,
+          "score_mean": 0.4656014150943396,
+          "score_p25": 0.428125,
+          "score_p75": 0.4762264150943396
         }
       },
       "n_champions": 143,
@@ -238,19 +238,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 3.4306930693069306,
-          "n": 200,
+          "value": 3.4086538461538463,
+          "n": 206,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.6521739130434783,
-          "n": 206,
+          "n": 212,
           "verdict": "above_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -264,21 +264,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 2.6075388026607538,
-          "n": 442,
+          "value": 2.599128540305011,
+          "n": 450,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "early",
-          "value": 0.5961538461538461,
-          "n": 453,
+          "value": 0.5849056603773585,
+          "n": 461,
           "verdict": "above_group",
-          "group_median": 0.42000000000000004,
-          "group_p25": 0.3892857142857143,
-          "group_p75": 0.4790384615384615
+          "group_median": 0.43875,
+          "group_p25": 0.428125,
+          "group_p75": 0.4762264150943396
         }
       }
     },
@@ -290,21 +290,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 3.881720430107527,
-          "n": 274,
+          "value": 3.8450704225352115,
+          "n": 279,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         },
         "power_curve": {
           "label": "early",
           "value": 0.44,
-          "n": 281,
+          "n": 287,
           "verdict": "validated",
-          "group_median": 0.42000000000000004,
-          "group_p25": 0.3892857142857143,
-          "group_p75": 0.4790384615384615
+          "group_median": 0.43875,
+          "group_p25": 0.428125,
+          "group_p75": 0.4762264150943396
         }
       }
     },
@@ -316,21 +316,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 3.712574850299401,
-          "n": 165,
+          "value": 3.658959537572254,
+          "n": 171,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         },
         "power_curve": {
           "label": "early",
-          "value": 0.35714285714285715,
-          "n": 170,
-          "verdict": "below_group",
-          "group_median": 0.42000000000000004,
-          "group_p25": 0.3892857142857143,
-          "group_p75": 0.4790384615384615
+          "value": 0.4375,
+          "n": 176,
+          "verdict": "validated",
+          "group_median": 0.43875,
+          "group_p25": 0.428125,
+          "group_p75": 0.4762264150943396
         }
       }
     },
@@ -342,21 +342,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 2.773913043478261,
-          "n": 447,
+          "value": 2.789473684210526,
+          "n": 462,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "mid",
-          "value": 0.5522388059701493,
-          "n": 465,
+          "value": 0.5507246376811594,
+          "n": 482,
           "verdict": "neutral",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -368,21 +368,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 2.8234126984126986,
-          "n": 492,
+          "value": 2.8171206225680936,
+          "n": 502,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "mid",
           "value": 0.4642857142857143,
-          "n": 512,
+          "n": 523,
           "verdict": "validated",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -394,19 +394,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 3.178494623655914,
-          "n": 455,
+          "value": 3.1910828025477707,
+          "n": 461,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
-          "value": 0.46938775510204084,
-          "n": 469,
+          "value": 0.48,
+          "n": 475,
           "verdict": "neutral",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -420,19 +420,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 2.920245398773006,
-          "n": 319,
+          "value": 2.9209726443768997,
+          "n": 322,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.25925925925925924,
-          "n": 326,
+          "n": 329,
           "verdict": "below_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -446,19 +446,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 2.46484375,
-          "n": 253,
+          "value": 2.4827586206896552,
+          "n": 258,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.5652173913043478,
-          "n": 257,
+          "n": 262,
           "verdict": "validated",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -472,21 +472,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 3.43646408839779,
-          "n": 178,
+          "value": 3.4371584699453552,
+          "n": 180,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         },
         "power_curve": {
           "label": "early",
           "value": 0.4,
-          "n": 188,
-          "verdict": "validated",
-          "group_median": 0.42000000000000004,
-          "group_p25": 0.3892857142857143,
-          "group_p75": 0.4790384615384615
+          "n": 190,
+          "verdict": "below_group",
+          "group_median": 0.43875,
+          "group_p25": 0.428125,
+          "group_p75": 0.4762264150943396
         }
       }
     },
@@ -498,21 +498,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 3.52212389380531,
-          "n": 111,
+          "value": 3.586206896551724,
+          "n": 114,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "mid",
-          "value": 0.35714285714285715,
-          "n": 115,
+          "value": 0.3333333333333333,
+          "n": 118,
           "verdict": "below_group",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -524,21 +524,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 2.3277027027027026,
-          "n": 284,
+          "value": 2.352159468438538,
+          "n": 289,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "mid",
           "value": 0.5769230769230769,
-          "n": 303,
+          "n": 308,
           "verdict": "above_group",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -550,21 +550,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 3.1824324324324325,
-          "n": 147,
+          "value": 3.156862745098039,
+          "n": 151,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "mid",
-          "value": 0.5,
-          "n": 150,
+          "value": 0.47368421052631576,
+          "n": 155,
           "verdict": "validated",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -576,19 +576,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 1.89375,
-          "n": 158,
+          "value": 1.9047619047619047,
+          "n": 166,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
-          "value": 0.5,
-          "n": 166,
-          "verdict": "validated",
-          "group_median": 0.52,
+          "value": 0.47619047619047616,
+          "n": 174,
+          "verdict": "neutral",
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -602,19 +602,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 3.738372093023256,
-          "n": 169,
+          "value": 3.7142857142857144,
+          "n": 172,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.6666666666666666,
-          "n": 182,
+          "n": 185,
           "verdict": "above_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -628,19 +628,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 2.838235294117647,
-          "n": 131,
+          "value": 2.8156028368794326,
+          "n": 136,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.6111111111111112,
-          "n": 136,
+          "n": 141,
           "verdict": "neutral",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -654,19 +654,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 3.0846153846153848,
-          "n": 128,
+          "value": 3.0454545454545454,
+          "n": 130,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.6153846153846154,
-          "n": 142,
+          "n": 146,
           "verdict": "neutral",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -680,21 +680,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 4.275,
-          "n": 117,
-          "verdict": "validated",
-          "group_median": 1,
+          "value": 4.450381679389313,
+          "n": 128,
+          "verdict": "neutral",
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         },
         "power_curve": {
           "label": "mid",
           "value": 0.4117647058823529,
-          "n": 120,
+          "n": 131,
           "verdict": "neutral",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -706,8 +706,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.6126102292768959,
-          "n": 90,
+          "value": 0.6123360938578329,
+          "n": 92,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -715,10 +715,10 @@
         },
         "lane_pattern": {
           "label": "poke",
-          "value": 1.5869565217391304,
-          "n": 90,
+          "value": 1.5638297872340425,
+          "n": 92,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -731,10 +731,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 1.0216606498194947,
-          "n": 275,
+          "value": 1.0319148936170213,
+          "n": 280,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -747,10 +747,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 1.2520833333333334,
-          "n": 474,
+          "value": 1.2413793103448276,
+          "n": 487,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -763,10 +763,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 0.9827160493827161,
-          "n": 398,
+          "value": 0.9854368932038835,
+          "n": 404,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -779,10 +779,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 2.52991452991453,
-          "n": 230,
+          "value": 2.523404255319149,
+          "n": 231,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -795,10 +795,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 1.0425531914893618,
-          "n": 139,
+          "value": 1.0273972602739727,
+          "n": 143,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -812,8 +812,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.6198328241806502,
-          "n": 299,
+          "value": 0.6189109387129189,
+          "n": 303,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -821,8 +821,8 @@
         },
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.9306930693069307,
-          "n": 300,
+          "value": 0.9446254071661238,
+          "n": 304,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -837,8 +837,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.7261904761904762,
-          "n": 244,
+          "value": 0.7374517374517374,
+          "n": 251,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -854,8 +854,8 @@
       "verdicts": {
         "roam": {
           "label": "med",
-          "value": 0.6175548148999477,
-          "n": 339,
+          "value": 0.6189033189033188,
+          "n": 348,
           "verdict": "above_group",
           "group_median": 0.5,
           "group_p25": 0.3,
@@ -863,10 +863,10 @@
         },
         "lane_pattern": {
           "label": "poke",
-          "value": 0.9259259259259259,
-          "n": 340,
+          "value": 0.9194444444444444,
+          "n": 349,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -880,19 +880,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 1.351123595505618,
-          "n": 349,
+          "value": 1.3604336043360434,
+          "n": 362,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "late",
-          "value": 0.5,
-          "n": 633,
+          "value": 0.5056179775280899,
+          "n": 650,
           "verdict": "validated",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -905,10 +905,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 2.1774193548387095,
-          "n": 59,
+          "value": 2.1904761904761907,
+          "n": 60,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -921,8 +921,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.5892857142857143,
-          "n": 162,
+          "value": 0.5755813953488372,
+          "n": 166,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -937,8 +937,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.7291666666666666,
-          "n": 94,
+          "value": 0.7216494845360825,
+          "n": 95,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -953,8 +953,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.43783783783783786,
-          "n": 183,
+          "value": 0.43548387096774194,
+          "n": 184,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -969,8 +969,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.8253968253968254,
-          "n": 62,
+          "value": 0.8,
+          "n": 64,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -985,10 +985,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 0.7313432835820896,
-          "n": 196,
+          "value": 0.7464114832535885,
+          "n": 204,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -1002,21 +1002,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.8115942028985508,
-          "n": 345,
-          "verdict": "neutral",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 6.081690140845071,
+          "n": 355,
+          "verdict": "above_group",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.8115942028985508,
-          "n": 345,
-          "verdict": "neutral",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 6.081690140845071,
+          "n": 355,
+          "verdict": "above_group",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1028,21 +1028,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.9166666666666665,
-          "n": 312,
+          "value": 6.169811320754717,
+          "n": 318,
           "verdict": "above_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.9166666666666665,
-          "n": 312,
+          "value": 6.169811320754717,
+          "n": 318,
           "verdict": "above_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1054,21 +1054,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.853211009174312,
+          "value": 5.798165137614679,
           "n": 109,
-          "verdict": "above_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "verdict": "validated",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.853211009174312,
+          "value": 5.798165137614679,
           "n": 109,
-          "verdict": "above_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "verdict": "validated",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1080,21 +1080,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 3.1170731707317074,
-          "n": 205,
+          "value": 6.206730769230769,
+          "n": 208,
           "verdict": "above_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 3.1170731707317074,
-          "n": 205,
+          "value": 6.206730769230769,
+          "n": 208,
           "verdict": "above_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1106,21 +1106,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.5652173913043477,
-          "n": 115,
+          "value": 5.6525423728813555,
+          "n": 118,
           "verdict": "validated",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.5652173913043477,
-          "n": 115,
+          "value": 5.6525423728813555,
+          "n": 118,
           "verdict": "validated",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1132,21 +1132,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.245614035087719,
-          "n": 114,
+          "value": 5.153846153846154,
+          "n": 117,
           "verdict": "below_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.245614035087719,
-          "n": 114,
+          "value": 5.153846153846154,
+          "n": 117,
           "verdict": "below_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1158,21 +1158,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.723756906077348,
-          "n": 181,
-          "verdict": "neutral",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 5.89247311827957,
+          "n": 186,
+          "verdict": "validated",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.723756906077348,
-          "n": 181,
-          "verdict": "neutral",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.89247311827957,
+          "n": 186,
+          "verdict": "validated",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1184,21 +1184,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.8716216216216215,
-          "n": 148,
-          "verdict": "above_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 6.025974025974026,
+          "n": 154,
+          "verdict": "neutral",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.8716216216216215,
-          "n": 148,
-          "verdict": "above_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 6.025974025974026,
+          "n": 154,
+          "verdict": "neutral",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1210,21 +1210,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.888888888888889,
-          "n": 36,
-          "verdict": "above_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 5.162162162162162,
+          "n": 37,
+          "verdict": "below_group",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.888888888888889,
-          "n": 36,
-          "verdict": "above_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.162162162162162,
+          "n": 37,
+          "verdict": "below_group",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1236,21 +1236,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.5221518987341773,
-          "n": 316,
+          "value": 5.447204968944099,
+          "n": 322,
           "verdict": "validated",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.5221518987341773,
-          "n": 316,
-          "verdict": "above_group",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "value": 5.447204968944099,
+          "n": 322,
+          "verdict": "validated",
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -1262,21 +1262,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.2181818181818183,
-          "n": 385,
+          "value": 5.017811704834606,
+          "n": 393,
           "verdict": "validated",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.2181818181818183,
-          "n": 385,
-          "verdict": "below_group",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "value": 5.017811704834606,
+          "n": 393,
+          "verdict": "neutral",
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -1288,21 +1288,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.3523489932885906,
-          "n": 298,
-          "verdict": "below_group",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "value": 5.701986754966887,
+          "n": 302,
+          "verdict": "neutral",
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.3523489932885906,
-          "n": 298,
+          "value": 5.701986754966887,
+          "n": 302,
           "verdict": "neutral",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -1314,21 +1314,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.28099173553719,
-          "n": 121,
+          "value": 5.354838709677419,
+          "n": 124,
           "verdict": "validated",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.28099173553719,
-          "n": 121,
-          "verdict": "below_group",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "value": 5.354838709677419,
+          "n": 124,
+          "verdict": "validated",
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -1340,21 +1340,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.504950495049505,
-          "n": 101,
-          "verdict": "neutral",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "value": 5.634615384615385,
+          "n": 104,
+          "verdict": "above_group",
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 2.504950495049505,
-          "n": 101,
-          "verdict": "neutral",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "value": 5.634615384615385,
+          "n": 104,
+          "verdict": "above_group",
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         }
       }
     },
@@ -1368,37 +1368,37 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.56140350877193,
-          "n": 57,
+          "value": 5.5344827586206895,
+          "n": 58,
           "verdict": "above_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 2.56140350877193,
-          "n": 57,
+          "value": 5.5344827586206895,
+          "n": 58,
           "verdict": "above_group",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         },
         "lane_pattern": {
           "label": "scaling",
-          "value": 4.442857142857143,
-          "n": 69,
+          "value": 4.380281690140845,
+          "n": 70,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
-          "value": 0.7,
-          "n": 81,
+          "value": 0.7272727272727273,
+          "n": 83,
           "verdict": "above_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -1412,21 +1412,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.5555555555555554,
-          "n": 153,
-          "verdict": "above_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "value": 5.487179487179487,
+          "n": 156,
+          "verdict": "validated",
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 2.5555555555555554,
-          "n": 153,
-          "verdict": "above_group",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "value": 5.487179487179487,
+          "n": 156,
+          "verdict": "neutral",
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         }
       }
     },
@@ -1438,21 +1438,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 1.55,
-          "n": 20,
+          "value": 3.7142857142857144,
+          "n": 21,
           "verdict": "below_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 1.55,
-          "n": 20,
+          "value": 3.7142857142857144,
+          "n": 21,
           "verdict": "below_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1464,21 +1464,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.8181818181818183,
+          "value": 6.9393939393939394,
           "n": 33,
-          "verdict": "neutral",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "verdict": "above_group",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.8181818181818183,
+          "value": 6.9393939393939394,
           "n": 33,
-          "verdict": "neutral",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "verdict": "above_group",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1489,8 +1489,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3060607054408707,
-          "n": 363,
+          "value": 0.30480423671480583,
+          "n": 369,
           "verdict": "neutral",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1505,8 +1505,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3349280203610912,
-          "n": 127,
+          "value": 0.33774836274836273,
+          "n": 130,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1521,8 +1521,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3584428561047266,
-          "n": 139,
+          "value": 0.3598428561194519,
+          "n": 141,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1537,8 +1537,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.5642857142857143,
-          "n": 28,
+          "value": 0.56,
+          "n": 30,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1569,8 +1569,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.36721891815349755,
-          "n": 214,
+          "value": 0.3671114817903809,
+          "n": 218,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1585,8 +1585,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.3652069325473581,
-          "n": 235,
+          "value": 0.36565821223497574,
+          "n": 241,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1601,8 +1601,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.4298442257693359,
-          "n": 227,
+          "value": 0.43116027889734787,
+          "n": 232,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1617,8 +1617,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.32487856806038623,
-          "n": 407,
+          "value": 0.32399067945942944,
+          "n": 416,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1633,8 +1633,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.3123814677386106,
-          "n": 98,
+          "value": 0.31528670543822057,
+          "n": 99,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1649,8 +1649,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.39548859759140137,
-          "n": 107,
+          "value": 0.3900819650819651,
+          "n": 111,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1665,8 +1665,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.33299171367353186,
-          "n": 66,
+          "value": 0.3276096044478397,
+          "n": 68,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1681,8 +1681,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.33244897103818266,
-          "n": 241,
+          "value": 0.33123033614836894,
+          "n": 244,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1713,8 +1713,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3407044583768722,
-          "n": 58,
+          "value": 0.3366247217942133,
+          "n": 59,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1729,8 +1729,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.5714438339438339,
-          "n": 52,
+          "value": 0.5762051734273956,
+          "n": 54,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1778,8 +1778,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.5402730679814013,
-          "n": 360,
+          "value": 0.5390197953206083,
+          "n": 369,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1787,10 +1787,10 @@
         },
         "lane_pattern": {
           "label": "poke",
-          "value": 1.2923497267759563,
-          "n": 361,
+          "value": 1.272,
+          "n": 370,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -1803,8 +1803,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3357294341060575,
-          "n": 462,
+          "value": 0.3368631486968374,
+          "n": 469,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1819,10 +1819,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 1.1410788381742738,
-          "n": 234,
+          "value": 1.1551020408163266,
+          "n": 238,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -1837,8 +1837,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.6351359338061465,
-          "n": 282,
+          "value": 0.6356592238171185,
+          "n": 285,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -1846,19 +1846,19 @@
         },
         "lane_pattern": {
           "label": "poke",
-          "value": 1.552901023890785,
-          "n": 283,
+          "value": 1.554054054054054,
+          "n": 286,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "late",
-          "value": 0.52,
-          "n": 495,
+          "value": 0.5384615384615384,
+          "n": 506,
           "verdict": "validated",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -1872,21 +1872,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.288,
-          "n": 250,
-          "verdict": "neutral",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 5.59765625,
+          "n": 256,
+          "verdict": "validated",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.288,
-          "n": 250,
-          "verdict": "below_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.59765625,
+          "n": 256,
+          "verdict": "validated",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -1897,8 +1897,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3315660173160173,
-          "n": 100,
+          "value": 0.33584903658433074,
+          "n": 102,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1913,10 +1913,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 0.7877358490566038,
-          "n": 207,
+          "value": 0.7963800904977375,
+          "n": 216,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -1929,8 +1929,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 1.174074074074074,
-          "n": 267,
+          "value": 1.1751824817518248,
+          "n": 271,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -1947,26 +1947,26 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.4121621621621623,
-          "n": 148,
-          "verdict": "neutral",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "value": 5.271523178807947,
+          "n": 151,
+          "verdict": "validated",
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.4121621621621623,
-          "n": 148,
+          "value": 5.271523178807947,
+          "n": 151,
           "verdict": "validated",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         },
         "roam": {
           "label": "high",
-          "value": 0.3540775339020953,
-          "n": 171,
+          "value": 0.3531451626279212,
+          "n": 174,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -1984,26 +1984,26 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.25,
-          "n": 56,
-          "verdict": "below_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 5.728813559322034,
+          "n": 59,
+          "verdict": "validated",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.25,
-          "n": 56,
-          "verdict": "below_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.728813559322034,
+          "n": 59,
+          "verdict": "validated",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         },
         "roam": {
           "label": "high",
-          "value": 0.5883183337130705,
-          "n": 76,
+          "value": 0.5897687449635501,
+          "n": 77,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -2011,10 +2011,10 @@
         },
         "lane_pattern": {
           "label": "all_in",
-          "value": 2.9615384615384617,
-          "n": 76,
+          "value": 2.949367088607595,
+          "n": 77,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -2028,21 +2028,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.2403846153846154,
-          "n": 104,
+          "value": 5.09433962264151,
+          "n": 106,
           "verdict": "below_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.2403846153846154,
-          "n": 104,
+          "value": 5.09433962264151,
+          "n": 106,
           "verdict": "below_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2054,19 +2054,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 3.4492307692307693,
-          "n": 320,
+          "value": 3.4501510574018126,
+          "n": 326,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.5714285714285714,
-          "n": 371,
-          "verdict": "neutral",
-          "group_median": 0.52,
+          "n": 380,
+          "verdict": "validated",
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -2081,26 +2081,26 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.488888888888889,
-          "n": 180,
+          "value": 5.577540106951871,
+          "n": 187,
           "verdict": "validated",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.488888888888889,
-          "n": 180,
+          "value": 5.577540106951871,
+          "n": 187,
           "verdict": "validated",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         },
         "roam": {
           "label": "high",
-          "value": 0.3256066495862414,
-          "n": 98,
+          "value": 0.3278163530638778,
+          "n": 101,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -2115,8 +2115,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.6696428571428571,
-          "n": 219,
+          "value": 0.6637168141592921,
+          "n": 221,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -2132,21 +2132,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.2711864406779663,
-          "n": 59,
-          "verdict": "below_group",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 5.45,
+          "n": 60,
+          "verdict": "neutral",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.2711864406779663,
-          "n": 59,
-          "verdict": "below_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.45,
+          "n": 60,
+          "verdict": "neutral",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2174,8 +2174,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.5756595457682414,
-          "n": 92,
+          "value": 0.5751135979859384,
+          "n": 94,
           "verdict": "neutral",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -2183,10 +2183,10 @@
         },
         "lane_pattern": {
           "label": "poke",
-          "value": 1.8404255319148937,
-          "n": 92,
+          "value": 1.8125,
+          "n": 94,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -2199,8 +2199,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.5780738418669453,
-          "n": 58,
+          "value": 0.5688047138047138,
+          "n": 60,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -2216,21 +2216,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.3162393162393164,
-          "n": 117,
+          "value": 4.766666666666667,
+          "n": 120,
           "verdict": "below_group",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.3162393162393164,
-          "n": 117,
-          "verdict": "neutral",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "value": 4.766666666666667,
+          "n": 120,
+          "verdict": "below_group",
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -2242,21 +2242,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.808,
-          "n": 125,
-          "verdict": "neutral",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 6.456692913385827,
+          "n": 127,
+          "verdict": "above_group",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.808,
-          "n": 125,
-          "verdict": "neutral",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 6.456692913385827,
+          "n": 127,
+          "verdict": "above_group",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2267,8 +2267,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.30420491288546847,
-          "n": 216,
+          "value": 0.30321936901482355,
+          "n": 220,
           "verdict": "neutral",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -2285,26 +2285,26 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 3.1551724137931036,
+          "value": 7.0344827586206895,
           "n": 58,
           "verdict": "above_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "med",
-          "value": 3.1551724137931036,
+          "value": 7.0344827586206895,
           "n": 58,
           "verdict": "above_group",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         },
         "roam": {
           "label": "high",
-          "value": 0.30051130841947166,
-          "n": 98,
+          "value": 0.29750108225108224,
+          "n": 100,
           "verdict": "neutral",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -2320,8 +2320,8 @@
       "verdicts": {
         "roam": {
           "label": "med",
-          "value": 0.30240174857821916,
-          "n": 85,
+          "value": 0.3032459142924259,
+          "n": 86,
           "verdict": "neutral",
           "group_median": 0.5,
           "group_p25": 0.3,
@@ -2337,21 +2337,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.4047619047619047,
-          "n": 84,
+          "value": 5.730337078651686,
+          "n": 89,
           "verdict": "validated",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.4047619047619047,
-          "n": 84,
-          "verdict": "neutral",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.730337078651686,
+          "n": 89,
+          "verdict": "validated",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2363,21 +2363,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.485,
-          "n": 200,
-          "verdict": "validated",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "value": 5.2745098039215685,
+          "n": 204,
+          "verdict": "below_group",
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.485,
-          "n": 200,
-          "verdict": "validated",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.2745098039215685,
+          "n": 204,
+          "verdict": "below_group",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2388,8 +2388,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3727223032069971,
-          "n": 196,
+          "value": 0.3740464632454924,
+          "n": 206,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -2405,21 +2405,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.542372881355932,
-          "n": 177,
+          "value": 5.814207650273224,
+          "n": 183,
           "verdict": "above_group",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.542372881355932,
-          "n": 177,
+          "value": 5.814207650273224,
+          "n": 183,
           "verdict": "validated",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2430,8 +2430,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.2969028999674161,
-          "n": 155,
+          "value": 0.29824968434343435,
+          "n": 160,
           "verdict": "below_group",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -2446,8 +2446,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.34755146400716025,
-          "n": 158,
+          "value": 0.34536560574296427,
+          "n": 159,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -2462,8 +2462,8 @@
       "verdicts": {
         "roam": {
           "label": "med",
-          "value": 0.3008617014298833,
-          "n": 176,
+          "value": 0.30013253654558003,
+          "n": 184,
           "verdict": "neutral",
           "group_median": 0.5,
           "group_p25": 0.3,
@@ -2479,19 +2479,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "scaling",
-          "value": 2.552995391705069,
-          "n": 211,
+          "value": 2.5525114155251143,
+          "n": 213,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.4444444444444444,
-          "n": 217,
+          "n": 219,
           "verdict": "below_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -2505,21 +2505,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 1.8592592592592592,
-          "n": 135,
+          "value": 4.0,
+          "n": 137,
           "verdict": "below_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 1.8592592592592592,
-          "n": 135,
+          "value": 4.0,
+          "n": 137,
           "verdict": "below_group",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         }
       }
     },
@@ -2531,21 +2531,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.4615384615384617,
-          "n": 65,
-          "verdict": "validated",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "value": 4.611940298507463,
+          "n": 67,
+          "verdict": "below_group",
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.4615384615384617,
-          "n": 65,
-          "verdict": "validated",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "value": 4.611940298507463,
+          "n": 67,
+          "verdict": "below_group",
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -2558,21 +2558,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.4927536231884058,
-          "n": 69,
+          "value": 5.708333333333333,
+          "n": 72,
           "verdict": "validated",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.4927536231884058,
-          "n": 69,
-          "verdict": "validated",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "value": 5.708333333333333,
+          "n": 72,
+          "verdict": "above_group",
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -2586,7 +2586,7 @@
           "value": 1.794871794871795,
           "n": 39,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -2603,16 +2603,16 @@
           "value": 3.1123595505617976,
           "n": 89,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.42857142857142855,
-          "n": 112,
+          "n": 113,
           "verdict": "below_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -2626,8 +2626,8 @@
       "verdicts": {
         "roam": {
           "label": "med",
-          "value": 0.5855623100303952,
-          "n": 94,
+          "value": 0.5857142857142857,
+          "n": 95,
           "verdict": "validated",
           "group_median": 0.5,
           "group_p25": 0.3,
@@ -2635,8 +2635,8 @@
         },
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.96875,
-          "n": 94,
+          "value": 0.9690721649484536,
+          "n": 95,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -2667,8 +2667,8 @@
       "verdicts": {
         "roam": {
           "label": "med",
-          "value": 0.38062687312687316,
-          "n": 130,
+          "value": 0.38482325944731954,
+          "n": 133,
           "verdict": "neutral",
           "group_median": 0.5,
           "group_p25": 0.3,
@@ -2684,21 +2684,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.2528735632183907,
-          "n": 87,
-          "verdict": "validated",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "value": 4.738636363636363,
+          "n": 88,
+          "verdict": "neutral",
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 2.2528735632183907,
-          "n": 87,
-          "verdict": "validated",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "value": 4.738636363636363,
+          "n": 88,
+          "verdict": "neutral",
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         }
       }
     },
@@ -2709,8 +2709,8 @@
       "verdicts": {
         "roam": {
           "label": "med",
-          "value": 0.36297656134104733,
-          "n": 107,
+          "value": 0.3612590187590187,
+          "n": 110,
           "verdict": "neutral",
           "group_median": 0.5,
           "group_p25": 0.3,
@@ -2726,8 +2726,8 @@
       "verdicts": {
         "roam": {
           "label": "med",
-          "value": 0.5880337581041807,
-          "n": 71,
+          "value": 0.5883616003479016,
+          "n": 73,
           "verdict": "validated",
           "group_median": 0.5,
           "group_p25": 0.3,
@@ -2735,10 +2735,10 @@
         },
         "lane_pattern": {
           "label": "poke",
-          "value": 1.3866666666666667,
-          "n": 71,
+          "value": 1.4545454545454546,
+          "n": 73,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -2752,21 +2752,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.0689655172413794,
-          "n": 58,
+          "value": 4.45,
+          "n": 60,
           "verdict": "below_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.0689655172413794,
-          "n": 58,
+          "value": 4.45,
+          "n": 60,
           "verdict": "below_group",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -2777,8 +2777,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.4182300807300807,
-          "n": 74,
+          "value": 0.41511876281613125,
+          "n": 76,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -2793,8 +2793,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.29334362532891944,
-          "n": 136,
+          "value": 0.2970844103937629,
+          "n": 139,
           "verdict": "neutral",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -2810,21 +2810,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.5,
-          "n": 48,
+          "value": 5.3,
+          "n": 50,
           "verdict": "validated",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.5,
-          "n": 48,
-          "verdict": "validated",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.3,
+          "n": 50,
+          "verdict": "neutral",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2848,7 +2848,7 @@
           "value": 3.4285714285714284,
           "n": 21,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -2862,21 +2862,21 @@
       "verdicts": {
         "playstyle": {
           "label": "ganking",
-          "value": 2.517857142857143,
-          "n": 56,
+          "value": 5.879310344827586,
+          "n": 58,
           "verdict": "validated",
-          "group_median": 2.541537267080745,
-          "group_p25": 2.2837966101694915,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.72957531898686,
+          "group_p25": 5.406127450980392,
+          "group_p75": 6.039903054691788
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.517857142857143,
-          "n": 56,
+          "value": 5.879310344827586,
+          "n": 58,
           "verdict": "validated",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2900,7 +2900,7 @@
           "value": 1.6808510638297873,
           "n": 47,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -2913,8 +2913,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 1.016,
-          "n": 121,
+          "value": 1.0538461538461539,
+          "n": 126,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -2929,8 +2929,8 @@
       "verdicts": {
         "lane_pattern": {
           "label": "sustain",
-          "value": 0.7567567567567568,
-          "n": 111,
+          "value": 0.7543859649122807,
+          "n": 114,
           "verdict": "validated",
           "group_median": -1,
           "group_p25": -5.0,
@@ -2945,8 +2945,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.31764705882352945,
-          "n": 34,
+          "value": 0.3251196172248804,
+          "n": 38,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -2962,21 +2962,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.4065934065934065,
-          "n": 91,
+          "value": 5.032258064516129,
+          "n": 93,
           "verdict": "below_group",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.4065934065934065,
-          "n": 91,
-          "verdict": "neutral",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "value": 5.032258064516129,
+          "n": 93,
+          "verdict": "below_group",
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -2987,10 +2987,10 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 1.607843137254902,
-          "n": 48,
+          "value": 1.5769230769230769,
+          "n": 49,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -3005,21 +3005,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 2.68,
-          "n": 47,
+          "value": 2.673076923076923,
+          "n": 49,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "mid",
           "value": 0.2,
-          "n": 60,
+          "n": 62,
           "verdict": "below_group",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -3048,8 +3048,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.36921768707482994,
-          "n": 35,
+          "value": 0.3651344797178131,
+          "n": 36,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -3065,8 +3065,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.2276685412199431,
-          "n": 107,
+          "value": 0.2301901288012399,
+          "n": 108,
           "verdict": "below_group",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -3077,7 +3077,7 @@
           "value": 2.6153846153846154,
           "n": 25,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -3091,21 +3091,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.5689655172413794,
-          "n": 58,
+          "value": 5.816666666666666,
+          "n": 60,
           "verdict": "above_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "high",
-          "value": 2.5689655172413794,
-          "n": 58,
+          "value": 5.816666666666666,
+          "n": 60,
           "verdict": "validated",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -3116,8 +3116,8 @@
       "verdicts": {
         "roam": {
           "label": "high",
-          "value": 0.3134523809523809,
-          "n": 90,
+          "value": 0.3133045525902669,
+          "n": 91,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.2,
@@ -3134,21 +3134,21 @@
       "verdicts": {
         "lane_pattern": {
           "label": "poke",
-          "value": 2.4411764705882355,
-          "n": 66,
+          "value": 2.375,
+          "n": 70,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         },
         "power_curve": {
           "label": "mid",
           "value": 0.6153846153846154,
-          "n": 83,
+          "n": 87,
           "verdict": "above_group",
-          "group_median": 0.48214285714285715,
-          "group_p25": 0.39810924369747897,
-          "group_p75": 0.5584098737083811
+          "group_median": 0.46898496240601506,
+          "group_p25": 0.39215686274509803,
+          "group_p75": 0.5572742474916388
         }
       }
     },
@@ -3160,21 +3160,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.3230769230769233,
-          "n": 65,
+          "value": 5.181818181818182,
+          "n": 66,
           "verdict": "validated",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 2.3230769230769233,
-          "n": 65,
+          "value": 5.181818181818182,
+          "n": 66,
           "verdict": "validated",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         }
       }
     },
@@ -3186,8 +3186,8 @@
       "verdicts": {
         "roam": {
           "label": "low",
-          "value": 0.6092844824552142,
-          "n": 82,
+          "value": 0.6103774404979224,
+          "n": 83,
           "verdict": "above_group",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -3195,10 +3195,10 @@
         },
         "lane_pattern": {
           "label": "poke",
-          "value": 1.1785714285714286,
-          "n": 82,
+          "value": 1.2117647058823529,
+          "n": 83,
           "verdict": "validated",
-          "group_median": 1.0,
+          "group_median": 1,
           "group_p25": -6.0,
           "group_p75": 9.0
         }
@@ -3215,7 +3215,7 @@
           "value": 1.6666666666666667,
           "n": 105,
           "verdict": "validated",
-          "group_median": -2,
+          "group_median": -2.0,
           "group_p25": -13.0,
           "group_p75": 11.0
         },
@@ -3224,7 +3224,7 @@
           "value": 0.46153846153846156,
           "n": 125,
           "verdict": "neutral",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -3239,26 +3239,26 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 2.3043478260869565,
+          "value": 5.434782608695652,
           "n": 23,
           "verdict": "validated",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 2.3043478260869565,
+          "value": 5.434782608695652,
           "n": 23,
           "verdict": "validated",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         },
         "roam": {
           "label": "low",
-          "value": 0.4014652014652015,
-          "n": 26,
+          "value": 0.39778911564625846,
+          "n": 28,
           "verdict": "validated",
           "group_median": 0.4,
           "group_p25": 0.3,
@@ -3274,21 +3274,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 1.9285714285714286,
+          "value": 4.571428571428571,
           "n": 28,
           "verdict": "below_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 1.9285714285714286,
+          "value": 4.571428571428571,
           "n": 28,
           "verdict": "neutral",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         }
       }
     },
@@ -3300,21 +3300,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 2.5925925925925926,
+          "value": 6.407407407407407,
           "n": 27,
           "verdict": "above_group",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "med",
-          "value": 2.5925925925925926,
+          "value": 6.407407407407407,
           "n": 27,
           "verdict": "above_group",
-          "group_median": 2.436850311850312,
-          "group_p25": 2.307427421063785,
-          "group_p75": 2.5001031920748487
+          "group_median": 5.40102183931076,
+          "group_p25": 4.9550254452926215,
+          "group_p75": 5.703573399558499
         }
       }
     },
@@ -3326,19 +3326,19 @@
       "verdicts": {
         "lane_pattern": {
           "label": "all_in",
-          "value": 3.04,
-          "n": 48,
+          "value": 3.1132075471698113,
+          "n": 51,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         },
         "power_curve": {
           "label": "late",
           "value": 0.4,
-          "n": 50,
+          "n": 53,
           "verdict": "below_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -3356,7 +3356,7 @@
           "value": 1.0980392156862746,
           "n": 49,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -3370,21 +3370,21 @@
       "verdicts": {
         "playstyle": {
           "label": "skirmish",
-          "value": 3.217948717948718,
-          "n": 78,
+          "value": 7.430379746835443,
+          "n": 79,
           "verdict": "above_group",
-          "group_median": 2.488888888888889,
-          "group_p25": 2.409377784377784,
-          "group_p75": 2.5322623900450547
+          "group_median": 5.447204968944099,
+          "group_p25": 5.151890621662038,
+          "group_p75": 5.758097202620055
         },
         "gank_threat": {
           "label": "high",
-          "value": 3.217948717948718,
-          "n": 78,
+          "value": 7.430379746835443,
+          "n": 79,
           "verdict": "above_group",
-          "group_median": 2.55379513633014,
-          "group_p25": 2.3755714285714284,
-          "group_p75": 2.8269391159299415
+          "group_median": 5.764251108133182,
+          "group_p25": 5.293627450980392,
+          "group_p75": 6.039903054691788
         }
       }
     },
@@ -3396,21 +3396,21 @@
       "verdicts": {
         "playstyle": {
           "label": "farming",
-          "value": 1.6818181818181819,
-          "n": 22,
+          "value": 3.4347826086956523,
+          "n": 23,
           "verdict": "below_group",
-          "group_median": 2.2926697808120733,
-          "group_p25": 2.1062695924764894,
-          "group_p75": 2.5429042904290426
+          "group_median": 5.2683284457478,
+          "group_p25": 4.613230519480519,
+          "group_p75": 5.522656940760389
         },
         "gank_threat": {
           "label": "low",
-          "value": 1.6818181818181819,
-          "n": 22,
+          "value": 3.4347826086956523,
+          "n": 23,
           "verdict": "below_group",
-          "group_median": 2.3043478260869565,
-          "group_p25": 1.9285714285714286,
-          "group_p75": 2.504950495049505
+          "group_median": 5.181818181818182,
+          "group_p25": 4.571428571428571,
+          "group_p75": 5.487179487179487
         }
       }
     },
@@ -3424,7 +3424,7 @@
           "value": 1.434782608695652,
           "n": 22,
           "verdict": "validated",
-          "group_median": 1,
+          "group_median": 1.0,
           "group_p25": -5.0,
           "group_p75": 6.0
         }
@@ -3450,7 +3450,7 @@
           "value": 0.8,
           "n": 29,
           "verdict": "above_group",
-          "group_median": 0.52,
+          "group_median": 0.5384615384615384,
           "group_p25": 0.46153846153846156,
           "group_p75": 0.6153846153846154
         }
@@ -3459,460 +3459,313 @@
   },
   "discrepancies": [
     {
-      "champion": "Kalista",
-      "axis": "power_curve",
-      "current_label": "early",
-      "actual_value": 0.35714285714285715,
-      "group_median": 0.42000000000000004,
-      "group_p25": 0.3892857142857143,
-      "evidence": "value=0.357 < P25 groupe=0.389 (médian=0.420, n_games=170)"
-    },
-    {
       "champion": "Jinx",
       "axis": "power_curve",
       "current_label": "late",
       "actual_value": 0.25925925925925924,
-      "group_median": 0.52,
+      "group_median": 0.5384615384615384,
       "group_p25": 0.46153846153846156,
-      "evidence": "value=0.259 < P25 groupe=0.462 (médian=0.520, n_games=326)"
+      "evidence": "value=0.259 < P25 groupe=0.462 (médian=0.538, n_games=329)"
+    },
+    {
+      "champion": "Lucian",
+      "axis": "power_curve",
+      "current_label": "early",
+      "actual_value": 0.4,
+      "group_median": 0.43875,
+      "group_p25": 0.428125,
+      "evidence": "value=0.400 < P25 groupe=0.428 (médian=0.439, n_games=190)"
     },
     {
       "champion": "Varus",
       "axis": "power_curve",
       "current_label": "mid",
-      "actual_value": 0.35714285714285715,
-      "group_median": 0.48214285714285715,
-      "group_p25": 0.39810924369747897,
-      "evidence": "value=0.357 < P25 groupe=0.398 (médian=0.482, n_games=115)"
+      "actual_value": 0.3333333333333333,
+      "group_median": 0.46898496240601506,
+      "group_p25": 0.39215686274509803,
+      "evidence": "value=0.333 < P25 groupe=0.392 (médian=0.469, n_games=118)"
     },
     {
       "champion": "XinZhao",
       "axis": "playstyle",
       "current_label": "ganking",
-      "actual_value": 2.245614035087719,
-      "group_median": 2.541537267080745,
-      "group_p25": 2.2837966101694915,
-      "evidence": "value=2.246 < P25 groupe=2.284 (médian=2.542, n_games=114)"
+      "actual_value": 5.153846153846154,
+      "group_median": 5.72957531898686,
+      "group_p25": 5.406127450980392,
+      "evidence": "value=5.154 < P25 groupe=5.406 (médian=5.730, n_games=117)"
     },
     {
       "champion": "XinZhao",
       "axis": "gank_threat",
       "current_label": "high",
-      "actual_value": 2.245614035087719,
-      "group_median": 2.55379513633014,
-      "group_p25": 2.3755714285714284,
-      "evidence": "value=2.246 < P25 groupe=2.376 (médian=2.554, n_games=114)"
+      "actual_value": 5.153846153846154,
+      "group_median": 5.764251108133182,
+      "group_p25": 5.293627450980392,
+      "evidence": "value=5.154 < P25 groupe=5.294 (médian=5.764, n_games=117)"
     },
     {
-      "champion": "Graves",
-      "axis": "gank_threat",
-      "current_label": "med",
-      "actual_value": 2.2181818181818183,
-      "group_median": 2.436850311850312,
-      "group_p25": 2.307427421063785,
-      "evidence": "value=2.218 < P25 groupe=2.307 (médian=2.437, n_games=385)"
-    },
-    {
-      "champion": "Khazix",
+      "champion": "Sejuani",
       "axis": "playstyle",
-      "current_label": "skirmish",
-      "actual_value": 2.3523489932885906,
-      "group_median": 2.488888888888889,
-      "group_p25": 2.409377784377784,
-      "evidence": "value=2.352 < P25 groupe=2.409 (médian=2.489, n_games=298)"
+      "current_label": "ganking",
+      "actual_value": 5.162162162162162,
+      "group_median": 5.72957531898686,
+      "group_p25": 5.406127450980392,
+      "evidence": "value=5.162 < P25 groupe=5.406 (médian=5.730, n_games=37)"
     },
     {
-      "champion": "Kayn",
+      "champion": "Sejuani",
       "axis": "gank_threat",
-      "current_label": "med",
-      "actual_value": 2.28099173553719,
-      "group_median": 2.436850311850312,
-      "group_p25": 2.307427421063785,
-      "evidence": "value=2.281 < P25 groupe=2.307 (médian=2.437, n_games=121)"
+      "current_label": "high",
+      "actual_value": 5.162162162162162,
+      "group_median": 5.764251108133182,
+      "group_p25": 5.293627450980392,
+      "evidence": "value=5.162 < P25 groupe=5.294 (médian=5.764, n_games=37)"
     },
     {
       "champion": "Amumu",
       "axis": "playstyle",
       "current_label": "ganking",
-      "actual_value": 1.55,
-      "group_median": 2.541537267080745,
-      "group_p25": 2.2837966101694915,
-      "evidence": "value=1.550 < P25 groupe=2.284 (médian=2.542, n_games=20)"
+      "actual_value": 3.7142857142857144,
+      "group_median": 5.72957531898686,
+      "group_p25": 5.406127450980392,
+      "evidence": "value=3.714 < P25 groupe=5.406 (médian=5.730, n_games=21)"
     },
     {
       "champion": "Amumu",
       "axis": "gank_threat",
       "current_label": "high",
-      "actual_value": 1.55,
-      "group_median": 2.55379513633014,
-      "group_p25": 2.3755714285714284,
-      "evidence": "value=1.550 < P25 groupe=2.376 (médian=2.554, n_games=20)"
-    },
-    {
-      "champion": "Shaco",
-      "axis": "gank_threat",
-      "current_label": "high",
-      "actual_value": 2.288,
-      "group_median": 2.55379513633014,
-      "group_p25": 2.3755714285714284,
-      "evidence": "value=2.288 < P25 groupe=2.376 (médian=2.554, n_games=250)"
-    },
-    {
-      "champion": "Pantheon",
-      "axis": "playstyle",
-      "current_label": "ganking",
-      "actual_value": 2.25,
-      "group_median": 2.541537267080745,
-      "group_p25": 2.2837966101694915,
-      "evidence": "value=2.250 < P25 groupe=2.284 (médian=2.542, n_games=56)"
-    },
-    {
-      "champion": "Pantheon",
-      "axis": "gank_threat",
-      "current_label": "high",
-      "actual_value": 2.25,
-      "group_median": 2.55379513633014,
-      "group_p25": 2.3755714285714284,
-      "evidence": "value=2.250 < P25 groupe=2.376 (médian=2.554, n_games=56)"
+      "actual_value": 3.7142857142857144,
+      "group_median": 5.764251108133182,
+      "group_p25": 5.293627450980392,
+      "evidence": "value=3.714 < P25 groupe=5.294 (médian=5.764, n_games=21)"
     },
     {
       "champion": "Skarner",
       "axis": "playstyle",
       "current_label": "ganking",
-      "actual_value": 2.2403846153846154,
-      "group_median": 2.541537267080745,
-      "group_p25": 2.2837966101694915,
-      "evidence": "value=2.240 < P25 groupe=2.284 (médian=2.542, n_games=104)"
+      "actual_value": 5.09433962264151,
+      "group_median": 5.72957531898686,
+      "group_p25": 5.406127450980392,
+      "evidence": "value=5.094 < P25 groupe=5.406 (médian=5.730, n_games=106)"
     },
     {
       "champion": "Skarner",
       "axis": "gank_threat",
       "current_label": "high",
-      "actual_value": 2.2403846153846154,
-      "group_median": 2.55379513633014,
-      "group_p25": 2.3755714285714284,
-      "evidence": "value=2.240 < P25 groupe=2.376 (médian=2.554, n_games=104)"
-    },
-    {
-      "champion": "Poppy",
-      "axis": "playstyle",
-      "current_label": "ganking",
-      "actual_value": 2.2711864406779663,
-      "group_median": 2.541537267080745,
-      "group_p25": 2.2837966101694915,
-      "evidence": "value=2.271 < P25 groupe=2.284 (médian=2.542, n_games=59)"
-    },
-    {
-      "champion": "Poppy",
-      "axis": "gank_threat",
-      "current_label": "high",
-      "actual_value": 2.2711864406779663,
-      "group_median": 2.55379513633014,
-      "group_p25": 2.3755714285714284,
-      "evidence": "value=2.271 < P25 groupe=2.376 (médian=2.554, n_games=59)"
+      "actual_value": 5.09433962264151,
+      "group_median": 5.764251108133182,
+      "group_p25": 5.293627450980392,
+      "evidence": "value=5.094 < P25 groupe=5.294 (médian=5.764, n_games=106)"
     },
     {
       "champion": "Aatrox",
       "axis": "playstyle",
       "current_label": "skirmish",
-      "actual_value": 2.3162393162393164,
-      "group_median": 2.488888888888889,
-      "group_p25": 2.409377784377784,
-      "evidence": "value=2.316 < P25 groupe=2.409 (médian=2.489, n_games=117)"
+      "actual_value": 4.766666666666667,
+      "group_median": 5.447204968944099,
+      "group_p25": 5.151890621662038,
+      "evidence": "value=4.767 < P25 groupe=5.152 (médian=5.447, n_games=120)"
+    },
+    {
+      "champion": "Aatrox",
+      "axis": "gank_threat",
+      "current_label": "med",
+      "actual_value": 4.766666666666667,
+      "group_median": 5.40102183931076,
+      "group_p25": 4.9550254452926215,
+      "evidence": "value=4.767 < P25 groupe=4.955 (médian=5.401, n_games=120)"
+    },
+    {
+      "champion": "MonkeyKing",
+      "axis": "playstyle",
+      "current_label": "ganking",
+      "actual_value": 5.2745098039215685,
+      "group_median": 5.72957531898686,
+      "group_p25": 5.406127450980392,
+      "evidence": "value=5.275 < P25 groupe=5.406 (médian=5.730, n_games=204)"
+    },
+    {
+      "champion": "MonkeyKing",
+      "axis": "gank_threat",
+      "current_label": "high",
+      "actual_value": 5.2745098039215685,
+      "group_median": 5.764251108133182,
+      "group_p25": 5.293627450980392,
+      "evidence": "value=5.275 < P25 groupe=5.294 (médian=5.764, n_games=204)"
     },
     {
       "champion": "Hwei",
       "axis": "roam",
       "current_label": "low",
-      "actual_value": 0.2969028999674161,
+      "actual_value": 0.29824968434343435,
       "group_median": 0.4,
       "group_p25": 0.3,
-      "evidence": "value=0.297 < P25 groupe=0.300 (médian=0.400, n_games=155)"
+      "evidence": "value=0.298 < P25 groupe=0.300 (médian=0.400, n_games=160)"
     },
     {
       "champion": "Yunara",
       "axis": "power_curve",
       "current_label": "late",
       "actual_value": 0.4444444444444444,
-      "group_median": 0.52,
+      "group_median": 0.5384615384615384,
       "group_p25": 0.46153846153846156,
-      "evidence": "value=0.444 < P25 groupe=0.462 (médian=0.520, n_games=217)"
+      "evidence": "value=0.444 < P25 groupe=0.462 (médian=0.538, n_games=219)"
     },
     {
       "champion": "Nasus",
       "axis": "playstyle",
       "current_label": "farming",
-      "actual_value": 1.8592592592592592,
-      "group_median": 2.2926697808120733,
-      "group_p25": 2.1062695924764894,
-      "evidence": "value=1.859 < P25 groupe=2.106 (médian=2.293, n_games=135)"
+      "actual_value": 4.0,
+      "group_median": 5.2683284457478,
+      "group_p25": 4.613230519480519,
+      "evidence": "value=4.000 < P25 groupe=4.613 (médian=5.268, n_games=137)"
     },
     {
       "champion": "Nasus",
       "axis": "gank_threat",
       "current_label": "low",
-      "actual_value": 1.8592592592592592,
-      "group_median": 2.3043478260869565,
-      "group_p25": 1.9285714285714286,
-      "evidence": "value=1.859 < P25 groupe=1.929 (médian=2.304, n_games=135)"
+      "actual_value": 4.0,
+      "group_median": 5.181818181818182,
+      "group_p25": 4.571428571428571,
+      "evidence": "value=4.000 < P25 groupe=4.571 (médian=5.182, n_games=137)"
+    },
+    {
+      "champion": "Olaf",
+      "axis": "playstyle",
+      "current_label": "skirmish",
+      "actual_value": 4.611940298507463,
+      "group_median": 5.447204968944099,
+      "group_p25": 5.151890621662038,
+      "evidence": "value=4.612 < P25 groupe=5.152 (médian=5.447, n_games=67)"
+    },
+    {
+      "champion": "Olaf",
+      "axis": "gank_threat",
+      "current_label": "med",
+      "actual_value": 4.611940298507463,
+      "group_median": 5.40102183931076,
+      "group_p25": 4.9550254452926215,
+      "evidence": "value=4.612 < P25 groupe=4.955 (médian=5.401, n_games=67)"
     },
     {
       "champion": "KogMaw",
       "axis": "power_curve",
       "current_label": "late",
       "actual_value": 0.42857142857142855,
-      "group_median": 0.52,
+      "group_median": 0.5384615384615384,
       "group_p25": 0.46153846153846156,
-      "evidence": "value=0.429 < P25 groupe=0.462 (médian=0.520, n_games=112)"
+      "evidence": "value=0.429 < P25 groupe=0.462 (médian=0.538, n_games=113)"
     },
     {
       "champion": "Udyr",
       "axis": "playstyle",
       "current_label": "farming",
-      "actual_value": 2.0689655172413794,
-      "group_median": 2.2926697808120733,
-      "group_p25": 2.1062695924764894,
-      "evidence": "value=2.069 < P25 groupe=2.106 (médian=2.293, n_games=58)"
+      "actual_value": 4.45,
+      "group_median": 5.2683284457478,
+      "group_p25": 4.613230519480519,
+      "evidence": "value=4.450 < P25 groupe=4.613 (médian=5.268, n_games=60)"
     },
     {
       "champion": "Udyr",
       "axis": "gank_threat",
       "current_label": "med",
-      "actual_value": 2.0689655172413794,
-      "group_median": 2.436850311850312,
-      "group_p25": 2.307427421063785,
-      "evidence": "value=2.069 < P25 groupe=2.307 (médian=2.437, n_games=58)"
+      "actual_value": 4.45,
+      "group_median": 5.40102183931076,
+      "group_p25": 4.9550254452926215,
+      "evidence": "value=4.450 < P25 groupe=4.955 (médian=5.401, n_games=60)"
     },
     {
       "champion": "Kindred",
       "axis": "playstyle",
       "current_label": "skirmish",
-      "actual_value": 2.4065934065934065,
-      "group_median": 2.488888888888889,
-      "group_p25": 2.409377784377784,
-      "evidence": "value=2.407 < P25 groupe=2.409 (médian=2.489, n_games=91)"
+      "actual_value": 5.032258064516129,
+      "group_median": 5.447204968944099,
+      "group_p25": 5.151890621662038,
+      "evidence": "value=5.032 < P25 groupe=5.152 (médian=5.447, n_games=93)"
+    },
+    {
+      "champion": "Kindred",
+      "axis": "gank_threat",
+      "current_label": "high",
+      "actual_value": 5.032258064516129,
+      "group_median": 5.764251108133182,
+      "group_p25": 5.293627450980392,
+      "evidence": "value=5.032 < P25 groupe=5.294 (médian=5.764, n_games=93)"
     },
     {
       "champion": "Corki",
       "axis": "power_curve",
       "current_label": "mid",
       "actual_value": 0.2,
-      "group_median": 0.48214285714285715,
-      "group_p25": 0.39810924369747897,
-      "evidence": "value=0.200 < P25 groupe=0.398 (médian=0.482, n_games=60)"
+      "group_median": 0.46898496240601506,
+      "group_p25": 0.39215686274509803,
+      "evidence": "value=0.200 < P25 groupe=0.392 (médian=0.469, n_games=62)"
     },
     {
       "champion": "Xerath",
       "axis": "roam",
       "current_label": "low",
-      "actual_value": 0.2276685412199431,
+      "actual_value": 0.2301901288012399,
       "group_median": 0.4,
       "group_p25": 0.3,
-      "evidence": "value=0.228 < P25 groupe=0.300 (médian=0.400, n_games=107)"
+      "evidence": "value=0.230 < P25 groupe=0.300 (médian=0.400, n_games=108)"
     },
     {
       "champion": "DrMundo",
       "axis": "playstyle",
       "current_label": "farming",
-      "actual_value": 1.9285714285714286,
-      "group_median": 2.2926697808120733,
-      "group_p25": 2.1062695924764894,
-      "evidence": "value=1.929 < P25 groupe=2.106 (médian=2.293, n_games=28)"
+      "actual_value": 4.571428571428571,
+      "group_median": 5.2683284457478,
+      "group_p25": 4.613230519480519,
+      "evidence": "value=4.571 < P25 groupe=4.613 (médian=5.268, n_games=28)"
     },
     {
       "champion": "Nilah",
       "axis": "power_curve",
       "current_label": "late",
       "actual_value": 0.4,
-      "group_median": 0.52,
+      "group_median": 0.5384615384615384,
       "group_p25": 0.46153846153846156,
-      "evidence": "value=0.400 < P25 groupe=0.462 (médian=0.520, n_games=50)"
+      "evidence": "value=0.400 < P25 groupe=0.462 (médian=0.538, n_games=53)"
     },
     {
       "champion": "Gwen",
       "axis": "playstyle",
       "current_label": "farming",
-      "actual_value": 1.6818181818181819,
-      "group_median": 2.2926697808120733,
-      "group_p25": 2.1062695924764894,
-      "evidence": "value=1.682 < P25 groupe=2.106 (médian=2.293, n_games=22)"
+      "actual_value": 3.4347826086956523,
+      "group_median": 5.2683284457478,
+      "group_p25": 4.613230519480519,
+      "evidence": "value=3.435 < P25 groupe=4.613 (médian=5.268, n_games=23)"
     },
     {
       "champion": "Gwen",
       "axis": "gank_threat",
       "current_label": "low",
-      "actual_value": 1.6818181818181819,
-      "group_median": 2.3043478260869565,
-      "group_p25": 1.9285714285714286,
-      "evidence": "value=1.682 < P25 groupe=1.929 (médian=2.304, n_games=22)"
+      "actual_value": 3.4347826086956523,
+      "group_median": 5.181818181818182,
+      "group_p25": 4.571428571428571,
+      "evidence": "value=3.435 < P25 groupe=4.571 (médian=5.182, n_games=23)"
     }
   ],
   "proposals": [
     {
-      "champion": "FiddleSticks",
-      "role": "JUNGLE",
-      "n_games": 43,
-      "proposed_axes": {
-        "playstyle": "farming",
-        "gank_threat": "low"
-      },
-      "evidence": {
-        "playstyle": {
-          "value": 2.0697674418604652,
-          "nearest_label": "farming",
-          "group_median": 2.2926697808120733
-        },
-        "gank_threat": {
-          "value": 2.0697674418604652,
-          "nearest_label": "low",
-          "group_median": 2.3043478260869565
-        }
-      }
-    },
-    {
-      "champion": "Darius",
-      "role": "JUNGLE",
-      "n_games": 25,
-      "proposed_axes": {
-        "playstyle": "farming",
-        "gank_threat": "low"
-      },
-      "evidence": {
-        "playstyle": {
-          "value": 2.16,
-          "nearest_label": "farming",
-          "group_median": 2.2926697808120733
-        },
-        "gank_threat": {
-          "value": 2.16,
-          "nearest_label": "low",
-          "group_median": 2.3043478260869565
-        }
-      }
-    },
-    {
       "champion": "Sion",
       "role": "MIDDLE",
-      "n_games": 46,
+      "n_games": 47,
       "proposed_axes": {
         "roam": "low",
         "power_curve": "late"
       },
       "evidence": {
         "roam": {
-          "value": 0.40700483091787437,
+          "value": 0.39834515366430256,
           "nearest_label": "low",
           "group_median": 0.4
         },
         "power_curve": {
           "value": 0.6,
           "nearest_label": "late",
-          "group_median": 0.52
-        }
-      }
-    },
-    {
-      "champion": "Jayce",
-      "role": "JUNGLE",
-      "n_games": 61,
-      "proposed_axes": {
-        "playstyle": "ganking",
-        "gank_threat": "high"
-      },
-      "evidence": {
-        "playstyle": {
-          "value": 2.819672131147541,
-          "nearest_label": "ganking",
-          "group_median": 2.541537267080745
-        },
-        "gank_threat": {
-          "value": 2.819672131147541,
-          "nearest_label": "high",
-          "group_median": 2.55379513633014
-        }
-      }
-    },
-    {
-      "champion": "Zaahen",
-      "role": "JUNGLE",
-      "n_games": 27,
-      "proposed_axes": {
-        "playstyle": "ganking",
-        "gank_threat": "high"
-      },
-      "evidence": {
-        "playstyle": {
-          "value": 2.5185185185185186,
-          "nearest_label": "ganking",
-          "group_median": 2.541537267080745
-        },
-        "gank_threat": {
-          "value": 2.5185185185185186,
-          "nearest_label": "high",
-          "group_median": 2.55379513633014
-        }
-      }
-    },
-    {
-      "champion": "Rammus",
-      "role": "JUNGLE",
-      "n_games": 28,
-      "proposed_axes": {
-        "playstyle": "farming",
-        "gank_threat": "low"
-      },
-      "evidence": {
-        "playstyle": {
-          "value": 2.142857142857143,
-          "nearest_label": "farming",
-          "group_median": 2.2926697808120733
-        },
-        "gank_threat": {
-          "value": 2.142857142857143,
-          "nearest_label": "low",
-          "group_median": 2.3043478260869565
-        }
-      }
-    },
-    {
-      "champion": "Heimerdinger",
-      "role": "BOTTOM",
-      "n_games": 42,
-      "proposed_axes": {
-        "lane_pattern": "poke",
-        "power_curve": "late"
-      },
-      "evidence": {
-        "lane_pattern": {
-          "value": 2.738095238095238,
-          "nearest_label": "poke",
-          "group_median": 1.0
-        },
-        "power_curve": {
-          "value": 0.625,
-          "nearest_label": "late",
-          "group_median": 0.52
-        }
-      }
-    },
-    {
-      "champion": "Singed",
-      "role": "MIDDLE",
-      "n_games": 25,
-      "proposed_axes": {
-        "roam": "low",
-        "power_curve": "late"
-      },
-      "evidence": {
-        "roam": {
-          "value": 0.33260606060606057,
-          "nearest_label": "low",
-          "group_median": 0.4
-        },
-        "power_curve": {
-          "value": 0.6666666666666666,
-          "nearest_label": "late",
-          "group_median": 0.52
+          "group_median": 0.5384615384615384
         }
       }
     },
@@ -3933,49 +3786,196 @@
         "power_curve": {
           "value": 0.8,
           "nearest_label": "late",
-          "group_median": 0.52
+          "group_median": 0.5384615384615384
         }
       }
     },
     {
-      "champion": "Camille",
-      "role": "MIDDLE",
-      "n_games": 177,
+      "champion": "Jayce",
+      "role": "JUNGLE",
+      "n_games": 61,
       "proposed_axes": {
-        "roam": "med",
-        "power_curve": "early"
+        "playstyle": "ganking",
+        "gank_threat": "high"
       },
       "evidence": {
-        "roam": {
-          "value": 0.5648784047089132,
-          "nearest_label": "med",
-          "group_median": 0.5
+        "playstyle": {
+          "value": 5.770491803278689,
+          "nearest_label": "ganking",
+          "group_median": 5.72957531898686
         },
-        "power_curve": {
-          "value": 0.18181818181818182,
-          "nearest_label": "early",
-          "group_median": 0.42000000000000004
+        "gank_threat": {
+          "value": 5.770491803278689,
+          "nearest_label": "high",
+          "group_median": 5.764251108133182
         }
       }
     },
     {
       "champion": "Riven",
       "role": "MIDDLE",
-      "n_games": 137,
+      "n_games": 138,
       "proposed_axes": {
         "roam": "low",
         "power_curve": "late"
       },
       "evidence": {
         "roam": {
-          "value": 0.3672933716729337,
+          "value": 0.3675303762260284,
           "nearest_label": "low",
           "group_median": 0.4
         },
         "power_curve": {
           "value": 0.6666666666666666,
           "nearest_label": "late",
-          "group_median": 0.52
+          "group_median": 0.5384615384615384
+        }
+      }
+    },
+    {
+      "champion": "Rammus",
+      "role": "JUNGLE",
+      "n_games": 28,
+      "proposed_axes": {
+        "playstyle": "ganking",
+        "gank_threat": "high"
+      },
+      "evidence": {
+        "playstyle": {
+          "value": 5.642857142857143,
+          "nearest_label": "ganking",
+          "group_median": 5.72957531898686
+        },
+        "gank_threat": {
+          "value": 5.642857142857143,
+          "nearest_label": "high",
+          "group_median": 5.764251108133182
+        }
+      }
+    },
+    {
+      "champion": "Heimerdinger",
+      "role": "BOTTOM",
+      "n_games": 42,
+      "proposed_axes": {
+        "lane_pattern": "poke",
+        "power_curve": "late"
+      },
+      "evidence": {
+        "lane_pattern": {
+          "value": 2.738095238095238,
+          "nearest_label": "poke",
+          "group_median": 1
+        },
+        "power_curve": {
+          "value": 0.625,
+          "nearest_label": "late",
+          "group_median": 0.5384615384615384
+        }
+      }
+    },
+    {
+      "champion": "FiddleSticks",
+      "role": "JUNGLE",
+      "n_games": 43,
+      "proposed_axes": {
+        "playstyle": "farming",
+        "gank_threat": "low"
+      },
+      "evidence": {
+        "playstyle": {
+          "value": 5.116279069767442,
+          "nearest_label": "farming",
+          "group_median": 5.2683284457478
+        },
+        "gank_threat": {
+          "value": 5.116279069767442,
+          "nearest_label": "low",
+          "group_median": 5.181818181818182
+        }
+      }
+    },
+    {
+      "champion": "Zaahen",
+      "role": "JUNGLE",
+      "n_games": 27,
+      "proposed_axes": {
+        "playstyle": "farming",
+        "gank_threat": "low"
+      },
+      "evidence": {
+        "playstyle": {
+          "value": 4.407407407407407,
+          "nearest_label": "farming",
+          "group_median": 5.2683284457478
+        },
+        "gank_threat": {
+          "value": 4.407407407407407,
+          "nearest_label": "low",
+          "group_median": 5.181818181818182
+        }
+      }
+    },
+    {
+      "champion": "Camille",
+      "role": "MIDDLE",
+      "n_games": 179,
+      "proposed_axes": {
+        "roam": "med",
+        "power_curve": "early"
+      },
+      "evidence": {
+        "roam": {
+          "value": 0.5652708247680315,
+          "nearest_label": "med",
+          "group_median": 0.5
+        },
+        "power_curve": {
+          "value": 0.18181818181818182,
+          "nearest_label": "early",
+          "group_median": 0.43875
+        }
+      }
+    },
+    {
+      "champion": "Darius",
+      "role": "JUNGLE",
+      "n_games": 25,
+      "proposed_axes": {
+        "playstyle": "farming",
+        "gank_threat": "low"
+      },
+      "evidence": {
+        "playstyle": {
+          "value": 4.56,
+          "nearest_label": "farming",
+          "group_median": 5.2683284457478
+        },
+        "gank_threat": {
+          "value": 4.56,
+          "nearest_label": "low",
+          "group_median": 5.181818181818182
+        }
+      }
+    },
+    {
+      "champion": "Singed",
+      "role": "MIDDLE",
+      "n_games": 26,
+      "proposed_axes": {
+        "roam": "low",
+        "power_curve": "late"
+      },
+      "evidence": {
+        "roam": {
+          "value": 0.3303030303030303,
+          "nearest_label": "low",
+          "group_median": 0.4
+        },
+        "power_curve": {
+          "value": 0.6666666666666666,
+          "nearest_label": "late",
+          "group_median": 0.5384615384615384
         }
       }
     }

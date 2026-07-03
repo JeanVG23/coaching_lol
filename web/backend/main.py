@@ -13,6 +13,12 @@ from fastapi.staticfiles import StaticFiles
 SRC = Path(__file__).resolve().parents[2] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+CORE = SRC / "core"
+if str(CORE) not in sys.path:
+    sys.path.insert(0, str(CORE))
+COLLECTION = SRC / "collection"
+if str(COLLECTION) not in sys.path:
+    sys.path.insert(0, str(COLLECTION))
 COACH = SRC / "04_coaching"
 if str(COACH) not in sys.path:
     sys.path.insert(0, str(COACH))

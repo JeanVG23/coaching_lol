@@ -21,8 +21,8 @@ import zstandard as zstd
 import champion_profiles as cp
 
 # --------------------------------------------------------------------- chemins
-# riotlib vit dans src/ ; la racine projet (data/, .env) est le dossier parent.
-ROOT = Path(__file__).resolve().parent.parent
+# riotlib vit dans src/core/ ; la racine projet (data/, .env) est deux niveaux au-dessus.
+ROOT = Path(__file__).resolve().parent.parent.parent
 DATA = ROOT / "data"
 # Couches médaillon numérotées pour matérialiser l'ordre du pipeline.
 RAW_DIR = DATA / "01_raw"       # JSON API brut, immuable, partagé (compressé .json.zst)
@@ -143,10 +143,15 @@ class RiotClient:
 
     # match-v5 (régional)
     def match_ids(self, puuid: str, count: int = 20, queue: int | None = None,
-                  start: int = 0) -> list[str]:
+                  start: int = 0, start_time: int | None = None) -> list[str]:
         params = {"count": count, "start": start}
         if queue is not None:
             params["queue"] = queue
+        if start_time is not None:
+            # Filtre côté API Riot : ne retourne que les matches créés après startTime
+            # (Unix seconds). Évite de fetcher N timelines de vieux patches juste pour
+            # les filtrer ensuite (économise ~30 appels/joueur inactif).
+            params["startTime"] = start_time
         return self._get(self.regional,
                          f"/lol/match/v5/matches/by-puuid/{puuid}/ids", **params) or []
 
@@ -200,22 +205,43 @@ def _write_raw(base: str, obj: dict) -> None:
     p.write_bytes(zstd.ZstdCompressor(level=ZSTD_LEVEL).compress(json.dumps(obj).encode()))
 
 
-def get_match_timeline(client: RiotClient, match_id: str) -> tuple[dict, dict] | None:
+def get_match_timeline(client: RiotClient, match_id: str,
+                       target_puuid: str | None = None,
+                       target_role: str | None = None) -> tuple[dict, dict] | None:
     """Charge (match, timeline) depuis raw/ si présents, sinon fetch et cache."""
     match = _read_raw(f"{match_id}_match")
     timeline = _read_raw(f"{match_id}_timeline")
-    if match is not None and timeline is not None:
-        return match, timeline
+    
     try:
-        match = client.match(match_id)
-        timeline = client.timeline(match_id)
+        if match is None:
+            match = client.match(match_id)
+            if match:
+                _write_raw(f"{match_id}_match", match)
+                
+        if not match:
+            return None
+            
+        # Filtrage ciblé : on vérifie le rôle AVANT de fetch la timeline
+        if target_puuid and target_role:
+            meta = match.get("metadata", {})
+            if target_puuid in meta.get("participants", []):
+                pidx = meta["participants"].index(target_puuid)
+                me = match.get("info", {}).get("participants", [])[pidx]
+                if me.get("teamPosition") != target_role:
+                    return None
+                    
+        if timeline is None:
+            timeline = client.timeline(match_id)
+            if timeline:
+                _write_raw(f"{match_id}_timeline", timeline)
+                
     except Exception as e:
         print(f"  ⚠ skip {match_id}: {e}", file=sys.stderr)
         return None
+
     if not match or not timeline:
         return None
-    _write_raw(f"{match_id}_match", match)
-    _write_raw(f"{match_id}_timeline", timeline)
+        
     return match, timeline
 
 

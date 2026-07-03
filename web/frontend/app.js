@@ -330,5 +330,9 @@ function accountPage(slug) {
   };
 }
 function readmePage() {
-  return { init() { /* page statique, rien à fetcher */ } };
+  return {
+    tab: "overview",
+    init() { /* page statique, rien à fetcher */ },
+    setTab(t) { this.tab = t; },
+  };
 }

@@ -1,10 +1,13 @@
-# src/list_unknown_champions.py
+# src/pipeline_ops/list_unknown_champions.py
 """Liste les champions présents dans le silver mais absents de champion_traits.json
 (pour compléter la table au fil de l'eau). 0 appel API."""
 from __future__ import annotations
 
 import collections
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import champion_profiles as cp
 import riotlib as rl
 

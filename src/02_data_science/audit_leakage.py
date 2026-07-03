@@ -8,12 +8,12 @@ audit_leakage — vérifie l'intégrité OOF du modèle high-elo et sonde l'AUC.
   2. Null test : shuffle du label → AUC doit retomber à ~0.5 (sanité pipeline).
   3. Confound de durée : gameDuration (lu depuis le raw) prédit-il high_elo seul ?
      + décomposition counts (scalent avec durée) vs rates (normalisés/min).
-Usage : .venv/bin/python src/audit_leakage.py
+Usage : .venv/bin/python src/02_data_science/audit_leakage.py
 """
 from __future__ import annotations
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import json
 import numpy as np
 import pandas as pd

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import requests
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = ROOT / "data" / "00_static"
 DDRAGON_VERSION = "16.13.1"  # figée ; refresh = action manuelle (fetch_ddragon)
 TRAITS_PATH = STATIC_DIR / "champion_traits.json"
