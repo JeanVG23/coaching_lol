@@ -1,5 +1,5 @@
-"""Tests de ml_rank.predict_rank — logique de placement (filtrage ADC + mapping
-calibration), modèles/calibration mockés pour ne pas dépendre des .pkl réels."""
+"""Tests de ml_rank.predict_rank — agrégation per-player (mean/std/p10/p50/p90) +
+mapping calibration. Modèles/calibration mockés (pas de dépendance aux .pkl réels)."""
 import numpy as np
 import pytest
 
@@ -35,11 +35,17 @@ CALIBRATION = [
 def _patch_loaders(monkeypatch, proba):
     monkeypatch.setattr(ml_rank, "_load_models",
                         lambda: {"xgb": FakeModel(proba), "rf": FakeModel(proba)})
-    monkeypatch.setattr(ml_rank, "_load_features", lambda: ["csm10"])
+    monkeypatch.setattr(ml_rank, "_load_features", lambda: ["csm10__mean"])
     monkeypatch.setattr(ml_rank, "_load_calibration", lambda: CALIBRATION)
 
 
 def test_predict_rank_none_when_not_enough_adc_games(monkeypatch):
+    _patch_loaders(monkeypatch, 0.5)
+    result = ml_rank.predict_rank([ADC_GAME] * 4)  # 4 < MIN_ADC_GAMES (5)
+    assert result is None
+
+
+def test_predict_rank_none_when_no_adc_games(monkeypatch):
     _patch_loaders(monkeypatch, 0.5)
     result = ml_rank.predict_rank([NON_ADC_GAME] * 5)
     assert result is None
@@ -47,14 +53,14 @@ def test_predict_rank_none_when_not_enough_adc_games(monkeypatch):
 
 def test_predict_rank_maps_to_closest_calibrated_rank(monkeypatch):
     _patch_loaders(monkeypatch, 0.8)
-    result = ml_rank.predict_rank([ADC_GAME] * 3)
+    result = ml_rank.predict_rank([ADC_GAME] * 5)
     assert result["predicted_rank"] == "challenger"
-    assert result["n_games_used"] == 3
+    assert result["n_games_used"] == 5
     assert result["proba"] == pytest.approx(0.8)
 
 
 def test_predict_rank_filters_non_adc_games(monkeypatch):
     _patch_loaders(monkeypatch, 0.3)
-    result = ml_rank.predict_rank([ADC_GAME, ADC_GAME, ADC_GAME, NON_ADC_GAME, NON_ADC_GAME])
-    assert result["n_games_used"] == 3
+    result = ml_rank.predict_rank([ADC_GAME] * 5 + [NON_ADC_GAME] * 2)
+    assert result["n_games_used"] == 5
     assert result["predicted_rank"] == "diamond"
