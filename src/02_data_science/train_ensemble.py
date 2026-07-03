@@ -38,10 +38,11 @@ import pickle
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import numpy as np
 import pandas as pd
 import riotlib as rl
+import ml_features
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import roc_auc_score, accuracy_score, classification_report
 import xgboost as xgb
@@ -54,23 +55,7 @@ MODEL_DIR = rl.DATA / "05_model"
 RANKS = ["diamond", "master", "grandmaster", "challenger"]
 HIGH_ELO = {"grandmaster", "challenger"}
 
-FEATURES = [
-    "csm10", "csm14", "gpm10", "gpm14", "xppm10",
-    "n_deaths", "deaths_early", "deaths_mid", "deaths_late",
-    "deaths_solo", "deaths_teamfight", "deaths_early_jungle", "deaths_early_2v2",
-    "kills_solo", "kills_2v2", "assists_2v2", "kda_1v1", "kda_2v2",
-    "support_deaths_early", "plates_diff_early", "frames_in_base_early",
-    "frac_behind", "frac_ahead",
-    "avg_dragon_prox",
-    # positionnement macro (timeline, 0 CV)
-    "pos_frac_own_lane_early", "pos_frac_river_early", "pos_frac_roam_mid",
-    "pos_frac_enemy_half", "pos_frac_base",
-    "pos_avg_map_depth", "pos_max_map_depth", "pos_frac_overextended",
-    "pos_avg_dist_to_ally", "pos_gold_dead_time",
-    "pos_wards_placed", "pos_wards_placed_early", "pos_control_wards_placed",
-    "pos_wards_killed",
-    "pos_frac_deaths_in_fog", "pos_avg_unaccounted_enemies", "pos_overext_x_unaccounted",
-]
+FEATURES = ml_features.FEATURES  # canonique, cf. src/core/ml_features.py
 
 
 def make_models() -> dict:
