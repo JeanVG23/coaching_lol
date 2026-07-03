@@ -232,9 +232,7 @@
     "roam": "high"
   },
   "Yasuo": {
-    "roam": "low",
-    "power_curve": "mid",
-    "lane_pattern": "all_in"
+    "roam": "low"
   },
   "Yone": {
     "roam": "low"
@@ -246,9 +244,7 @@
     "roam": "low"
   },
   "Cassiopeia": {
-    "roam": "low",
-    "power_curve": "late",
-    "lane_pattern": "scaling"
+    "roam": "low"
   },
   "Veigar": {
     "roam": "low"
@@ -319,7 +315,6 @@
     "lane_pattern": "all_in"
   },
   "Camille": {
-    "roam": "med"
   },
   "Diana": {
     "playstyle": "skirmish",
@@ -345,8 +340,7 @@
   },
   "Aatrox": {
     "playstyle": "skirmish",
-    "gank_threat": "med",
-    "roam": "low"
+    "gank_threat": "med"
   },
   "Nunu": {
     "playstyle": "ganking",
@@ -361,7 +355,6 @@
     "roam": "high"
   },
   "Jayce": {
-    "lane_pattern": "poke"
   },
   "Annie": {
     "lane_pattern": "all_in",
@@ -389,10 +382,6 @@
     "roam": "low"
   },
   "Riven": {
-    "playstyle": "skirmish",
-    "gank_threat": "med",
-    "roam": "low",
-    "lane_pattern": "all_in"
   },
   "Aurora": {
     "roam": "med"
@@ -403,8 +392,7 @@
   },
   "Nasus": {
     "playstyle": "farming",
-    "gank_threat": "low",
-    "roam": "low"
+    "gank_threat": "low"
   },
   "Olaf": {
     "playstyle": "skirmish",
@@ -455,8 +443,7 @@
   },
   "Ambessa": {
     "playstyle": "skirmish",
-    "gank_threat": "high",
-    "roam": "high"
+    "gank_threat": "high"
   },
   "Mel": {
     "lane_pattern": "poke",
@@ -471,8 +458,6 @@
     "roam": "low"
   },
   "Sion": {
-    "playstyle": "farming",
-    "roam": "med"
   },
   "Sona": {
     "lane_pattern": "sustain"
@@ -507,7 +492,6 @@
     "roam": "high"
   },
   "KSante": {
-    "roam": "low"
   },
   "Xerath": {
     "lane_pattern": "poke",
@@ -548,12 +532,10 @@
     "roam": "low"
   },
   "Garen": {
-    "roam": "med"
   },
   "DrMundo": {
     "playstyle": "farming",
-    "gank_threat": "low",
-    "roam": "low"
+    "gank_threat": "low"
   },
   "Jax": {
     "playstyle": "skirmish",
@@ -569,15 +551,8 @@
     "lane_pattern": "all_in"
   },
   "Fiora": {
-    "playstyle": "skirmish",
-    "gank_threat": "med",
-    "lane_pattern": "all_in"
   },
   "Renekton": {
-    "playstyle": "skirmish",
-    "gank_threat": "med",
-    "roam": "low",
-    "lane_pattern": "all_in"
   },
   "Fiddlesticks": {
     "playstyle": "farming",
@@ -588,16 +563,12 @@
     "gank_threat": "high"
   },
   "Ornn": {
-    "lane_pattern": "all_in",
-    "roam": "low"
   },
   "Volibear": {
     "playstyle": "ganking",
     "gank_threat": "high"
   },
   "Heimerdinger": {
-    "lane_pattern": "poke",
-    "roam": "low"
   },
   "Gwen": {
     "playstyle": "farming",
@@ -611,56 +582,33 @@
     "lane_pattern": "all_in"
   },
   "Darius": {
-    "playstyle": "skirmish",
-    "gank_threat": "med",
-    "roam": "low"
   },
   "Rumble": {
-    "roam": "high"
   },
   "Tryndamere": {
     "playstyle": "skirmish",
-    "gank_threat": "med",
-    "roam": "low"
+    "gank_threat": "med"
   },
   "Kayle": {
     "power_curve": "late",
-    "lane_pattern": "scaling",
     "roam": "low"
   },
   "Singed": {
-    "roam": "high"
   },
   "Illaoi": {
-    "lane_pattern": "all_in",
-    "roam": "low"
   },
   "Mordekaiser": {
-    "playstyle": "farming",
-    "gank_threat": "low"
   },
   "Sett": {
-    "lane_pattern": "all_in"
   },
   "Gnar": {
-    "roam": "low"
   },
   "Kennen": {
-    "lane_pattern": "poke",
-    "roam": "med"
   },
   "Kled": {
-    "playstyle": "skirmish",
-    "gank_threat": "med",
-    "roam": "med"
   },
   "Urgot": {
-    "playstyle": "farming",
-    "gank_threat": "low",
-    "lane_pattern": "all_in"
   },
   "Yorick": {
-    "playstyle": "farming",
-    "gank_threat": "low"
   }
 }
