@@ -398,7 +398,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # ml_features
 import pandas as pd
 import riotlib as rl
 import ml_features as mf
@@ -581,7 +582,8 @@ import pickle
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # ml_features
 import numpy as np
 import pandas as pd
 import riotlib as rl
@@ -794,7 +796,8 @@ import pickle
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # (cohérent avec les autres scripts du pipeline, cf. Task 3/4)
 import numpy as np
 import pandas as pd
 import riotlib as rl
@@ -983,6 +986,14 @@ from pathlib import Path
 
 import pandas as pd
 import riotlib as rl
+
+# riotlib est déjà résolu par le sys.path applicatif (main.py) ou par
+# tests/conftest.py — mais ml_features (src/core/) n'y est pas garanti (dépend
+# d'un état de réorg non commité), donc on l'ajoute nous-mêmes, défensivement,
+# comme le fait déjà ce fichier pour DATA_ENG ci-dessous.
+CORE = Path(__file__).resolve().parents[2] / "src" / "core"
+if str(CORE) not in sys.path:
+    sys.path.insert(0, str(CORE))
 import ml_features as mf
 
 DATA_ENG = Path(__file__).resolve().parents[2] / "src" / "01_data_engineering"
