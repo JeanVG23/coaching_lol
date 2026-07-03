@@ -9,8 +9,8 @@ Les clés (Riot, Ollama) restent côté serveur — jamais dans le navigateur.
 ## Lancer en local
 
 ```bash
-.venv/bin/pip install -r requirements.txt        # fastapi + uvicorn la première fois
-.venv/bin/python -m uvicorn main:app --app-dir web/backend --reload
+poetry install                                    # crée .venv/ et installe les deps (1re fois)
+poetry run uvicorn main:app --app-dir web/backend --reload
 ```
 
 Ouvre http://127.0.0.1:8000 — la page doit afficher « ✅ Backend en ligne ».

@@ -215,7 +215,8 @@ Code dans `src/`, données dans `data/` (couches numérotées). `src/` est rang�
 Live Client), `pipeline_ops/` (maintenance médaillon, 0 appel API), `reporting/`
 (livrable heuristique pré-ML), `experiments/` (spikes historiques), puis les dossiers
 numérotés `01_data_engineering` → `04_coaching` (pipeline ML, inchangés). Lancer depuis
-la racine : `python3 src/<dossier>/<script>.py` — chaque script insère lui-même
+la racine, dans l'environnement Poetry (`poetry shell`, ou préfixer chaque commande par
+`poetry run`) : `python3 src/<dossier>/<script>.py` — chaque script insère lui-même
 `src/core/` dans `sys.path` avant `import riotlib` (convention flat-import, pas de
 package Python dans `src/`).
 
@@ -335,7 +336,7 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     web (`web/frontend/`) : textarea sous chaque item déjà noté (✓/✗), envoyé via
     `POST /api/feedback` comme le CLI.
 - **Tests** : `tests/` (pytest), couvrent la dérivation déterministe + l'extraction comp +
-  l'agrégation contextuelle. Lancer : `.venv/bin/python -m pytest tests/`.
+  l'agrégation contextuelle. Lancer : `poetry run pytest tests/`.
 
 Features clés : **facettes win/loss** (neutralise le biais d'issue), **benchmark de lane**
 (gold/CS/XP diff @10/@14/@20 vs adversaire), **gold-state des morts** (avance/retard),
