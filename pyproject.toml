@@ -1,0 +1,32 @@
+[project]
+name = "coaching-lol"
+version = "0.1.0"
+description = "Coach IA personnalisé pour League of Legends (positionnement > stats brutes)"
+requires-python = ">=3.13,<3.15"
+dependencies = [
+    "requests>=2.32",
+    "zstandard>=0.23",
+    "pydantic>=2",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "numpy>=2.0",
+    "pandas>=2.0",
+    "scikit-learn>=1.5",
+    "xgboost>=2.1",
+]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.4"
+pytest-mock = ">=3.15"
+
+[tool.poetry.group.analysis.dependencies]
+scipy = ">=1.16"
+statsmodels = ">=0.14"
+matplotlib = ">=3.10"
+seaborn = ">=0.13"
+interpret = ">=0.7"
+shap = ">=0.52"
