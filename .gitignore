@@ -25,3 +25,6 @@ frames/
 
 # Agent local config (Claude Code)
 .claude/
+
+# Scratch state for subagent-driven-development (task briefs, review packages, ledger)
+.superpowers/
