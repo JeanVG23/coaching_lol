@@ -289,6 +289,19 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
 - **`src/collection/live_capture.py`** — capture locale de la Live Client Data API
   pendant une game ; zéro dépendance hors stdlib (copiable seul sur une machine sans le
   reste du repo).
+- **`src/collection/densify_targets.py`** — sélection **chirurgicale** des joueurs à
+  densifier pour atteindre `MIN_PLAYER_GAMES` (dataset ML per-player). 0 appel API :
+  relit `adc_dataset.parquet` (comptage par joueur sur le référentiel double-ADC, plus
+  fiable que le silver qui sous-compte les joueurs vus surtout comme ADC ennemi), ne
+  cible que la bande `[--min-games, --threshold[` (loin en dessous = chasse coûteuse
+  pour un gain incertain ; déjà au-dessus = rien à faire), trie par écart croissant.
+  Écrit `data/04_dataset/densify_targets.json` (`{puuid: rank}`), consommé par
+  `densify_players.py --target-list`.
+- **`src/collection/densify_players.py`** — reprend une liste de joueurs (tous ceux
+  d'un rang, ou `--target-list` ciblé via `densify_targets.py`) et va chercher leur
+  historique de matchs supplémentaire (`--history`, `--days`) pour approfondir le
+  dataset au-delà des N games collectées initialement ; dédup par match_id déjà connu,
+  checkpoint silver+gold périodique.
 - **`src/pipeline_ops/rebuild_gold.py`** — régénère tout le gold depuis le silver, sans
   appel API.
 - **`src/reporting/compare.py`** — livrable coaching : slice perso vs référentiels, à issue égale.
