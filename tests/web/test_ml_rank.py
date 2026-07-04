@@ -41,26 +41,29 @@ def _patch_loaders(monkeypatch, proba):
 
 def test_predict_rank_none_when_not_enough_adc_games(monkeypatch):
     _patch_loaders(monkeypatch, 0.5)
-    result = ml_rank.predict_rank([ADC_GAME] * 4)  # 4 < MIN_ADC_GAMES (5)
+    n = ml_rank.MIN_ADC_GAMES - 1
+    result = ml_rank.predict_rank([ADC_GAME] * n)
     assert result is None
 
 
 def test_predict_rank_none_when_no_adc_games(monkeypatch):
     _patch_loaders(monkeypatch, 0.5)
-    result = ml_rank.predict_rank([NON_ADC_GAME] * 5)
+    result = ml_rank.predict_rank([NON_ADC_GAME] * ml_rank.MIN_ADC_GAMES)
     assert result is None
 
 
 def test_predict_rank_maps_to_closest_calibrated_rank(monkeypatch):
     _patch_loaders(monkeypatch, 0.8)
-    result = ml_rank.predict_rank([ADC_GAME] * 5)
+    n = ml_rank.MIN_ADC_GAMES
+    result = ml_rank.predict_rank([ADC_GAME] * n)
     assert result["predicted_rank"] == "challenger"
-    assert result["n_games_used"] == 5
+    assert result["n_games_used"] == n
     assert result["proba"] == pytest.approx(0.8)
 
 
 def test_predict_rank_filters_non_adc_games(monkeypatch):
     _patch_loaders(monkeypatch, 0.3)
-    result = ml_rank.predict_rank([ADC_GAME] * 5 + [NON_ADC_GAME] * 2)
-    assert result["n_games_used"] == 5
+    n = ml_rank.MIN_ADC_GAMES
+    result = ml_rank.predict_rank([ADC_GAME] * n + [NON_ADC_GAME] * 2)
+    assert result["n_games_used"] == n
     assert result["predicted_rank"] == "diamond"

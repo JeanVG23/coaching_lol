@@ -11,8 +11,12 @@ dataset per-player), précalculée hors-ligne par
 `src/02_data_science/calibrate_player_rank.py` et écrite dans
 `data/05_model/player_rank_calibration.json`.
 
-MIN_ADC_GAMES = 5 (seuil validé par le POC) : en dessous, pas de rang (pas de
-fallback sur un autre chemin de code — décision actée en brainstorming).
+MIN_ADC_GAMES = 15 (aligné sur MIN_PLAYER_GAMES du dataset d'entraînement, cf.
+build_player_dataset.py) : en dessous, pas de rang (pas de fallback sur un autre
+chemin de code — décision actée en brainstorming). Relevé depuis 5 : le modèle est
+entraîné sur des agrégats mean/std/p10/p50/p90 calculés sur >= 15 games — le nourrir
+à l'inférence avec un agrégat 5 games introduirait un décalage train/serve (la
+dispersion mesurée sur 5 games est dominée par le bruit, pas la vraie régularité).
 """
 from __future__ import annotations
 
@@ -40,7 +44,7 @@ if str(DATA_ENG) not in sys.path:
 import build_dataset  # noqa: E402
 
 MODEL_DIR = rl.DATA / "05_model"
-MIN_ADC_GAMES = 5
+MIN_ADC_GAMES = 15
 
 
 @functools.lru_cache(maxsize=1)

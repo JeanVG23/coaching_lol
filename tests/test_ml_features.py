@@ -52,5 +52,17 @@ def test_player_feature_names_order():
     assert names == [
         "csm10__mean", "csm10__std", "csm10__p10", "csm10__p50", "csm10__p90",
         "gpm10__mean", "gpm10__std", "gpm10__p10", "gpm10__p50", "gpm10__p90",
-        "n_games",
+        "win_rate", "n_games",
     ]
+
+
+def test_aggregate_player_features_win_rate():
+    df = pd.DataFrame({"csm10": [4.0, 6.0, 8.0], "win": [1, 0, 1]})
+    agg = mf.aggregate_player_features(df, features=["csm10"])
+    assert agg["win_rate"] == pytest.approx(2 / 3)
+
+
+def test_aggregate_player_features_win_rate_nan_without_column():
+    df = pd.DataFrame({"csm10": [4.0, 6.0]})
+    agg = mf.aggregate_player_features(df, features=["csm10"])
+    assert np.isnan(agg["win_rate"])

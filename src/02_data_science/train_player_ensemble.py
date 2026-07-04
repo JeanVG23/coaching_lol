@@ -6,7 +6,8 @@ par joueur (mean/std/p10/p50/p90), cf. poc/per_player_hypothesis.py.
 
 Reprend l'architecture de train_ensemble.py (mêmes 3 biais inductifs : GBDT / bagging
 / GA²M glass-box), appliquée au dataset per-player
-(data/04_dataset/adc_player_dataset.parquet, 1 ligne = 1 joueur >= 5 games ADC).
+(data/04_dataset/adc_player_dataset.parquet, 1 ligne = 1 joueur >= MIN_PLAYER_GAMES
+games ADC, cf. build_player_dataset.py).
 EBM interactions=0 (vs 10 en per-game) : pas assez de rows pour des paires fiables sur
 un espace de features ~5x plus large.
 
@@ -121,7 +122,7 @@ def main() -> int:
     features = mf.player_feature_names(mf.FEATURES)
     X = df.reindex(columns=features)
     y = df["rank"].isin(HIGH_ELO).astype(int)
-    print(f"  {len(df)} joueurs >=5 games | pos={int(y.sum())} / neg={int((1-y).sum())}")
+    print(f"  {len(df)} joueurs | pos={int(y.sum())} / neg={int((1-y).sum())}")
 
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     oof_preds = {name: np.zeros(len(X)) for name in make_models().keys()}

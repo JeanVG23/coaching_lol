@@ -307,14 +307,29 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     (`data/05_model/rank_calibration.json`), puis on place un joueur au rang calibré
     le plus proche de sa proba moyenne sur ses dernières games ADC.
     **Pipeline per-player (features de constance)** : `src/core/ml_features.py`
-    (FEATURES canonique + `aggregate_player_features` mean/std/p10/p50/p90, partagé
-    train/serve) → `src/01_data_engineering/build_player_dataset.py` (1 ligne = 1
-    joueur ≥5 games ADC référentiel) → `train_player_ensemble.py` (ensemble xgb/rf/ebm,
+    (FEATURES canonique + `aggregate_player_features` mean/std/p10/p50/p90 + `win_rate`,
+    partagé train/serve) → `src/01_data_engineering/build_player_dataset.py` (1 ligne = 1
+    joueur ≥`MIN_PLAYER_GAMES` games ADC référentiel, agrégées sur la totalité de
+    l'historique disponible) → `train_player_ensemble.py` (ensemble xgb/rf/ebm,
     StratifiedKFold, conserve le test d'hypothèse dispersion vs tendance centrale du
     POC dans `player_metrics.json`) → `calibrate_player_rank.py`. Implémente en prod
     `poc/per_player_hypothesis.py` : `web/backend/ml_rank.py` utilise désormais ce
-    modèle (seuil `MIN_ADC_GAMES=5`, pas de fallback en dessous) au lieu de la moyenne
+    modèle (seuil `MIN_ADC_GAMES=15`, pas de fallback en dessous) au lieu de la moyenne
     per-game. Cf. `docs/superpowers/specs/2026-07-03-per-player-consistency-design.md`.
+    > ⚠️ **`MIN_PLAYER_GAMES` relevé 5→15 (2026-07-05).** À 5 games, l'AUC per-player
+    > s'effondrait à 0.531 (bruit de matchmaking noyant le signal de dispersion, cœur du
+    > modèle) malgré un dataset équilibré (865/865). Cause : l'écart-type/percentiles sur
+    > un si petit échantillon mesurent le RNG, pas la régularité réelle du joueur ; de
+    > plus les features de perf (CS/gold/deaths/positioning) sont mécaniquement dégradées
+    > en défaite, donc un joueur avec une série de losses malchanceuse dans l'échantillon
+    > était tiré à tort vers "low elo". Fix : (1) agrégation sur la totalité de
+    > l'historique référentiel disponible du joueur (plus de troncature aux 5 dernières
+    > games) au lieu du minimum, (2) feature `win_rate` scalaire ajoutée pour laisser le
+    > modèle corriger l'effet outcome plutôt que le confondre avec le rang. Résultat :
+    > 718 joueurs qualifiés (359/359), **AUC out-of-fold 0.531 → 0.631** (dispersion
+    > toujours 61.7% du signal SHAP — l'hypothèse constance tient, il fallait juste plus
+    > de games par joueur pour la mesurer proprement). `MIN_ADC_GAMES` de
+    > `web/backend/ml_rank.py` aligné à 15 pour éviter un décalage train/serve.
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
@@ -375,10 +390,12 @@ reprocher une décision sur une info cachée.
   `calibrate_rank.py` (proba moyenne → rang référentiel le plus proche). Confiance
   affichée explicitement (signal faible, cf. AUC ci-dessus) — pas de fausse certitude.
 - **Rang ML per-player (constance)** ✅ — `web/backend/ml_rank.py` bascule sur le
-  modèle per-player (features mean/std/p10/p50/p90, seuil 5 games ADC), qui reprend
-  en prod l'hypothèse validée par `poc/per_player_hypothesis.py` (dispersion/plancher
-  > tendance centrale). AUC per-player vs AUC per-game précédent (0.589) : voir
-  `data/05_model/player_metrics.json` pour la valeur mesurée lors de l'entraînement.
+  modèle per-player (features mean/std/p10/p50/p90 + `win_rate`, seuil 15 games ADC),
+  qui reprend en prod l'hypothèse validée par `poc/per_player_hypothesis.py`
+  (dispersion/plancher > tendance centrale). Seuil relevé 5→15 après effondrement de
+  l'AUC à 0.531 sous 5 games (bruit de matchmaking > signal de constance, cf. note
+  ci-dessus) : AUC out-of-fold **0.631** à 15 games (718 joueurs, 359/359) — voir
+  `data/05_model/player_metrics.json` pour le détail (dispersion 61.7% du signal SHAP).
 - **Premier verdict ADC** : laning = LE levier (≈ -10 à -16 CS @14 vs challenger, *toutes*
   issues) ; mauvaise gestion du retard (gold@20 en lose -1252 vs -322) ; morts = symptôme.
 - Clé **dev** (throttle ~100 req/2min, attentes 429 si saturé) → rate-limiter intégré.

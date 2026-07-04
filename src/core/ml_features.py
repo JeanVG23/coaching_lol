@@ -43,14 +43,21 @@ def resolve_rank(group: pd.DataFrame) -> str:
 
 
 def player_feature_names(features: list[str] = FEATURES) -> list[str]:
-    """Ordre canonique des colonnes agrégées : {feature}__{stat} puis n_games."""
-    return [f"{f}__{s}" for f in features for s in AGG_STATS] + ["n_games"]
+    """Ordre canonique des colonnes agrégées : {feature}__{stat}, puis win_rate, n_games."""
+    return [f"{f}__{s}" for f in features for s in AGG_STATS] + ["win_rate", "n_games"]
 
 
 def aggregate_player_features(df: pd.DataFrame, features: list[str] = FEATURES) -> dict:
-    """Games d'UN joueur (1 ligne par game) -> dict plat {feature}__{stat} + n_games.
-    std ddof=1 (0.0 si une seule game). NaN propagée si la feature est absente ou
-    vide sur tout le groupe (XGBoost/EBM gèrent le NaN nativement, pas d'imputation)."""
+    """Games d'UN joueur (1 ligne par game) -> dict plat {feature}__{stat} + win_rate +
+    n_games. std ddof=1 (0.0 si une seule game). NaN propagée si la feature est absente
+    ou vide sur tout le groupe (XGBoost/EBM gèrent le NaN nativement, pas d'imputation).
+
+    win_rate : les features de perf (CS/gold/deaths/positioning) sont mécaniquement
+    pires en défaite, indépendamment du skill — sans ce signal, un joueur avec une
+    série de défaites dans l'échantillon voit ses stats agrégées tirées vers le profil
+    "low elo" à tort. Exposé en scalaire brut (pas de mean/std/percentiles : c'est déjà
+    un taux) pour que le modèle apprenne à corriger l'effet plutôt que de le confondre
+    avec un vrai signal de rang."""
     rec: dict = {}
     for f in features:
         vals = df[f].dropna() if f in df.columns else pd.Series([], dtype=float)
@@ -66,5 +73,6 @@ def aggregate_player_features(df: pd.DataFrame, features: list[str] = FEATURES) 
             rec[f"{f}__p10"] = np.percentile(vals, 10)
             rec[f"{f}__p50"] = np.percentile(vals, 50)
             rec[f"{f}__p90"] = np.percentile(vals, 90)
+    rec["win_rate"] = df["win"].mean() if "win" in df.columns and len(df) else np.nan
     rec["n_games"] = len(df)
     return rec

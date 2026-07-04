@@ -5,9 +5,19 @@ games ADC référentiel).
 
 Agrège adc_dataset.parquet (référentiel, 1 ligne = 1 ADC d'une game, déjà construit
 par build_dataset.py) par puuid : pour chaque joueur à >= MIN_PLAYER_GAMES games,
-mean/std/p10/p50/p90 par feature (cf. poc/per_player_hypothesis.py — hypothèse
-"constance/plancher" validée sur données densifiées, +0.12 AUC vs per-game). Rang
-résolu au mode (tie-break rang le plus bas, cf. ml_features.resolve_rank).
+mean/std/p10/p50/p90 par feature sur la TOTALITÉ de son historique disponible
+(cf. poc/per_player_hypothesis.py — hypothèse "constance/plancher" validée sur données
+densifiées, +0.12 AUC vs per-game). Rang résolu au mode (tie-break rang le plus bas,
+cf. ml_features.resolve_rank).
+
+MIN_PLAYER_GAMES=15 (relevé depuis 5) : la dispersion (std/p10/p90) est le cœur du
+signal du modèle, or l'écart-type sur 5 games est dominé par le bruit de matchmaking
+(RNG, AFK, stomps) plutôt que par la vraie régularité du joueur. Sous 5 games, l'AUC
+mesurée tombait à 0.531 (à peine mieux que pile ou face) — la variance intra-joueur
+noyait le signal inter-joueur. Un joueur ne calcule plus ses stats sur ses 5 dernières
+games mais sur tout son historique référentiel disponible (>= 15) : la régression vers
+la moyenne y réduit aussi l'impact d'une série de défaites malchanceuse isolée, en
+complément du signal win_rate (cf. ml_features.aggregate_player_features).
 
 0 appel API (relit un dataset déjà construit).
 
@@ -26,14 +36,17 @@ import riotlib as rl
 import ml_features as mf
 
 DATASET_DIR = rl.DATA / "04_dataset"
-MIN_PLAYER_GAMES = 5
+MIN_PLAYER_GAMES = 15
 HIGH_ELO = {"grandmaster", "challenger"}
 
 
 def build_player_rows(df: pd.DataFrame, min_games: int = MIN_PLAYER_GAMES) -> pd.DataFrame:
-    """df : rows per-game référentiel (colonnes puuid, rank, + mf.FEATURES).
+    """df : rows per-game référentiel (colonnes puuid, rank, win, + mf.FEATURES).
     Retourne 1 ligne par joueur ayant >= min_games games, colonnes agrégées
-    {feature}__{stat} + n_games, rank, high_elo. Vide si aucun joueur ne qualifie."""
+    {feature}__{stat} + win_rate + n_games, rank, high_elo. Vide si aucun joueur ne
+    qualifie. Agrégation sur TOUT l'historique disponible du joueur (pas de troncature
+    à un nombre fixe de games) : plus un joueur a de games, plus sa mesure de
+    régularité est fiable."""
     rows = []
     for puuid, g in df.groupby("puuid"):
         if len(g) < min_games:
@@ -44,6 +57,16 @@ def build_player_rows(df: pd.DataFrame, min_games: int = MIN_PLAYER_GAMES) -> pd
     out = pd.DataFrame(rows)
     if not out.empty:
         out["high_elo"] = out["rank"].isin(HIGH_ELO).astype(int)
+        
+        # Balance classes (undersampling)
+        pos = out[out["high_elo"] == 1]
+        neg = out[out["high_elo"] == 0]
+        n_min = min(len(pos), len(neg))
+        if n_min > 0:
+            pos = pos.sample(n=n_min, random_state=42)
+            neg = neg.sample(n=n_min, random_state=42)
+            out = pd.concat([pos, neg]).sample(frac=1, random_state=42).reset_index(drop=True)
+            
     return out
 
 
