@@ -396,16 +396,23 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     `schema.GameReview` (0-2 forces / 1-3 erreurs `AnchoredInsight` — **horodatage mm:ss
     obligatoire dans l'evidence, contrainte de schéma** ; pas de habits : pattern
     multi-games indétectable sur 1 game), `coach.py --game [latest|MATCH_ID]`, records
-    persistés avec `kind: "game"` + `match_id`. `schema.py` porte aussi
+    persistés avec `kind: "game"` + `match_id`. **Batch** (2026-07-06) : `coach.py
+    --game-batch [N]` (défaut 10) génère les reviews par-game des N dernières games ADC
+    pas encore reviewées (dédup par `match_id` sur les reviews `kind: "game"`, quel que
+    soit le modèle), poursuit sur échec (log/`failed/`), bilan final
+    `X générées · Y déjà reviewées · Z échouées`. `schema.py` porte aussi
     `Feedback`/`FeedbackItem` (boucle d'éval). Lancer :
     `python3 src/04_coaching/coach.py --player spadzze --scope adc [--game]`. `feedback.py` (CLI
     `annotate`/`summary` : boucle d'éval par-insight — `y/n/s` + tag fixe `NEG_TAGS`
     sur jugement négatif, persiste `data/07_coaching/<player>/feedback.jsonl` (1 ligne/
-    review, réannotation écrase par `ts`), `summary` agrège taux par section + top tags +
-    par modèle + tendance low_sample `<10` + jusqu'à 2 verbatims de note libre par tag
-    (`tag_notes` : le tag dit *quoi* est faux, le verbatim dit *pourquoi* — guide la
-    correction du prompt/des features sans deviner). Accepte les deux types de reviews
-    (agrégées et `kind: "game"`). Aucun réseau. Lancer :
+    review, réannotation écrase par `ts`). `annotate --pending` (2026-07-06) : itère en
+    série toutes les reviews sans feedback (plus anciennes d'abord). `summary` agrège taux
+    par section + top tags + par modèle + tendance low_sample `<10` + jusqu'à 2 verbatims
+    de note libre par tag (`tag_notes` : le tag dit *quoi* est faux, le verbatim dit
+    *pourquoi* — guide la correction du prompt/des features sans deviner), et un bloc
+    `Objectif par-game` (`objective_stats`, 2026-07-06) : X/10 reviews annotées · % de
+    mistakes utiles, calculé uniquement sur les mistakes des reviews `kind: "game"`.
+    Accepte les deux types de reviews (agrégées et `kind: "game"`). Aucun réseau. Lancer :
     `python3 src/04_coaching/feedback.py annotate --player spadzze [--last|--ts]`.
     Le champ `note` (déjà modélisé dans `FeedbackItem`) est maintenant aussi exposé côté
     web (`web/frontend/`) : textarea sous chaque item déjà noté (✓/✗), envoyé via
@@ -481,11 +488,15 @@ reprocher une décision sur une info cachée.
    ✅ **Boucle d'éval** (scoring d'utilité) — `feedback.py annotate/summary` :
    annotation interactive par-insight (tag fixe `NEG_TAGS` + note) sur les reviews
    persistées, agrégation taux/top tags/par modèle/tendance.
-   ✅ **Compte-rendu par-game** — `coach.py --game` (cf. État d'avancement). À suivre :
-   annoter ≥10 reviews par-game (métrique ≥70 % de mistakes utiles), puis **coacher le
-   plancher** — cibler les games du pire décile p10 (insight ML per-player : le rang =
-   le plancher, pas la moyenne) et boucle de focus inter-games (adhérence au `next_focus`
-   mesurée par les features).
+   ✅ **Compte-rendu par-game** — `coach.py --game` (cf. État d'avancement).
+   ✅ **Boucle batch+pending** (2026-07-06) — `coach.py --game-batch` (génération en
+   série des reviews par-game manquantes) + `feedback.py annotate --pending` (annotation
+   en série) + bloc `Objectif` dans `summary` : l'outillage est en place, il reste à
+   **annoter effectivement ≥10 reviews par-game** (métrique ≥70 % de mistakes utiles).
+   L'approche C (génération automatique post-game, déclenchée dès la fin de partie)
+   reste explicitement à suivre. Ensuite, **coacher le plancher** — cibler les games du
+   pire décile p10 (insight ML per-player : le rang = le plancher, pas la moyenne) et
+   boucle de focus inter-games (adhérence au `next_focus` mesurée par les features).
 2. **Benchmark Zeri** densifié (sampling champion ciblé) si la slice reste trop fine.
 3. Stabiliser et valider la **robustesse de l'approche ML/SHAP** (les features sont là, mais la qualité des prescriptions SHAP vs Heuristiques reste à valider).
 4. Poursuivre l'industrialisation : modèles Pydantic et flux consolidé.
