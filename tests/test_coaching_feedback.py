@@ -308,3 +308,46 @@ def test_main_summary_subcommand(tmp_path, monkeypatch, capsys):
     assert F.main(["summary", "--player", "spadzze"]) == 0
     out = capsys.readouterr().out
     assert "Taux d'utilité" in out
+
+
+# --- pending_reviews + annotate --pending --------------------------------------
+
+def test_pending_reviews_joins_by_ts_oldest_first():
+    reviews = [{"ts": "2026-07-03T10:00:00"}, {"ts": "2026-07-01T10:00:00"},
+               {"ts": "2026-07-02T10:00:00"}]
+    fbs = [_fb("2026-07-02T10:00:00", "m", [_it("strength", True)])]
+    got = F.pending_reviews(reviews, fbs)
+    assert [r["ts"] for r in got] == ["2026-07-01T10:00:00", "2026-07-03T10:00:00"]
+
+
+def test_annotate_pending_iterates_oldest_first_and_quits(tmp_path):
+    _write_reviews(tmp_path, lines=[_game_review_record(), _review_dict()])
+    answers = iter([
+        "",                                       # Entrée = annoter (l'agrégée, plus ancienne)
+        "y", "y", "y", "y", "y", "y", "y", "y", "y",   # ses 9 items
+        "q",                                      # quitter avant la par-game
+    ])
+    rc = F.annotate("spadzze", pending=True, root=tmp_path,
+                    prompt=lambda _m: next(answers))
+    assert rc == 0
+    fbs = F.load_feedbacks("spadzze", root=tmp_path)
+    assert len(fbs) == 1 and fbs[0].ts == "2026-06-30T10:00:00"
+
+
+def test_annotate_pending_skip_leaves_review_pending(tmp_path):
+    _write_reviews(tmp_path)                      # 1 review agrégée
+    answers = iter(["n"])                         # passer -> rien persisté
+    rc = F.annotate("spadzze", pending=True, root=tmp_path,
+                    prompt=lambda _m: next(answers))
+    assert rc == 0
+    assert F.load_feedbacks("spadzze", root=tmp_path) == []
+
+
+def test_annotate_pending_none_left(tmp_path, capsys):
+    _write_reviews(tmp_path)
+    fb = _fb("2026-06-30T10:00:00", "kimi-k2.6", [_it("strength", True)])
+    F.persist_feedback("spadzze", fb, root=tmp_path)
+    rc = F.annotate("spadzze", pending=True, root=tmp_path,
+                    prompt=lambda _m: "")
+    assert rc == 0
+    assert "en attente" in capsys.readouterr().out.lower()

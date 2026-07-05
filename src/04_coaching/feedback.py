@@ -196,6 +196,15 @@ def render_summary(stats: dict) -> str:
         lines.append(f"\nTendance : 5 dernières {rp(t['recent'])} vs précédentes {rp(t['prior'])}")
     return "\n".join(lines)
 
+def pending_reviews(reviews: list[dict],
+                    fbs: list[schema_mod.Feedback]) -> list[dict]:
+    """Reviews sans feedback (jointure par ts), plus anciennes d'abord.
+    Une review entièrement skippée n'est jamais persistée -> reste pending."""
+    done = {f.ts for f in fbs}
+    return sorted((r for r in reviews if r.get("ts") not in done),
+                  key=lambda r: r.get("ts") or "")
+
+
 # --- annotate (flow interactif) + main() ------------------------------------
 
 def _display_items(review) -> list[tuple[str, int, str]]:
@@ -219,33 +228,8 @@ def _prompt_useful(prompt, label_line) -> str | None:
             return None if ans == "" else ans
 
 
-def annotate(player: str, ts: str | None = None, last: bool = False,
-             root=None, prompt=None) -> int:
-    if prompt is None:
-        prompt = input           # late binding : monkeypatch builtins.input pris en compte
-    reviews = list_reviews(player, root)
-    if not reviews:
-        print("Aucune review pour ce joueur — génère-en via coach.py d'abord.")
-        return 0
-    if ts is None:
-        if last:
-            chosen = reviews[-1]
-        else:
-            print("Reviews disponibles :")
-            for i, r in enumerate(reviews, 1):
-                what = r.get("outcome_focus") or r.get("match_id") or "?"
-                print(f"  {i} | {r['ts']} | {r['model']} | {what}")
-            sel = prompt("Choisis une review (numéro) : ").strip()
-            try:
-                chosen = reviews[int(sel) - 1]
-            except (ValueError, IndexError):
-                print("✗ sélection invalide")
-                return 1
-    else:
-        chosen = next((r for r in reviews if r.get("ts") == ts), None)
-        if chosen is None:
-            print(f"✗ ts {ts} introuvable dans reviews.jsonl")
-            return 1
+def _annotate_one(chosen: dict, player: str, root, prompt) -> int:
+    """Annote UNE review déjà sélectionnée ; persiste si >= 1 item noté."""
     cls = (schema_mod.GameReview if chosen.get("kind") == "game"
            else schema_mod.Review)
     review = cls.model_validate(chosen["review"])
@@ -283,6 +267,53 @@ def annotate(player: str, ts: str | None = None, last: bool = False,
     return 0
 
 
+def annotate(player: str, ts: str | None = None, last: bool = False,
+             pending: bool = False, root=None, prompt=None) -> int:
+    if prompt is None:
+        prompt = input           # late binding : monkeypatch builtins.input pris en compte
+    reviews = list_reviews(player, root)
+    if not reviews:
+        print("Aucune review pour ce joueur — génère-en via coach.py d'abord.")
+        return 0
+    if pending:
+        pend = pending_reviews(reviews, load_feedbacks(player, root))
+        if not pend:
+            print("Aucune review en attente d'annotation.")
+            return 0
+        for i, r in enumerate(pend, 1):
+            kind = "game" if r.get("kind") == "game" else "agrégée"
+            what = r.get("match_id") or r.get("outcome_focus") or "?"
+            ans = prompt(f"\n({i}/{len(pend)}) [{kind}] {r['ts']} | {r['model']} "
+                         f"| {what}\n  [Entrée=annoter / n=passer / q=quitter] : "
+                         ).strip().lower()
+            if ans == "q":
+                break
+            if ans == "n":
+                continue
+            _annotate_one(r, player, root, prompt)
+        return 0
+    if ts is None:
+        if last:
+            chosen = reviews[-1]
+        else:
+            print("Reviews disponibles :")
+            for i, r in enumerate(reviews, 1):
+                what = r.get("outcome_focus") or r.get("match_id") or "?"
+                print(f"  {i} | {r['ts']} | {r['model']} | {what}")
+            sel = prompt("Choisis une review (numéro) : ").strip()
+            try:
+                chosen = reviews[int(sel) - 1]
+            except (ValueError, IndexError):
+                print("✗ sélection invalide")
+                return 1
+    else:
+        chosen = next((r for r in reviews if r.get("ts") == ts), None)
+        if chosen is None:
+            print(f"✗ ts {ts} introuvable dans reviews.jsonl")
+            return 1
+    return _annotate_one(chosen, player, root, prompt)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="feedback.py")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -291,6 +322,8 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--player", default="spadzze")
     a.add_argument("--ts", default=None)
     a.add_argument("--last", action="store_true")
+    a.add_argument("--pending", action="store_true",
+                   help="annoter en série toutes les reviews sans feedback")
 
     s = sub.add_parser("summary", help="agrège les annotations")
     s.add_argument("--player", default="spadzze")
@@ -299,7 +332,8 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
     if args.cmd == "annotate":
-        return annotate(args.player, ts=args.ts, last=args.last)
+        return annotate(args.player, ts=args.ts, last=args.last,
+                        pending=args.pending)
     if args.cmd == "summary":
         fbs = load_feedbacks(args.player)
         if args.model:
