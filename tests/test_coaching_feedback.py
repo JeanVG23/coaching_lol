@@ -351,3 +351,52 @@ def test_annotate_pending_none_left(tmp_path, capsys):
                     prompt=lambda _m: "")
     assert rc == 0
     assert "en attente" in capsys.readouterr().out.lower()
+
+
+# --- objective_stats (métrique >=70 % de mistakes utiles sur >=10 par-game) ----
+
+def test_objective_stats_counts_only_game_review_mistakes():
+    reviews = [{"ts": "tg", "kind": "game", "match_id": "m1"},
+               {"ts": "ta", "outcome_focus": "loss"}]
+    fbs = [_fb("tg", "m", [_it("mistake", True),
+                           _it("mistake", False, "trop-vague"),
+                           _it("strength", False, "trop-vague")]),  # pas une mistake
+           _fb("ta", "m", [_it("mistake", True)])]                  # agrégée : exclue
+    s = F.objective_stats(fbs, reviews)
+    assert s["n_game_reviews_annotated"] == 1
+    assert s["target_n"] == 10
+    assert s["mistake_useful_rate"] == pytest.approx(0.5)
+    assert s["target_rate"] == 0.70
+
+
+def test_objective_stats_robust_without_game_annotations():
+    s = F.objective_stats([], [])
+    assert s["n_game_reviews_annotated"] == 0
+    assert s["mistake_useful_rate"] is None
+
+
+def test_render_objective_formats_line():
+    line = F.render_objective({"n_game_reviews_annotated": 3, "target_n": 10,
+                               "mistake_useful_rate": 0.5, "target_rate": 0.70})
+    assert "Objectif par-game : 3/10 reviews annotées" in line
+    assert "50" in line and "70" in line
+
+
+def test_render_objective_dash_when_no_rate():
+    line = F.render_objective({"n_game_reviews_annotated": 0, "target_n": 10,
+                               "mistake_useful_rate": None, "target_rate": 0.70})
+    assert "0/10" in line and "—" in line
+
+
+def test_main_summary_shows_objective_block(tmp_path, monkeypatch, capsys):
+    root = tmp_path / "07_coaching"
+    _write_reviews(root, lines=[_game_review_record()])
+    monkeypatch.setattr(F.rl, "DATA", tmp_path)
+    answers = iter(["y", "y"])                   # mistake + focus de la par-game
+    monkeypatch.setattr("builtins.input", lambda *a, **k: next(answers))
+    assert F.main(["annotate", "--player", "spadzze", "--last"]) == 0
+    capsys.readouterr()
+    assert F.main(["summary", "--player", "spadzze"]) == 0
+    out = capsys.readouterr().out
+    assert "Objectif par-game : 1/10 reviews annotées" in out
+    assert "100" in out                          # 1/1 mistake utile

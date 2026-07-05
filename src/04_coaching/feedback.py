@@ -105,6 +105,8 @@ _KINDS = ("strength", "mistake", "habit", "focus")
 _TREND_RECENT = 5
 _LOW_SAMPLE = 10
 _NOTES_PER_TAG = 2
+_OBJECTIVE_N = 10          # métrique projet : >=70 % de mistakes utiles
+_OBJECTIVE_RATE = 0.70     # sur >=10 reviews par-game annotées
 
 
 def load_feedbacks(player: str, root=None) -> list[schema_mod.Feedback]:
@@ -195,6 +197,30 @@ def render_summary(stats: dict) -> str:
         rp = lambda v: "—" if v is None else f"{v:.0%}"
         lines.append(f"\nTendance : 5 dernières {rp(t['recent'])} vs précédentes {rp(t['prior'])}")
     return "\n".join(lines)
+
+
+def objective_stats(fbs: list[schema_mod.Feedback],
+                    reviews: list[dict]) -> dict:
+    """Métrique de succès par-game. Le feedback ne stocke pas le kind ->
+    jointure ts avec reviews.jsonl ; seules les mistakes des reviews kind=game
+    comptent (définition de la métrique)."""
+    game_ts = {r.get("ts") for r in reviews if r.get("kind") == "game"}
+    game_fbs = [f for f in fbs if f.ts in game_ts]
+    mistakes = [it for f in game_fbs for it in f.items if it.kind == "mistake"]
+    useful = sum(1 for it in mistakes if it.useful)
+    return {"n_game_reviews_annotated": len(game_fbs),
+            "target_n": _OBJECTIVE_N,
+            "mistake_useful_rate": (useful / len(mistakes)) if mistakes else None,
+            "target_rate": _OBJECTIVE_RATE}
+
+
+def render_objective(obj: dict) -> str:
+    rate = ("—" if obj["mistake_useful_rate"] is None
+            else f"{obj['mistake_useful_rate']:.0%}")
+    return (f"Objectif par-game : {obj['n_game_reviews_annotated']}"
+            f"/{obj['target_n']} reviews annotées · mistakes utiles {rate} "
+            f"(cible ≥{obj['target_rate']:.0%})")
+
 
 def pending_reviews(reviews: list[dict],
                     fbs: list[schema_mod.Feedback]) -> list[dict]:
@@ -336,11 +362,13 @@ def main(argv: list[str] | None = None) -> int:
                         pending=args.pending)
     if args.cmd == "summary":
         fbs = load_feedbacks(args.player)
+        objective = objective_stats(fbs, list_reviews(args.player))
         if args.model:
             fbs = [f for f in fbs if f.model == args.model]
         if args.tag:
             fbs = [f for f in fbs if any(it.tag == args.tag for it in f.items)]
         print(f"FEEDBACK — {args.player}")
+        print(render_objective(objective))
         print(render_summary(summarize(fbs)))
         return 0
     return 1
