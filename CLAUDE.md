@@ -225,7 +225,8 @@ src/                                     # tout le code Python
   core/           riotlib.py, positioning.py, champion_profiles.py, game_journal.py
   collection/     build_referential.py, aggregate_games.py, live_capture.py
   pipeline_ops/   reextract_silver.py, rebuild_gold.py, compress_raw.py,
-                  archive_patch.py, list_unknown_champions.py
+                  archive_patch.py, list_unknown_champions.py,
+                  dataset_report.py
   reporting/      compare.py
   experiments/    phase1_pull.py
   01_data_engineering/ → 04_coaching/   # pipeline ML, inchangé (+ audit_leakage.py
@@ -286,6 +287,16 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
 - **`src/pipeline_ops/list_unknown_champions.py`** — scanner : champions du silver absents
   de la table curée, triés par fréquence (pour compléter `champion_traits.json` au fil
   de l'eau).
+- **`src/pipeline_ops/dataset_report.py`** — état des lieux des datasets ML en une
+  commande (0 API, `--json` pour comparer entre densifications) : volumes per-game
+  (games/joueurs uniques, répartition par rang, équilibre win/loss — 50/50 **mécanique**,
+  2 ADC extraits par game — et high/low), profondeur games/joueur (seuils ≥5/10/15/20/30,
+  qualifiés per-player par rang résolu au mode via `ml_features.resolve_rank`, même
+  logique que le train), composition du dataset per-player (dont **dominance
+  intra-classe** : high ≈ 81 % challenger, low ≈ 73 % master → la frontière réellement
+  apprise ≈ master vs challenger, alignée sur l'objectif user), et cross-check
+  `player_metrics.json` (⚠ DÉRIVE si le modèle servi n'est plus entraîné sur l'effectif
+  du dataset courant). À relancer après chaque densification/rebuild.
 - **`src/pipeline_ops/archive_patch.py`** — archive raw/silver/gold/dataset du patch
   courant avant de passer au suivant.
 - **`src/experiments/phase1_pull.py`** — spike : détail visuel d'UNE game (déplacements/
@@ -351,6 +362,10 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     > toujours 61.7% du signal SHAP — l'hypothèse constance tient, il fallait juste plus
     > de games par joueur pour la mesurer proprement). `MIN_ADC_GAMES` de
     > `web/backend/ml_rank.py` aligné à 15 pour éviter un décalage train/serve.
+    > Ré-entraîné après densification ciblée (2026-07-05) : **1040 joueurs (520/520),
+    > AUC_cv 0.6216** (xgb 0.603 / rf 0.630 / ebm 0.626, dispersion ~64 % du signal
+    > SHAP) — +45 % de joueurs sans gain d'AUC, les entrants étant surtout en bas de
+    > la bande 15-20 games (agrégats plus bruités).
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
@@ -424,8 +439,9 @@ reprocher une décision sur une info cachée.
   qui reprend en prod l'hypothèse validée par `poc/per_player_hypothesis.py`
   (dispersion/plancher > tendance centrale). Seuil relevé 5→15 après effondrement de
   l'AUC à 0.531 sous 5 games (bruit de matchmaking > signal de constance, cf. note
-  ci-dessus) : AUC out-of-fold **0.631** à 15 games (718 joueurs, 359/359) — voir
-  `data/05_model/player_metrics.json` pour le détail (dispersion 61.7% du signal SHAP).
+  ci-dessus) : AUC_cv **0.6216** après densification ciblée (1040 joueurs, 520/520 ;
+  0.631 sur les 718 initiaux) — voir `data/05_model/player_metrics.json` pour le
+  détail (dispersion ~64 % du signal SHAP).
 - **Compte-rendu par-game (axe prioritaire coaching)** ✅ — 2026-07-05. Diagnostic depuis
   la boucle de feedback (1 review annotée, premier signal) : les tags « trop-vague »/
   « non-actionnable » venaient du **payload agrégé** (le LLM ne peut pas être plus précis
