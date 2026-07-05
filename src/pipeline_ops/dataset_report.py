@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
@@ -70,6 +71,31 @@ def depth_stats(ref: pd.DataFrame, thresholds=THRESHOLDS,
     }
 
 
+_DAY_MS = 86_400_000
+
+
+def temporal_stats(ref: pd.DataFrame, now_ms: int | None = None) -> dict:
+    """Fenêtre temporelle du référentiel : répartition par patch et âge des games
+    (le rang d'un joueur est celui mesuré à la collecte — plus les games sont
+    vieilles, plus le label rang est approximatif). Dégradation propre si le
+    parquet date d'avant l'ajout des colonnes patch/game_ts."""
+    if "game_ts" not in ref.columns or ref["game_ts"].notna().sum() == 0:
+        return {"available": False}
+    now_ms = int(time.time() * 1000) if now_ms is None else now_ms
+    ts = ref["game_ts"].dropna()
+    age = (now_ms - ts) / _DAY_MS
+    by_patch = (ref["patch"].value_counts() if "patch" in ref.columns
+                else pd.Series(dtype=int))
+    return {
+        "available": True,
+        "by_patch": {str(k): int(v) for k, v in by_patch.items()},
+        "age_days": {"newest": round(float(age.min()), 1),
+                     "median": round(float(age.median()), 1),
+                     "oldest": round(float(age.max()), 1)},
+        "missing_ts": int(ref["game_ts"].isna().sum()),
+    }
+
+
 def per_player_stats(pdf: pd.DataFrame) -> dict:
     """Dataset per-player (déjà équilibré) -> volumes, classes, et composition
     intra-classe (le rang dominant de chaque classe et sa part : dit quelle
@@ -111,8 +137,8 @@ def _pct(part: int, total: int) -> str:
 
 
 def render(report: dict) -> str:
-    pg, dp, pp, md = (report["per_game"], report["depth"],
-                      report["per_player"], report["model"])
+    pg, dp, tp, pp, md = (report["per_game"], report["depth"], report["temporal"],
+                          report["per_player"], report["model"])
     lines = ["=== Dataset per-game (1 ligne = 1 ADC d'une game) ==="]
     lines.append(f"  lignes : {pg['rows_total']}  "
                  f"({', '.join(f'{k} {v}' for k, v in pg['by_source'].items())})")
@@ -135,6 +161,19 @@ def render(report: dict) -> str:
         f">={t} : {n}" for t, n in dp["at_least"].items()))
     lines.append(f"  qualifiés per-player (>= {dp['min_games']} games, rang au mode) : "
                  + ", ".join(f"{k} {v}" for k, v in dp["qualified_by_rank"].items()))
+
+    lines.append("\n=== Fenêtre temporelle (référentiel) ===")
+    if not tp["available"]:
+        lines.append("  colonnes temporelles absentes — relancer build_dataset.py "
+                     "(parquet antérieur à l'ajout patch/game_ts)")
+    else:
+        lines.append("  par patch : " + ", ".join(
+            f"{k} {v}" for k, v in tp["by_patch"].items()))
+        a = tp["age_days"]
+        lines.append(f"  âge des games : plus récente {a['newest']:.0f} j, "
+                     f"médiane {a['median']:.0f} j, plus vieille {a['oldest']:.0f} j")
+        if tp["missing_ts"]:
+            lines.append(f"  ⚠ {tp['missing_ts']} games sans game_ts")
 
     lines.append("\n=== Dataset per-player (équilibré, 1 ligne = 1 joueur) ===")
     lines.append(f"  joueurs : {pp['n_players']}  "
@@ -169,6 +208,7 @@ def build_report() -> dict:
     return {
         "per_game": per_game_stats(df),
         "depth": depth_stats(ref),
+        "temporal": temporal_stats(ref),
         "per_player": per_player_stats(pdf),
         "model": model_crosscheck(metrics, len(pdf)),
     }

@@ -292,7 +292,10 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   (games/joueurs uniques, répartition par rang, équilibre win/loss — 50/50 **mécanique**,
   2 ADC extraits par game — et high/low), profondeur games/joueur (seuils ≥5/10/15/20/30,
   qualifiés per-player par rang résolu au mode via `ml_features.resolve_rank`, même
-  logique que le train), composition du dataset per-player (dont **dominance
+  logique que le train), **fenêtre temporelle** (répartition par patch + âge des games
+  newest/médian/oldest — le label rang étant mesuré à la collecte, il vieillit avec les
+  games ; dégradation propre si le parquet précède les colonnes `patch`/`game_ts`),
+  composition du dataset per-player (dont **dominance
   intra-classe** : high ≈ 81 % challenger, low ≈ 73 % master → la frontière réellement
   apprise ≈ master vs challenger, alignée sur l'objectif user), et cross-check
   `player_metrics.json` (⚠ DÉRIVE si le modèle servi n'est plus entraîné sur l'effectif
@@ -330,7 +333,7 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   garde-fou asymétrie en `assert` au chargement (toute feature ML_ONLY → crash). Note
   prescriptive sur le sens contre-intuitif de la profondeur (↑ = diamond, non corrigeable).
 - **Pipeline ML (en cours de structuration)** :
-  - **`src/01_data_engineering/`** : `build_dataset.py` consolide en table de features tabulaire ML-ready (Parquet). **1 ligne = 1 ADC d'une game.** Le référentiel ré-extrait **les DEUX ADC de chaque game depuis le raw** (0 API) — le silver ne stocke qu'un joueur ciblé par game, donc s'y limiter ne récupérait l'ADC que des games où le ciblé était ADC (~3 088 rows). En relisant le raw (10 joueurs présents), on densifie à ~games×2 (≈ 7 873 rows sur le patch courant). Le perso (Spadzze) garde sa propre perspective ADC (inférence).
+  - **`src/01_data_engineering/`** : `build_dataset.py` consolide en table de features tabulaire ML-ready (Parquet). **1 ligne = 1 ADC d'une game.** Le référentiel ré-extrait **les DEUX ADC de chaque game depuis le raw** (0 API) — le silver ne stocke qu'un joueur ciblé par game, donc s'y limiter ne récupérait l'ADC que des games où le ciblé était ADC (~3 088 rows). En relisant le raw (10 joueurs présents), on densifie à ~games×2 (≈ 7 873 rows sur le patch courant). Le perso (Spadzze) garde sa propre perspective ADC (inférence). Colonnes méta temporelles `patch`/`game_ts` (epoch ms, `gameStartTimestamp` avec repli `gameCreation`, porté par `extract_game`) pour tracer la fraîcheur du dataset dans `dataset_report.py`.
     > ⚠️ **FLAW ASSUMÉ — transfert de rang.** Le rang d'une game = rang de collecte du joueur ciblé (dossier silver). On le transfère **aux deux ADC** en supposant un **MMR égal dans le lobby** (vrai en solo queue high-elo, matchmaking serré). L'ADC ennemi n'a donc pas son rang réel mesuré mais celui, approché, de la game. Acceptable pour un classif high/low ; à revoir si on descend en elo (écart de MMR intra-lobby plus large). Games collectées sous plusieurs rangs (lobby master∩GM) : rang résolu au **mode**, tie-break sur le rang le plus bas (ne pas gonfler high_elo aux frontières).
   - **`src/02_data_science/`** : `train_ensemble.py` pour séparer High-Elo vs Low-Elo via un **Ensemble à 3 biais inductifs distincts** (XGBoost=GBDT, Random Forest=bagging, EBM=GA²M glass-box). Le SHAP moyen porte sur les 2 arbres ; l'EBM (main effects + interactions par paires) sert de validateur indépendant et expose la structure par paires que l'additif pur rate.
     `calibrate_rank.py` — calibration proba→rang pour le placement ML web
@@ -343,8 +346,14 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     partagé train/serve) → `src/01_data_engineering/build_player_dataset.py` (1 ligne = 1
     joueur ≥`MIN_PLAYER_GAMES` games ADC référentiel, agrégées sur la totalité de
     l'historique disponible) → `train_player_ensemble.py` (ensemble xgb/rf/ebm,
-    StratifiedKFold, conserve le test d'hypothèse dispersion vs tendance centrale du
-    POC dans `player_metrics.json`) → `calibrate_player_rank.py`. Implémente en prod
+    **purged CV** : folds joueurs StratifiedKFold + agrégats de train recalculés en
+    excluant les matchs joués par un joueur de val — ~37 % des games des qualifiés
+    opposent 2 joueurs du dataset (features en miroir des 2 ADC) et le graphe des
+    games partagées est une composante géante à 98.7 %, donc un group-CV par
+    composantes est impossible ; une passe contrôle (même nombre de games retirées au
+    hasard) isole la fuite pure. `auc_cv` = purgée (headline honnête), `auc_cv_naive`/
+    `auc_cv_control` dans `player_metrics.json` ; conserve le test d'hypothèse
+    dispersion vs tendance centrale du POC) → `calibrate_player_rank.py`. Implémente en prod
     `poc/per_player_hypothesis.py` : `web/backend/ml_rank.py` utilise désormais ce
     modèle (seuil `MIN_ADC_GAMES=15`, pas de fallback en dessous) au lieu de la moyenne
     per-game. Cf. `docs/superpowers/specs/2026-07-03-per-player-consistency-design.md`.
@@ -366,6 +375,12 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     > AUC_cv 0.6216** (xgb 0.603 / rf 0.630 / ebm 0.626, dispersion ~64 % du signal
     > SHAP) — +45 % de joueurs sans gain d'AUC, les entrants étant surtout en bas de
     > la bande 15-20 games (agrégats plus bruités).
+    > Ré-entraîné en **purged CV** sur dataset rafraîchi (2026-07-06, 41 715 games /
+    > 974 joueurs 487/487) : **AUC_cv purgée 0.603** vs naïve 0.612 vs contrôle 0.608
+    > — la fuite par games partagées ne valait que ≈ +0.005 d'AUC (purge = 9.1 % des
+    > games de train, 0 joueur droppé), l'hypothèse constance tient (dispersion 62.4 %
+    > du signal SHAP). Les AUC antérieures (0.631/0.6216, naïves) étaient donc
+    > légèrement optimistes mais pas invalidées.
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
@@ -439,9 +454,10 @@ reprocher une décision sur une info cachée.
   qui reprend en prod l'hypothèse validée par `poc/per_player_hypothesis.py`
   (dispersion/plancher > tendance centrale). Seuil relevé 5→15 après effondrement de
   l'AUC à 0.531 sous 5 games (bruit de matchmaking > signal de constance, cf. note
-  ci-dessus) : AUC_cv **0.6216** après densification ciblée (1040 joueurs, 520/520 ;
-  0.631 sur les 718 initiaux) — voir `data/05_model/player_metrics.json` pour le
-  détail (dispersion ~64 % du signal SHAP).
+  ci-dessus) : **AUC_cv purgée 0.603** (2026-07-06, 974 joueurs 487/487, dataset
+  41 715 games ; naïve 0.612 — la fuite par games partagées entre folds ne valait que
+  ≈ +0.005) ; historiquement 0.6216 naïve sur 1040 joueurs, 0.631 sur les 718 initiaux
+  — voir `data/05_model/player_metrics.json` (dispersion ~62 % du signal SHAP).
 - **Compte-rendu par-game (axe prioritaire coaching)** ✅ — 2026-07-05. Diagnostic depuis
   la boucle de feedback (1 review annotée, premier signal) : les tags « trop-vague »/
   « non-actionnable » venaient du **payload agrégé** (le LLM ne peut pas être plus précis

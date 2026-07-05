@@ -55,6 +55,7 @@ def game_to_row(g: dict, rank: str | None, source: str) -> dict:
         # méta (non-features)
         "match_id": g["match_id"], "puuid": g.get("puuid"), "source": source,
         "rank": rank, "champion": g["champion"], "win": int(g["win"]),
+        "patch": g.get("patch"), "game_ts": g.get("game_ts"),
         # features de lane (diffs vs adversaire)
         "gd10": lane.get("gd10"), "gd14": lane.get("gd14"), "gd20": lane.get("gd20"),
         "csd10": lane.get("csd10"), "csd14": lane.get("csd14"), "xpd10": lane.get("xpd10"),

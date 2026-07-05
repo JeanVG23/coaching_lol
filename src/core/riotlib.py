@@ -441,6 +441,8 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "puuid": puuid,                          # pour ré-extraction depuis raw sans API
         "rank": rank,
         "patch": patch_of(info.get("gameVersion", "")),
+        # epoch ms — gameStartTimestamp absent des très vieux matchs -> gameCreation
+        "game_ts": info.get("gameStartTimestamp") or info.get("gameCreation"),
         "champion": me["championName"],
         "role": my_role or "?",
         "win": me["win"],

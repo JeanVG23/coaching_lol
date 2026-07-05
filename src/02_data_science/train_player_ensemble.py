@@ -15,8 +15,15 @@ N'écrase JAMAIS les artefacts du pipeline per-game (xgb_highelo.pkl, features.j
 etc., cf. docs/superpowers/specs/2026-07-03-per-player-consistency-design.md) : tous
 les fichiers de sortie portent le marqueur "player".
 
-CV : StratifiedKFold (pas de group CV — 1 ligne = 1 joueur, aucune fuite joueur->fold
-possible par construction, contrairement au per-game qui groupe par puuid).
+CV : StratifiedKFold sur les joueurs + PURGE des games partagées. 1 ligne = 1 joueur
+(pas de fuite joueur->fold), MAIS ~37 % des games des qualifiés opposent deux joueurs
+du dataset (2 ADC extraits par game, features en miroir) et le graphe des games
+partagées est une composante géante (98.7 % des joueurs) -> group-CV par composantes
+impossible. À la place, à chaque fold les agrégats des joueurs de TRAIN sont
+recalculés en excluant les matchs joués par un joueur de VAL (purged CV, exact) ;
+une passe contrôle retire le même nombre de games au hasard pour distinguer l'effet
+"fuite retirée" de l'effet "moins de games". auc_cv (headline) = AUC purgée ;
+auc_cv_naive / auc_cv_control exposés dans player_metrics.json pour comparaison.
 
 Conserve le test d'hypothèse "constance" du POC (masse |SHAP| groupée par type
 d'agrégat, dispersion vs tendance centrale) dans player_metrics.json, pour garder
@@ -47,8 +54,61 @@ from interpret.glassbox import ExplainableBoostingClassifier
 import shap
 
 DATASET = rl.DATA / "04_dataset" / "adc_player_dataset.parquet"
+DATASET_PER_GAME = rl.DATA / "04_dataset" / "adc_dataset.parquet"  # pour la purge
 MODEL_DIR = rl.DATA / "05_model"
 HIGH_ELO = {"grandmaster", "challenger"}
+
+
+def purged_train_features(ref: pd.DataFrame, train_puuids, val_puuids,
+                          features: list[str] = None) -> tuple[pd.DataFrame, list[str]]:
+    """Agrégats des joueurs de train recalculés SANS les matchs joués par un joueur
+    de val (purge exacte de la fuite par games partagées : les deux ADC d'une game
+    portent des features en miroir, cf. tests/test_train_player_ensemble.py).
+    Retourne (DataFrame 1 ligne/joueur survivant, ordre de train_puuids ; liste des
+    joueurs droppés faute de game restante après purge)."""
+    features = mf.FEATURES if features is None else features
+    val_matches = set(ref.loc[ref["puuid"].isin(set(val_puuids)), "match_id"])
+    sub = ref[ref["puuid"].isin(set(train_puuids))
+              & ~ref["match_id"].isin(val_matches)]
+    by_puuid = dict(tuple(sub.groupby("puuid")))
+    rows, dropped = [], []
+    for puuid in train_puuids:
+        g = by_puuid.get(puuid)
+        if g is None or g.empty:
+            dropped.append(puuid)
+            continue
+        rec = {"puuid": puuid}
+        rec.update(mf.aggregate_player_features(g, features))
+        rows.append(rec)
+    return pd.DataFrame(rows), dropped
+
+
+def control_train_features(ref: pd.DataFrame, train_puuids, n_drop: dict,
+                           features: list[str] = None,
+                           seed: int = 42) -> tuple[pd.DataFrame, list[str]]:
+    """Contrôle du purged CV : retire à chaque joueur de train le MÊME NOMBRE de
+    games que la purge (n_drop = {puuid: n}), mais tirées au hasard au lieu des
+    games partagées — la différence d'AUC contrôle-purgé isole la fuite pure de
+    l'effet 'agrégats sur moins de games'."""
+    features = mf.FEATURES if features is None else features
+    rng = np.random.RandomState(seed)
+    by_puuid = dict(tuple(ref[ref["puuid"].isin(set(train_puuids))].groupby("puuid")))
+    rows, dropped = [], []
+    for puuid in train_puuids:
+        g = by_puuid.get(puuid)
+        if g is None:
+            dropped.append(puuid)
+            continue
+        n = n_drop.get(puuid, 0)
+        if n >= len(g):
+            dropped.append(puuid)
+            continue
+        if n:
+            g = g.drop(index=rng.choice(g.index, size=n, replace=False))
+        rec = {"puuid": puuid}
+        rec.update(mf.aggregate_player_features(g, features))
+        rows.append(rec)
+    return pd.DataFrame(rows), dropped
 
 
 def make_models() -> dict:
@@ -119,34 +179,70 @@ def shap_dispersion_analysis(X: pd.DataFrame, y: pd.Series, models: dict) -> dic
 
 def main() -> int:
     df = pd.read_parquet(DATASET)
+    ref = pd.read_parquet(DATASET_PER_GAME)
+    ref = ref[(ref["source"] == "referentiel")
+              & ref["puuid"].isin(set(df["puuid"]))].copy()
     features = mf.player_feature_names(mf.FEATURES)
     X = df.reindex(columns=features)
     y = df["rank"].isin(HIGH_ELO).astype(int)
-    print(f"  {len(df)} joueurs | pos={int(y.sum())} / neg={int((1-y).sum())}")
+    y_of = dict(zip(df["puuid"], y))
+    orig_counts = ref.groupby("puuid").size()
+    print(f"  {len(df)} joueurs | pos={int(y.sum())} / neg={int((1-y).sum())} | "
+          f"{len(ref)} games per-game pour la purge")
 
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    oof_preds = {name: np.zeros(len(X)) for name in make_models().keys()}
+    variants = ("purged", "naive", "control")
+    oof = {v: {name: np.zeros(len(X)) for name in make_models()} for v in variants}
+    games_purged, games_train, dropped_players = 0, 0, 0
     for train_idx, val_idx in cv.split(X, y):
-        X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
-        y_train = y.iloc[train_idx]
-        models = make_models()
-        for name, model in models.items():
-            model.fit(X_train, y_train)
-            oof_preds[name][val_idx] = model.predict_proba(X_val)[:, 1]
+        X_val = X.iloc[val_idx]
+        train_puuids = df["puuid"].iloc[train_idx].tolist()
+        val_puuids = set(df["puuid"].iloc[val_idx])
+
+        # purged : agrégats train sans les matchs des joueurs de val (fuite = 0)
+        Xtr_p, drop_p = purged_train_features(ref, train_puuids, val_puuids)
+        n_drop = {p: int(orig_counts[p]) for p in drop_p}
+        n_drop.update({row["puuid"]: int(orig_counts[row["puuid"]] - row["n_games"])
+                       for _, row in Xtr_p.iterrows()})
+        # control : même nombre de games retirées, au hasard
+        Xtr_c, drop_c = control_train_features(ref, train_puuids, n_drop)
+        games_purged += sum(n_drop.values())
+        games_train += int(orig_counts.loc[train_puuids].sum())
+        dropped_players += len(drop_p)
+
+        fits = {
+            "naive": (X.iloc[train_idx], y.iloc[train_idx]),
+            "purged": (Xtr_p.reindex(columns=features),
+                       Xtr_p["puuid"].map(y_of).astype(int)),
+            "control": (Xtr_c.reindex(columns=features),
+                        Xtr_c["puuid"].map(y_of).astype(int)),
+        }
+        for variant, (X_train, y_train) in fits.items():
+            for name, model in make_models().items():
+                model.fit(X_train, y_train)
+                oof[variant][name][val_idx] = model.predict_proba(X_val)[:, 1]
 
     per_model = {}
-    print("\n  Perf par modèle (CV out-of-fold) :")
-    for name, preds in oof_preds.items():
+    print("\n  Perf par modèle (CV out-of-fold, PURGÉE) :")
+    for name, preds in oof["purged"].items():
         m_auc = roc_auc_score(y, preds)
         m_acc = accuracy_score(y, (preds >= 0.5).astype(int))
         per_model[name] = {"auc": round(m_auc, 4), "acc": round(m_acc, 4)}
         print(f"    {name:<4} AUC={m_auc:.3f}  accuracy={m_acc:.3f}")
 
-    ensemble_proba = np.mean(list(oof_preds.values()), axis=0)
-    auc = roc_auc_score(y, ensemble_proba)
-    acc = accuracy_score(y, (ensemble_proba >= 0.5).astype(int))
-    print(f"\n  Ensemble CV out-of-fold : AUC={auc:.3f}  accuracy={acc:.3f}")
-    print(classification_report(y, (ensemble_proba >= 0.5).astype(int),
+    ens = {v: np.mean(list(oof[v].values()), axis=0) for v in variants}
+    auc = roc_auc_score(y, ens["purged"])
+    acc = accuracy_score(y, (ens["purged"] >= 0.5).astype(int))
+    auc_naive = roc_auc_score(y, ens["naive"])
+    auc_control = roc_auc_score(y, ens["control"])
+    frac_purged = games_purged / max(1, games_train)
+    print(f"\n  Ensemble CV out-of-fold : AUC purgée={auc:.3f} (headline)  "
+          f"naïve={auc_naive:.3f}  contrôle={auc_control:.3f}")
+    print(f"  purge : {frac_purged:.1%} des games de train retirées, "
+          f"{dropped_players} joueurs droppés (cumul 5 folds)")
+    print(f"  fuite pure ≈ contrôle - purgée = {auc_control - auc:+.4f} ; "
+          f"effet 'moins de games' ≈ naïve - contrôle = {auc_naive - auc_control:+.4f}")
+    print(classification_report(y, (ens["purged"] >= 0.5).astype(int),
                                 target_names=["low(M/D)", "high(GM/C)"], digits=3))
 
     final_models = make_models()
@@ -164,7 +260,11 @@ def main() -> int:
 
     (MODEL_DIR / "player_features.json").write_text(json.dumps(features, indent=2))
     (MODEL_DIR / "player_metrics.json").write_text(json.dumps({
-        "auc_cv": round(auc, 4), "acc_cv": round(acc, 4),
+        "auc_cv": round(auc, 4), "acc_cv": round(acc, 4),   # PURGÉE (honnête)
+        "auc_cv_naive": round(auc_naive, 4),
+        "auc_cv_control": round(auc_control, 4),
+        "purge": {"train_games_removed_frac": round(frac_purged, 4),
+                  "dropped_players_5folds": dropped_players},
         "per_model_cv": per_model,
         "n_players": len(df), "n_pos": int(y.sum()), "n_neg": int((1 - y).sum()),
         "features": features,

@@ -106,6 +106,45 @@ def test_per_player_stats_n_games_by_rank():
     assert s["n_games_median_by_rank"]["diamond"] == 22
 
 
+# --- temporal_stats -----------------------------------------------------------
+
+_DAY_MS = 86_400_000
+_NOW_MS = 1_751_700_000_000
+
+
+def _temporal_df():
+    df = pd.concat([
+        _game_rows("p1", "master", 2),
+        _game_rows("p2", "challenger", 1),
+    ], ignore_index=True)
+    df["patch"] = ["16.13", "16.13", "16.12"]
+    df["game_ts"] = [_NOW_MS - 2 * _DAY_MS, _NOW_MS - 4 * _DAY_MS,
+                     _NOW_MS - 10 * _DAY_MS]
+    return df
+
+
+def test_temporal_stats_by_patch_and_age():
+    s = dr.temporal_stats(_temporal_df(), now_ms=_NOW_MS)
+    assert s["available"] is True
+    assert s["by_patch"] == {"16.13": 2, "16.12": 1}
+    assert s["age_days"] == {"newest": 2.0, "median": 4.0, "oldest": 10.0}
+    assert s["missing_ts"] == 0
+
+
+def test_temporal_stats_counts_missing_ts():
+    df = _temporal_df()
+    df.loc[0, "game_ts"] = None
+    s = dr.temporal_stats(df, now_ms=_NOW_MS)
+    assert s["missing_ts"] == 1
+    assert s["age_days"]["oldest"] == 10.0  # calculé sur les ts présents
+
+
+def test_temporal_stats_unavailable_on_old_parquet():
+    # parquet d'avant l'ajout des colonnes temporelles -> dégradation propre
+    s = dr.temporal_stats(_per_game_df().query("source == 'referentiel'"))
+    assert s == {"available": False}
+
+
 # --- model_crosscheck ---------------------------------------------------------
 
 def test_model_crosscheck_detects_drift():
@@ -123,27 +162,32 @@ def test_model_crosscheck_no_drift_and_missing_metrics():
 
 # --- report / render ----------------------------------------------------------
 
-def test_report_is_json_serializable():
-    report = {
+def _report(metrics):
+    return {
         "per_game": dr.per_game_stats(_per_game_df()),
         "depth": dr.depth_stats(_per_game_df().query("source == 'referentiel'"),
                                 thresholds=(2,), min_games=2),
+        "temporal": dr.temporal_stats(_temporal_df(), now_ms=_NOW_MS),
         "per_player": dr.per_player_stats(_per_player_df()),
-        "model": dr.model_crosscheck({"n_players": 8, "auc_cv": 0.6}, 8),
+        "model": dr.model_crosscheck(metrics, 8),
     }
-    json.dumps(report)  # ne doit pas lever (pas de types numpy)
+
+
+def test_report_is_json_serializable():
+    json.dumps(_report({"n_players": 8, "auc_cv": 0.6}))  # pas de types numpy
 
 
 def test_render_contains_key_figures():
-    report = {
-        "per_game": dr.per_game_stats(_per_game_df()),
-        "depth": dr.depth_stats(_per_game_df().query("source == 'referentiel'"),
-                                thresholds=(2,), min_games=2),
-        "per_player": dr.per_player_stats(_per_player_df()),
-        "model": dr.model_crosscheck({"n_players": 718, "auc_cv": 0.631}, 8),
-    }
-    text = dr.render(report)
+    text = dr.render(_report({"n_players": 718, "auc_cv": 0.631}))
     assert "7" in text                  # games référentiel
     assert "challenger" in text
     assert "0.631" in text              # AUC du modèle
     assert "⚠" in text                  # drift 718 != 8 signalé
+    assert "16.13" in text              # section temporelle : patchs
+
+
+def test_render_degrades_without_temporal():
+    report = _report({"n_players": 8, "auc_cv": 0.6})
+    report["temporal"] = {"available": False}
+    text = dr.render(report)
+    assert "temporel" in text.lower()   # la section explique l'absence au lieu de crasher
