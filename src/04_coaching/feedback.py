@@ -346,10 +346,11 @@ def main(argv: list[str] | None = None) -> int:
 
     a = sub.add_parser("annotate", help="juger les insights d'une review")
     a.add_argument("--player", default="spadzze")
-    a.add_argument("--ts", default=None)
-    a.add_argument("--last", action="store_true")
-    a.add_argument("--pending", action="store_true",
-                   help="annoter en série toutes les reviews sans feedback")
+    sel = a.add_mutually_exclusive_group()
+    sel.add_argument("--ts", default=None)
+    sel.add_argument("--last", action="store_true")
+    sel.add_argument("--pending", action="store_true",
+                     help="annoter en série toutes les reviews sans feedback")
 
     s = sub.add_parser("summary", help="agrège les annotations")
     s.add_argument("--player", default="spadzze")

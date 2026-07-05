@@ -74,7 +74,7 @@ def pending_game_matches(records: list[dict], reviews: list[dict],
     out: list[str] = []
     for _, rec in indexed:
         mid = rec.get("match_id")
-        if mid in reviewed or mid in out:
+        if not mid or mid in reviewed or mid in out:
             continue
         out.append(mid)
         if len(out) >= n:
@@ -112,7 +112,7 @@ def run_batch(player: str, scope: str, target: str, model: str, n: int,
             failed += 1
             continue
         except CoachValidationError as e:
-            p = _save_failed(player, ts, e.raw)
+            p = _save_failed(player, ts, e.raw, root=root)
             print(f"✗ {mid} : {e} — brut sauvé dans {p}", file=sys.stderr)
             failed += 1
             continue
@@ -169,8 +169,9 @@ def render_text(review: schema_mod.Review) -> str:
     return "\n".join(lines)
 
 
-def _save_failed(player: str, ts: str, raw) -> Path:
-    out = rl.DATA / "07_coaching" / player / "failed"
+def _save_failed(player: str, ts: str, raw, root=None) -> Path:
+    root = Path(root) if root is not None else rl.DATA / "07_coaching"
+    out = root / player / "failed"
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"{ts.replace(':', '-')}.json"
     path.write_text(json.dumps(raw, ensure_ascii=False, indent=2))

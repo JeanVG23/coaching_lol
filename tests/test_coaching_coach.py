@@ -213,3 +213,20 @@ def test_main_game_and_game_batch_mutually_exclusive(monkeypatch, capsys):
     with pytest.raises(SystemExit) as e:
         C.main()
     assert e.value.code == 2                     # erreur argparse
+
+
+def test_run_batch_validation_error_saves_failed_under_root(tmp_path, monkeypatch):
+    root, silver = _batch_env(tmp_path, reviewed=())
+    real_failed = C.rl.DATA / "07_coaching"
+    existed_before = (real_failed / "spadzze" / "failed").exists()
+
+    monkeypatch.setattr(C.payload_mod, "build_game",
+                        lambda player, match_id=None, **kw: _game_payload())
+    monkeypatch.setattr(C.llm_client, "generate_json",
+                        lambda *a, **k: {"bogus": True})     # invalide -> CoachValidationError après retry
+    rc = C.run_batch("spadzze", "adc", "challenger", "m", 1,
+                     root=root, silver_dir=silver)
+    assert rc == 1
+    failed_dir = root / "spadzze" / "failed"
+    assert failed_dir.exists() and any(failed_dir.iterdir())
+    assert (real_failed / "spadzze" / "failed").exists() == existed_before
