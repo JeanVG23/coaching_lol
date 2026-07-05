@@ -61,6 +61,26 @@ def generate_game_review(pl: dict, model: str) -> schema_mod.GameReview:
                      schema_mod.GameReview, model)
 
 
+def pending_game_matches(records: list[dict], reviews: list[dict],
+                         scope: str, n: int) -> list[str]:
+    """Match_ids du scope sans review kind=game (dédup quel que soit le modèle),
+    plus récents d'abord. Le silver perso antérieur au 2026-07-06 n'a pas de
+    game_ts -> ces records (ts traité comme 0) retombent sur l'ordre
+    d'apparition inversé du fichier, approximation de l'ordre de collecte."""
+    reviewed = {r.get("match_id") for r in reviews if r.get("kind") == "game"}
+    indexed = list(enumerate(payload_mod.filter_scope(records, scope)))
+    indexed.sort(key=lambda p: (p[1].get("game_ts") or 0, p[0]), reverse=True)
+    out: list[str] = []
+    for _, rec in indexed:
+        mid = rec.get("match_id")
+        if mid in reviewed or mid in out:
+            continue
+        out.append(mid)
+        if len(out) >= n:
+            break
+    return out
+
+
 def persist(player: str, model: str, pl: dict, review, ts: str,
             root=None) -> Path:
     root = Path(root) if root is not None else rl.DATA / "07_coaching"

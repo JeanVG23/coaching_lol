@@ -106,3 +106,32 @@ def test_main_model_from_dotenv_when_no_flag(monkeypatch, tmp_path):
     monkeypatch.setattr(C, "persist", lambda *a, **k: tmp_path / "reviews.jsonl")
     assert C.main() == 0
     assert used["model"] == "glm-5.2"             # .env honored, pas le défaut deepseek
+
+
+# --- pending_game_matches (sélection batch, pure) -----------------------------
+
+def test_pending_game_matches_dedups_scopes_and_sorts_recent_first():
+    records = [
+        {"match_id": "m1", "role": "BOTTOM", "game_ts": 100},
+        {"match_id": "m2", "role": "BOTTOM", "game_ts": 300},   # déjà reviewée
+        {"match_id": "m3", "role": "MIDDLE", "game_ts": 400},   # hors scope adc
+        {"match_id": "m4", "role": "BOTTOM", "game_ts": 200},
+    ]
+    reviews = [{"kind": "game", "match_id": "m2", "model": "kimi-k2.6"},
+               {"outcome_focus": "loss"}]          # agrégée : ne dédupe rien
+    got = C.pending_game_matches(records, reviews, "adc", n=10)
+    assert got == ["m4", "m1"]                     # ts décroissant, m2/m3 exclues
+
+
+def test_pending_game_matches_limits_to_n():
+    records = [{"match_id": f"m{i}", "role": "BOTTOM", "game_ts": i}
+               for i in range(5)]
+    got = C.pending_game_matches(records, [], "adc", n=2)
+    assert got == ["m4", "m3"]
+
+
+def test_pending_game_matches_falls_back_to_reversed_file_order():
+    # silver perso antérieur au 2026-07-06 : pas de game_ts -> ordre inversé du fichier
+    records = [{"match_id": f"m{i}", "role": "BOTTOM"} for i in range(3)]
+    got = C.pending_game_matches(records, [], "adc", n=10)
+    assert got == ["m2", "m1", "m0"]
