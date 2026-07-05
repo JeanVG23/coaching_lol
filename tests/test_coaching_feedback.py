@@ -69,6 +69,30 @@ def _write_reviews(tmp_path, player="spadzze", lines=None):
     return out / "reviews.jsonl"
 
 
+def _game_review_record():
+    return {"ts": "2026-07-05T10:00:00", "model": "kimi-k2.6",
+            "kind": "game", "match_id": "EUW1_42",
+            "scope": "adc", "target": "challenger",
+            "payload": {"meta": {}},
+            "review": {"strengths": [],
+                       "mistakes": [{"point": "m",
+                                     "evidence": "mort à 17:05, drake dans 6 s"}],
+                       "next_focus": "f", "confidence": 0.4}}
+
+
+def test_annotate_handles_game_reviews(tmp_path):
+    # La boucle d'éval doit accepter les reviews par-game (kind=game, sans habits).
+    _write_reviews(tmp_path, lines=[_game_review_record()])
+    answers = iter(["y", "n", "5", ""])       # mistake utile ; focus faux, tag 5
+    rc = F.annotate("spadzze", last=True, root=tmp_path,
+                    prompt=lambda _msg: next(answers))
+    assert rc == 0
+    fbs = F.load_feedbacks("spadzze", root=tmp_path)
+    assert len(fbs) == 1
+    kinds = {(it.kind, it.useful) for it in fbs[0].items}
+    assert ("mistake", True) in kinds and ("focus", False) in kinds
+
+
 def test_list_reviews_empty(tmp_path):
     assert F.list_reviews("nobody", root=tmp_path) == []
 

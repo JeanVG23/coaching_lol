@@ -52,14 +52,14 @@ def load_review(player: str, ts: str, root=None) -> dict | None:
     return None
 
 
-def build_feedback(review: schema_mod.Review, ts: str, player: str, model: str,
+def build_feedback(review, ts: str, player: str, model: str,
                    rated_at: str,
                    responses: dict[tuple[str, int], tuple[bool, str | None, str | None]]
                    ) -> schema_mod.Feedback:
     """Construit un Feedback en n'incluant que les items présents dans responses
     (skip = item omis). Invariant tag-requis validé par FeedbackItem."""
     sections = [("strength", review.strengths), ("mistake", review.mistakes),
-                ("habit", review.habits)]
+                ("habit", getattr(review, "habits", []))]   # GameReview : pas de habits
     items = []
     for kind, section in sections:
         for i, _ in enumerate(section):
@@ -198,14 +198,14 @@ def render_summary(stats: dict) -> str:
 
 # --- annotate (flow interactif) + main() ------------------------------------
 
-def _display_items(review: schema_mod.Review) -> list[tuple[str, int, str]]:
+def _display_items(review) -> list[tuple[str, int, str]]:
     """Retourne [(kind, index, ligne_affichage)] pour les items (ordre fixe)."""
     out = []
     for i, ins in enumerate(review.strengths):
         out.append(("strength", i, f"Force  {i}: {ins.point}  ({ins.evidence})"))
     for i, ins in enumerate(review.mistakes):
         out.append(("mistake", i, f"Erreur {i}: {ins.point}  ({ins.evidence})"))
-    for i, h in enumerate(review.habits):
+    for i, h in enumerate(getattr(review, "habits", [])):
         out.append(("habit", i, f"Habitude {i}: {h}"))
     out.append(("focus", 0, f"Focus : {review.next_focus}"))
     return out
@@ -233,7 +233,8 @@ def annotate(player: str, ts: str | None = None, last: bool = False,
         else:
             print("Reviews disponibles :")
             for i, r in enumerate(reviews, 1):
-                print(f"  {i} | {r['ts']} | {r['model']} | {r.get('outcome_focus','?')}")
+                what = r.get("outcome_focus") or r.get("match_id") or "?"
+                print(f"  {i} | {r['ts']} | {r['model']} | {what}")
             sel = prompt("Choisis une review (numéro) : ").strip()
             try:
                 chosen = reviews[int(sel) - 1]
@@ -245,7 +246,9 @@ def annotate(player: str, ts: str | None = None, last: bool = False,
         if chosen is None:
             print(f"✗ ts {ts} introuvable dans reviews.jsonl")
             return 1
-    review = schema_mod.Review.model_validate(chosen["review"])
+    cls = (schema_mod.GameReview if chosen.get("kind") == "game"
+           else schema_mod.Review)
+    review = cls.model_validate(chosen["review"])
     items = _display_items(review)
     responses: dict[tuple[str, int], tuple[bool, str | None, str | None]] = {}
     for kind, idx, line in items:

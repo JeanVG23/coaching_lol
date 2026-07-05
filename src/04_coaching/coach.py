@@ -38,32 +38,58 @@ class CoachValidationError(RuntimeError):
         self.raw = raw
 
 
-def generate_review(pl: dict, model: str) -> schema_mod.Review:
-    system, user = prompt_mod.render(pl)
-    sch = schema_mod.review_json_schema()
+def _generate(system: str, user: str, sch: dict, cls, model: str):
     last_raw = None
     for _ in range(2):                       # 1 essai + 1 retry
         last_raw = llm_client.generate_json(model, system, user, sch)
         try:
-            return schema_mod.Review.model_validate(last_raw)
+            return cls.model_validate(last_raw)
         except ValidationError:
             continue
     raise CoachValidationError(last_raw)
 
 
-def persist(player: str, model: str, pl: dict, review: schema_mod.Review,
-            ts: str, root=None) -> Path:
+def generate_review(pl: dict, model: str) -> schema_mod.Review:
+    system, user = prompt_mod.render(pl)
+    return _generate(system, user, schema_mod.review_json_schema(),
+                     schema_mod.Review, model)
+
+
+def generate_game_review(pl: dict, model: str) -> schema_mod.GameReview:
+    system, user = prompt_mod.render_game(pl)
+    return _generate(system, user, schema_mod.game_review_json_schema(),
+                     schema_mod.GameReview, model)
+
+
+def persist(player: str, model: str, pl: dict, review, ts: str,
+            root=None) -> Path:
     root = Path(root) if root is not None else rl.DATA / "07_coaching"
     out = root / player
     out.mkdir(parents=True, exist_ok=True)
+    meta = pl["meta"]
     record = {"ts": ts, "model": model,
-              "scope": pl["meta"]["scope"], "target": pl["meta"]["target"],
-              "outcome_focus": pl["meta"]["outcome_focus"],
+              "scope": meta["scope"], "target": meta["target"],
               "payload": pl, "review": review.model_dump()}
+    if meta.get("kind") == "game":           # review par-game (GameReview)
+        record["kind"] = "game"
+        record["match_id"] = meta["match_id"]
+    else:                                    # review agrégée (Review)
+        record["outcome_focus"] = meta["outcome_focus"]
     path = out / "reviews.jsonl"
     with path.open("a") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
     return path
+
+
+def render_game_text(review: schema_mod.GameReview) -> str:
+    lines = [f"\n  Confiance : {review.confidence:.0%}"]
+    if review.strengths:
+        lines.append("\n  Forces :")
+        lines += [f"    + {i.point}  ({i.evidence})" for i in review.strengths]
+    lines.append("\n  Erreurs prioritaires :")
+    lines += [f"    - {i.point}  ({i.evidence})" for i in review.mistakes]
+    lines.append(f"\n  Focus prochaine game : {review.next_focus}")
+    return "\n".join(lines)
 
 
 def render_text(review: schema_mod.Review) -> str:
@@ -92,6 +118,9 @@ def main() -> int:
     ap.add_argument("--outcome", default="loss", choices=["overall", "win", "loss"])
     ap.add_argument("--target", default="challenger")
     ap.add_argument("--model", default=None)
+    ap.add_argument("--game", nargs="?", const="latest", default=None,
+                    metavar="MATCH_ID",
+                    help="review par-game : dernière game du scope, ou un match_id")
     args = ap.parse_args()
     # Résolution modèle : --model CLI > OLLAMA_MODEL (shell env) > .env > défaut.
     # load_env() ne peuple pas os.environ, donc on lit .env explicitement ici.
@@ -100,14 +129,20 @@ def main() -> int:
                       or rl.load_env().get("OLLAMA_MODEL", DEFAULT_MODEL))
 
     ts = datetime.now().isoformat(timespec="seconds")
+    per_game = args.game is not None
     try:
-        pl = payload_mod.build(args.player, args.scope, args.target, args.outcome)
+        if per_game:
+            mid = None if args.game == "latest" else args.game
+            pl = payload_mod.build_game(args.player, match_id=mid,
+                                        scope=args.scope, target=args.target)
+        else:
+            pl = payload_mod.build(args.player, args.scope, args.target, args.outcome)
     except FileNotFoundError as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1
 
     try:
-        review = generate_review(pl, args.model)
+        review = (generate_game_review if per_game else generate_review)(pl, args.model)
     except llm_client.LLMError as e:
         print(f"✗ appel LLM échoué : {e}", file=sys.stderr)
         return 1
@@ -117,9 +152,17 @@ def main() -> int:
         return 1
 
     path = persist(args.player, args.model, pl, review, ts)
-    print(f"COACHING — {args.player} ({args.scope}, issue={args.outcome}, "
-          f"vs {args.target}) [modèle {args.model}]")
-    print(render_text(review))
+    if per_game:
+        m = pl["meta"]
+        issue = "victoire" if m["win"] else "défaite"
+        print(f"COACHING GAME — {m['match_id']} : {m['champion']} vs "
+              f"{m.get('opponent') or '?'} ({issue}, {m['duration_min']} min, "
+              f"vs {args.target}) [modèle {args.model}]")
+        print(render_game_text(review))
+    else:
+        print(f"COACHING — {args.player} ({args.scope}, issue={args.outcome}, "
+              f"vs {args.target}) [modèle {args.model}]")
+        print(render_text(review))
     print(f"\n✓ review persistée dans {path}")
     return 0
 

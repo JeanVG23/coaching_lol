@@ -45,6 +45,44 @@ def test_persist_appends_jsonl(tmp_path):
     assert line["ts"] == "2026-06-30T10:00:00"
 
 
+def _game_review_dict():
+    return {"strengths": [],
+            "mistakes": [{"point": "m", "evidence": "mort à 17:05, drake dans 6 s"}],
+            "next_focus": "f", "confidence": 0.4}
+
+
+def _game_payload():
+    return {"meta": {"player": "x", "scope": "adc", "target": "challenger",
+                     "kind": "game", "match_id": "EUW1_42", "champion": "Zeri",
+                     "opponent": "Jinx", "role": "BOTTOM", "win": False,
+                     "duration_min": 30.0, "patch": "16.13",
+                     "kda": {"kills": 5, "deaths": 3, "assists": 7}},
+            "journal": {"deaths": [], "recalls": []},
+            "benchmarks": {"outcome": "loss"}}
+
+
+def test_generate_game_review_validates(monkeypatch):
+    monkeypatch.setattr(C.llm_client, "generate_json",
+                        lambda *a, **k: _game_review_dict())
+    r = C.generate_game_review(_game_payload(), "m")
+    assert isinstance(r, S.GameReview) and r.confidence == 0.4
+
+
+def test_persist_game_records_kind_and_match_id(tmp_path):
+    pl = _game_payload()
+    review = S.GameReview.model_validate(_game_review_dict())
+    path = C.persist("spadzze", "m", pl, review, ts="2026-07-05T10:00:00",
+                     root=tmp_path)
+    line = json.loads(path.read_text().splitlines()[-1])
+    assert line["kind"] == "game" and line["match_id"] == "EUW1_42"
+    assert line["review"]["mistakes"][0]["evidence"].startswith("mort à 17:05")
+
+
+def test_render_game_text_has_sections():
+    txt = C.render_game_text(S.GameReview.model_validate(_game_review_dict()))
+    assert "Erreurs" in txt and "Focus" in txt
+
+
 def test_render_text_is_french_and_has_sections():
     txt = C.render_text(S.Review.model_validate(_review_dict()))
     assert "Forces" in txt and "Erreurs" in txt and "Focus" in txt

@@ -222,7 +222,7 @@ package Python dans `src/`).
 
 ```
 src/                                     # tout le code Python
-  core/           riotlib.py, positioning.py, champion_profiles.py
+  core/           riotlib.py, positioning.py, champion_profiles.py, game_journal.py
   collection/     build_referential.py, aggregate_games.py, live_capture.py
   pipeline_ops/   reextract_silver.py, rebuild_gold.py, compress_raw.py,
                   archive_patch.py, list_unknown_champions.py
@@ -264,6 +264,14 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   `ML_ONLY` (3 proxys vision → jamais prescrits). ⚠️ Profondeur (`avg/max_map_depth`) :
   sens contre-intuitif (valeur haute → diamond, rang INFÉRIEUR) → marqueur de risque,
   jamais à prescrire.
+- **`src/core/game_journal.py`** — journal structuré d'UNE game depuis match+timeline raw
+  (0 CV, module pur). `game_journal` → morts et recalls **horodatés** (clock mm:ss) avec
+  contexte : zone/phase, gold-state vs adversaire, **gold non dépensé**, killer/gank, et
+  **objectif up/imminent** (timers v1 en tête de module : drake 5:00/+5:00, baron
+  25:00/+6:00 — à ajuster par patch ; Elder/Atakhan ignorés). Recalls = clusters
+  d'`ITEM_PURCHASED` (approximation : inclut les resets après mort, `gold_before` =
+  plancher frame précédente). **Asymétrie** : uniquement de l'info que le joueur avait
+  (ses morts, son gold, timers HUD) — aucun proxy de vision ML_ONLY.
 - **`src/core/champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon +
   table curée, résolution casse-insensible), `derive_context(comp)` → 2 axes coarse
   `lane_pattern` (poke/all_in/scaling/mixed/unknown, du duo ennemi) et `gank_exposure`
@@ -347,18 +355,27 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
     COACHING_SAFE, profondeur `descriptive_only`), `prompt.py` (system asymétrie +
-    benchmark-relatif, FR), `schema.py` (Pydantic `Review` : 3 forces / 3 erreurs / 2
-    habitudes / 1 focus / confidence, **preuve chiffrée par point**), `llm_client.py`
-    (client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema,
-    défaut `kimi-k2.6`), `coach.py` (CLI : payload→prompt→client→validation→affiche+
-    persiste). `schema.py` porte aussi `Feedback`/`FeedbackItem` (boucle d'éval). Lancer :
-    `python3 src/04_coaching/coach.py --player spadzze --scope adc`. `feedback.py` (CLI
+    benchmark-relatif, FR), `schema.py` (Pydantic `Review` : **1-3 forces** / 3 erreurs / 2
+    habitudes / 1 focus / confidence, **preuve chiffrée par point** — forcer exactement 3
+    forces poussait le LLM au remplissage, cause du tag feedback « trop-vague »),
+    `llm_client.py` (client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`,
+    `format`=JSON-schema, défaut `kimi-k2.6`), `coach.py` (CLI : payload→prompt→client→
+    validation→affiche+persiste). **Chemin par-game** (2026-07-05, réponse au diagnostic
+    « on ne peut rien raconter d'actionnable à partir de médianes ») : `payload.build_game`
+    (journal `game_journal` + repères référentiel à issue égale), `prompt.SYSTEM_GAME`,
+    `schema.GameReview` (0-2 forces / 1-3 erreurs `AnchoredInsight` — **horodatage mm:ss
+    obligatoire dans l'evidence, contrainte de schéma** ; pas de habits : pattern
+    multi-games indétectable sur 1 game), `coach.py --game [latest|MATCH_ID]`, records
+    persistés avec `kind: "game"` + `match_id`. `schema.py` porte aussi
+    `Feedback`/`FeedbackItem` (boucle d'éval). Lancer :
+    `python3 src/04_coaching/coach.py --player spadzze --scope adc [--game]`. `feedback.py` (CLI
     `annotate`/`summary` : boucle d'éval par-insight — `y/n/s` + tag fixe `NEG_TAGS`
     sur jugement négatif, persiste `data/07_coaching/<player>/feedback.jsonl` (1 ligne/
     review, réannotation écrase par `ts`), `summary` agrège taux par section + top tags +
     par modèle + tendance low_sample `<10` + jusqu'à 2 verbatims de note libre par tag
     (`tag_notes` : le tag dit *quoi* est faux, le verbatim dit *pourquoi* — guide la
-    correction du prompt/des features sans deviner). Aucun réseau. Lancer :
+    correction du prompt/des features sans deviner). Accepte les deux types de reviews
+    (agrégées et `kind: "game"`). Aucun réseau. Lancer :
     `python3 src/04_coaching/feedback.py annotate --player spadzze [--last|--ts]`.
     Le champ `note` (déjà modélisé dans `FeedbackItem`) est maintenant aussi exposé côté
     web (`web/frontend/`) : textarea sous chaque item déjà noté (✓/✗), envoyé via
@@ -409,6 +426,15 @@ reprocher une décision sur une info cachée.
   l'AUC à 0.531 sous 5 games (bruit de matchmaking > signal de constance, cf. note
   ci-dessus) : AUC out-of-fold **0.631** à 15 games (718 joueurs, 359/359) — voir
   `data/05_model/player_metrics.json` pour le détail (dispersion 61.7% du signal SHAP).
+- **Compte-rendu par-game (axe prioritaire coaching)** ✅ — 2026-07-05. Diagnostic depuis
+  la boucle de feedback (1 review annotée, premier signal) : les tags « trop-vague »/
+  « non-actionnable » venaient du **payload agrégé** (le LLM ne peut pas être plus précis
+  que des médianes) + du schéma forçant 3 forces (filler mécanique). Fix : `game_journal`
+  (morts/recalls horodatés + contexte objectif) → `coach.py --game` → `GameReview`
+  (horodatage obligatoire par erreur, au niveau du schéma). Vérifié de bout en bout
+  (kimi-k2.6) : « mort à 15:13, tuée solo par Katarina avec 1 225 g non dépensés » au lieu
+  de « tu passes trop de temps mort ». **Métrique de succès : ≥70 % de mistakes utiles sur
+  ≥10 reviews par-game annotées, 0 rejet « trop-vague » faute de moment cité.**
 - **Premier verdict ADC** : laning = LE levier (≈ -10 à -16 CS @14 vs challenger, *toutes*
   issues) ; mauvaise gestion du retard (gold@20 en lose -1252 vs -322) ; morts = symptôme.
 - Clé **dev** (throttle ~100 req/2min, attentes 429 si saturé) → rate-limiter intégré.
@@ -422,8 +448,12 @@ reprocher une décision sur une info cachée.
    `src/04_coaching/README.md` ; surclassable via `--model`/`OLLAMA_MODEL`).
    ✅ **Boucle d'éval** (scoring d'utilité) — `feedback.py annotate/summary` :
    annotation interactive par-insight (tag fixe `NEG_TAGS` + note) sur les reviews
-   persistées, agrégation taux/top tags/par modèle/tendance. À suivre : compte-rendu
-   par-game.
+   persistées, agrégation taux/top tags/par modèle/tendance.
+   ✅ **Compte-rendu par-game** — `coach.py --game` (cf. État d'avancement). À suivre :
+   annoter ≥10 reviews par-game (métrique ≥70 % de mistakes utiles), puis **coacher le
+   plancher** — cibler les games du pire décile p10 (insight ML per-player : le rang =
+   le plancher, pas la moyenne) et boucle de focus inter-games (adhérence au `next_focus`
+   mesurée par les features).
 2. **Benchmark Zeri** densifié (sampling champion ciblé) si la slice reste trop fine.
 3. Stabiliser et valider la **robustesse de l'approche ML/SHAP** (les features sont là, mais la qualité des prescriptions SHAP vs Heuristiques reste à valider).
 4. Poursuivre l'industrialisation : modèles Pydantic et flux consolidé.

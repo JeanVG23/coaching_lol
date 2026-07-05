@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))  # acc�
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "reporting"))  # accès compare
 import riotlib as rl
 import positioning
+import game_journal as gj
 import compare
 
 LANE_SIGNALS = ["gd10", "gd14", "gd20", "csd10", "csd14"]
@@ -144,3 +145,69 @@ def build(player: str, scope: str = "adc", target: str = "challenger",
             context[axis] = cb
 
     return {"meta": meta, "signals": signals, "context": context}
+
+
+# --- Payload par-game : journal ancré + repères référentiel -------------------
+
+_SCOPE_ROLE = {"adc": "BOTTOM"}   # scope champion (ex. zeri) = filtre sur le nom
+
+
+def _personal_records(player: str, silver_dir: Path) -> list[dict]:
+    path = silver_dir / "personal" / player / "games.jsonl"
+    if not path.exists():
+        raise FileNotFoundError(f"silver perso manquant : {path}")
+    return [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
+
+
+def _select_game(records: list[dict], scope: str, match_id: str | None) -> dict:
+    if match_id is not None:
+        rec = next((r for r in records if r.get("match_id") == match_id), None)
+        if rec is None:
+            raise FileNotFoundError(f"game {match_id} absente du silver perso")
+        return rec
+    role = _SCOPE_ROLE.get(scope)
+    if role:
+        records = [r for r in records if r.get("role") == role]
+    elif scope != "all":
+        records = [r for r in records
+                   if (r.get("champion") or "").lower() == scope.lower()]
+    if not records:
+        raise FileNotFoundError(f"aucune game du scope {scope} dans le silver perso")
+    return records[-1]           # la plus récente du scope
+
+
+def build_game(player: str, match_id: str | None = None, scope: str = "adc",
+               target: str = "challenger", gold_dir=None, silver_dir=None,
+               load_raw=None) -> dict:
+    """Journal d'UNE game + repères référentiel à issue égale -> payload par-game."""
+    gold_dir = Path(gold_dir) if gold_dir is not None else rl.GOLD_DIR
+    silver_dir = Path(silver_dir) if silver_dir is not None else rl.SILVER_DIR
+    load_raw = load_raw if load_raw is not None else rl._read_raw
+
+    rec = _select_game(_personal_records(player, silver_dir), scope, match_id)
+    mid = rec["match_id"]
+    match, timeline = load_raw(f"{mid}_match"), load_raw(f"{mid}_timeline")
+    if match is None or timeline is None:
+        raise FileNotFoundError(f"raw manquant pour {mid}")
+    journal = gj.game_journal(match, timeline, rec["puuid"])
+    if journal is None:
+        raise FileNotFoundError(f"game {mid} hors Faille de l'invocateur")
+
+    ref = _load(gold_dir, "referentiel", target, scope)
+    outcome = "win" if journal["win"] else "loss"
+    rf = ref[outcome]
+    meta = {"player": player, "scope": scope, "target": target, "kind": "game",
+            **{k: journal[k] for k in ("match_id", "champion", "opponent", "role",
+                                       "win", "duration_min", "kda", "patch")}}
+    benchmarks = {
+        # Repères challenger à ISSUE ÉGALE (médianes agrégées) : contexte de
+        # comparaison, jamais « tu aurais dû savoir ».
+        "outcome": outcome,
+        "n_games_ref": ref["n_games"],
+        "deaths_per_game": rf.get("deaths_per_game"),
+        "death_zone_phase": rf.get("by_zone_phase", {}),
+        "death_gold_state": rf.get("death_gold_state", {}),
+    }
+    return {"meta": meta,
+            "journal": {"deaths": journal["deaths"], "recalls": journal["recalls"]},
+            "benchmarks": benchmarks}
