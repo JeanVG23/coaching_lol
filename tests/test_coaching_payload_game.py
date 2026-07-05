@@ -76,3 +76,16 @@ def test_build_game_never_leaks_ml_only(tmp_path):
                        gold_dir=gold, silver_dir=silver, load_raw=_load_raw)
     blob = json.dumps(pl)
     assert all(k not in blob for k in P.ML_ONLY)
+
+
+# --- filter_scope (partagé _select_game / sélection batch) --------------------
+
+def test_filter_scope_by_role_champion_and_all():
+    records = [
+        {"match_id": "m1", "role": "BOTTOM", "champion": "Zeri"},
+        {"match_id": "m2", "role": "MIDDLE", "champion": "Ahri"},
+        {"match_id": "m3", "role": "BOTTOM", "champion": "Jinx"},
+    ]
+    assert [r["match_id"] for r in PL.filter_scope(records, "adc")] == ["m1", "m3"]
+    assert [r["match_id"] for r in PL.filter_scope(records, "zeri")] == ["m1"]
+    assert [r["match_id"] for r in PL.filter_scope(records, "all")] == ["m1", "m2", "m3"]

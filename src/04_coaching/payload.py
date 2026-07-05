@@ -152,6 +152,16 @@ def build(player: str, scope: str = "adc", target: str = "challenger",
 _SCOPE_ROLE = {"adc": "BOTTOM"}   # scope champion (ex. zeri) = filtre sur le nom
 
 
+def filter_scope(records: list[dict], scope: str) -> list[dict]:
+    """Sous-liste des records du scope, ordre du fichier préservé."""
+    role = _SCOPE_ROLE.get(scope)
+    if role:
+        return [r for r in records if r.get("role") == role]
+    if scope == "all":
+        return list(records)
+    return [r for r in records if (r.get("champion") or "").lower() == scope.lower()]
+
+
 def _personal_records(player: str, silver_dir: Path) -> list[dict]:
     path = silver_dir / "personal" / player / "games.jsonl"
     if not path.exists():
@@ -165,12 +175,7 @@ def _select_game(records: list[dict], scope: str, match_id: str | None) -> dict:
         if rec is None:
             raise FileNotFoundError(f"game {match_id} absente du silver perso")
         return rec
-    role = _SCOPE_ROLE.get(scope)
-    if role:
-        records = [r for r in records if r.get("role") == role]
-    elif scope != "all":
-        records = [r for r in records
-                   if (r.get("champion") or "").lower() == scope.lower()]
+    records = filter_scope(records, scope)
     if not records:
         raise FileNotFoundError(f"aucune game du scope {scope} dans le silver perso")
     return records[-1]           # la plus récente du scope
