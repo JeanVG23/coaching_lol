@@ -3,6 +3,12 @@
 densify_players.py — reprend les joueurs existants du dataset silver
 et collecte des parties supplémentaires (historique profond) pour
 atteindre un nombre plus élevé de parties par joueur (ex: 20+).
+
+Avec `--target-list` pointant vers une sortie de `densify_targets.py`
+({puuid: {"rank": ..., "gap": ...}}), s'arrête PAR JOUEUR dès que `gap` games
+ADC (BOTTOM, sur le patch courant) neuves ont été trouvées, au lieu d'épuiser
+tout `--history` pour chacun. Rétro-compatible avec l'ancien format plat
+{puuid: "rank"} (pas de gap -> pas d'arrêt anticipé, comportement historique).
 """
 from __future__ import annotations
 
@@ -24,6 +30,28 @@ def arg(flag: str, default=None):
 
 def has_flag(flag: str) -> bool:
     return flag in sys.argv
+
+
+def parse_target_list(targets: dict, rank: str) -> tuple[list[str], dict[str, int]]:
+    """(puuids du rang, gap_by_puuid) depuis un target-list JSON. Supporte le format
+    enrichi {"rank": ..., "gap": ...} (densify_targets.py) et l'ancien format plat
+    {puuid: "rank"} (rétro-compat, pas de gap -> pas d'arrêt anticipé)."""
+    puuids: list[str] = []
+    gap_by_puuid: dict[str, int] = {}
+    for p, v in targets.items():
+        r = v["rank"] if isinstance(v, dict) else v
+        if r != rank:
+            continue
+        puuids.append(p)
+        if isinstance(v, dict) and "gap" in v:
+            gap_by_puuid[p] = v["gap"]
+    return puuids, gap_by_puuid
+
+
+def closes_gap(games: list[dict], puuid: str) -> bool:
+    """True si CE joueur est ADC (BOTTOM) dans les games extraites d'un match — seul
+    rôle qui alimente adc_dataset.parquet / le seuil ML per-player."""
+    return any(g["puuid"] == puuid and g["role"] == "BOTTOM" for g in games)
 
 
 def main() -> int:
@@ -66,11 +94,13 @@ def main() -> int:
             print(f"  ⚠ {rank}: aucun games.jsonl trouvé, skip.", file=sys.stderr)
             continue
             
+        gap_by_puuid: dict[str, int] = {}
         if has_flag("--target-list"):
             target_file = arg("--target-list")
             targets = json.loads(Path(target_file).read_text())
-            puuids = [p for p, r in targets.items() if r == rank]
-            print(f"\n=== {rank.upper()} : {len(puuids)} joueurs CIBLÉS à densifier ===", file=sys.stderr)
+            puuids, gap_by_puuid = parse_target_list(targets, rank)
+            print(f"\n=== {rank.upper()} : {len(puuids)} joueurs CIBLÉS à densifier "
+                  f"({len(gap_by_puuid)} avec objectif chiffré = arrêt anticipé) ===", file=sys.stderr)
             if not puuids:
                 continue
         else:
@@ -95,15 +125,17 @@ def main() -> int:
         pool: list[dict] = []
         for i, puuid in enumerate(puuids, 1):
             perf_kept = 0
+            adc_games_added = 0
+            gap = gap_by_puuid.get(puuid)  # None = pas d'objectif chiffré -> historique complet (comportement historique)
             # Récupérer l'historique complet
             history = client.match_ids(puuid, count=max_history, queue=rl.QUEUE_SOLO, start_time=start_time)
-            
+
             for mid in history:
                 if mid in global_seen_matches:
                     continue  # Déjà analysé par le passé
-                    
+
                 global_seen_matches.add(mid)
-                
+
                 got = rl.get_match_timeline(client, mid)
                 if not got:
                     continue
@@ -111,14 +143,20 @@ def main() -> int:
                 # Vérifier que c'est bien sur le même patch
                 if rl.patch_of(got[0]["info"].get("gameVersion", "")) != patch:
                     continue
-                    
+
                 games = rl.extract_all_games(got[0], got[1], rank=rank)
                 if games:
                     pool.extend(games)
                     perf_kept += len(games)
-                    
+
+                    if gap is not None and closes_gap(games, puuid):
+                        adc_games_added += 1
+                        if adc_games_added >= gap:
+                            break  # objectif atteint, joueur suivant plutôt que d'épuiser --history
+
             if perf_kept > 0:
-                print(f"  [{i}/{len(puuids)}] +{perf_kept} performances (pool_buffer={len(pool)})", file=sys.stderr)
+                goal = f" (objectif ADC {adc_games_added}/{gap} atteint)" if gap and adc_games_added >= gap else ""
+                print(f"  [{i}/{len(puuids)}] +{perf_kept} performances (pool_buffer={len(pool)}){goal}", file=sys.stderr)
 
             # Checkpoint
             if pool and i % checkpoint_every == 0:

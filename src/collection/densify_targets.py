@@ -15,9 +15,14 @@ Chirurgical = on ne cible QUE la bande [--min-games, --threshold[ :
   API pour un gain incertain (peut-être qu'ils n'ont même pas rejoué depuis).
 - >= --threshold : déjà qualifiés, rien à faire.
 Le fichier de sortie trie les cibles par écart croissant (joueurs les plus proches
-du seuil en premier) : {puuid: rank}, directement consommable par
-`densify_players.py --target-list`, qui traite le dict dans l'ordre d'insertion —
-donc les gains "faciles" sont collectés en premier si le run est interrompu.
+du seuil en premier) : {puuid: {"rank": ..., "gap": ...}}, directement consommable
+par `densify_players.py --target-list`, qui traite le dict dans l'ordre d'insertion
+(gains "faciles" en premier si le run est interrompu) ET s'arrête, PAR JOUEUR, dès
+que `gap` games ADC neuves ont été trouvées — au lieu d'épuiser tout `--history`
+pour chaque joueur (l'ancien comportement, ~3x plus lent : la collecte initiale
+plafonnait à 5 games/joueur, donc quasi tout l'historique récent d'un joueur est
+neuf, et sans arrêt anticipé un joueur avec un gap de 2 peut se faire fetcher 40+
+games pour rien).
 
 Sortie : data/04_dataset/densify_targets.json + résumé stderr (n cibles, games
 totales à récupérer par rang, non lancé — ce script ne fait AUCUN appel réseau).
@@ -99,7 +104,8 @@ def main() -> int:
         return 0
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps({p: t["rank"] for p, t in targets.items()}, indent=2))
+    out_path.write_text(json.dumps(
+        {p: {"rank": t["rank"], "gap": t["gap"]} for p, t in targets.items()}, indent=2))
     print(f"\n✓ Cibles écrites dans {out_path}", file=sys.stderr)
     print(
         "\n  Étape suivante (à lancer séparément, consomme du quota API) :\n"
