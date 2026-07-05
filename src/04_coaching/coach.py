@@ -25,6 +25,7 @@ import payload as payload_mod
 import prompt as prompt_mod
 import schema as schema_mod
 import llm_client
+import feedback as feedback_mod
 
 # Modèle par défaut retenu après A/B (cf. README.md) : kimi-k2.6 respecte le plus
 # fidèlement l'asymétrie (règle 3 : profondeur/overextension = observation neutre,
@@ -79,6 +80,51 @@ def pending_game_matches(records: list[dict], reviews: list[dict],
         if len(out) >= n:
             break
     return out
+
+
+def run_batch(player: str, scope: str, target: str, model: str, n: int,
+              root=None, silver_dir=None) -> int:
+    """Génère jusqu'à n reviews par-game sur les games du scope pas encore
+    reviewées (kind=game). Continue sur échec d'une game ; bilan final."""
+    silver = Path(silver_dir) if silver_dir is not None else rl.SILVER_DIR
+    records = payload_mod._personal_records(player, silver)
+    reviews = feedback_mod.list_reviews(player, root)
+    already = len({r.get("match_id") for r in reviews if r.get("kind") == "game"}
+                  & {r.get("match_id") for r in payload_mod.filter_scope(records, scope)})
+    pending = pending_game_matches(records, reviews, scope, n)
+    done, failed = 0, 0
+    seen_ts: set[str] = set()
+    for mid in pending:
+        ts = datetime.now().isoformat(timespec="seconds")
+        if ts in seen_ts:                        # 2 games dans la même seconde
+            ts = datetime.now().isoformat()      # (mocks/tests) -> microsecondes
+        seen_ts.add(ts)
+        try:
+            pl = payload_mod.build_game(player, match_id=mid, scope=scope,
+                                        target=target, silver_dir=silver)
+            review = generate_game_review(pl, model)
+        except FileNotFoundError as e:
+            print(f"✗ {mid} : {e}", file=sys.stderr)
+            failed += 1
+            continue
+        except llm_client.LLMError as e:
+            print(f"✗ {mid} : appel LLM échoué : {e}", file=sys.stderr)
+            failed += 1
+            continue
+        except CoachValidationError as e:
+            p = _save_failed(player, ts, e.raw)
+            print(f"✗ {mid} : {e} — brut sauvé dans {p}", file=sys.stderr)
+            failed += 1
+            continue
+        persist(player, model, pl, review, ts, root=root)
+        m = pl["meta"]
+        issue = "victoire" if m.get("win") else "défaite"
+        print(f"✓ {mid} : {m.get('champion')} ({issue}) reviewée")
+        done += 1
+    s = lambda k: "s" if k > 1 else ""
+    print(f"\nBilan : {done} générée{s(done)} · {already} déjà reviewée{s(already)} "
+          f"· {failed} échouée{s(failed)}")
+    return 1 if (pending and done == 0) else 0
 
 
 def persist(player: str, model: str, pl: dict, review, ts: str,
@@ -138,15 +184,24 @@ def main() -> int:
     ap.add_argument("--outcome", default="loss", choices=["overall", "win", "loss"])
     ap.add_argument("--target", default="challenger")
     ap.add_argument("--model", default=None)
-    ap.add_argument("--game", nargs="?", const="latest", default=None,
-                    metavar="MATCH_ID",
-                    help="review par-game : dernière game du scope, ou un match_id")
+    grp = ap.add_mutually_exclusive_group()
+    grp.add_argument("--game", nargs="?", const="latest", default=None,
+                     metavar="MATCH_ID",
+                     help="review par-game : dernière game du scope, ou un match_id")
+    grp.add_argument("--game-batch", type=int, nargs="?", const=10, default=None,
+                     metavar="N",
+                     help="génère les reviews par-game des N dernières games "
+                          "du scope pas encore reviewées (défaut 10)")
     args = ap.parse_args()
     # Résolution modèle : --model CLI > OLLAMA_MODEL (shell env) > .env > défaut.
     # load_env() ne peuple pas os.environ, donc on lit .env explicitement ici.
     if args.model is None:
         args.model = (os.environ.get("OLLAMA_MODEL")
                       or rl.load_env().get("OLLAMA_MODEL", DEFAULT_MODEL))
+
+    if args.game_batch is not None:
+        return run_batch(args.player, args.scope, args.target,
+                         args.model, args.game_batch)
 
     ts = datetime.now().isoformat(timespec="seconds")
     per_game = args.game is not None

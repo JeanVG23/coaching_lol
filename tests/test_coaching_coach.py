@@ -135,3 +135,81 @@ def test_pending_game_matches_falls_back_to_reversed_file_order():
     records = [{"match_id": f"m{i}", "role": "BOTTOM"} for i in range(3)]
     got = C.pending_game_matches(records, [], "adc", n=10)
     assert got == ["m2", "m1", "m0"]
+
+
+# --- run_batch + --game-batch --------------------------------------------------
+
+def _batch_env(tmp_path, n_games=3, reviewed=("EUW1_2",)):
+    """Silver perso ADC + reviews.jsonl existant -> (root, silver_dir)."""
+    silver = tmp_path / "silver"
+    pdir = silver / "personal" / "spadzze"
+    pdir.mkdir(parents=True)
+    recs = [{"match_id": f"EUW1_{i}", "role": "BOTTOM", "puuid": "p",
+             "champion": "Zeri", "game_ts": i} for i in range(n_games)]
+    (pdir / "games.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in recs) + "\n")
+    root = tmp_path / "07_coaching"
+    out = root / "spadzze"
+    out.mkdir(parents=True)
+    lines = [{"ts": f"t{m}", "model": "kimi-k2.6", "kind": "game",
+              "match_id": m, "scope": "adc", "target": "challenger",
+              "payload": {"meta": {}}, "review": _game_review_dict()}
+             for m in reviewed]
+    (out / "reviews.jsonl").write_text(
+        "\n".join(json.dumps(l) for l in lines) + "\n")
+    return root, silver
+
+
+def test_run_batch_generates_dedups_and_continues_on_error(tmp_path, monkeypatch, capsys):
+    root, silver = _batch_env(tmp_path)          # EUW1_2 déjà reviewée
+
+    def fake_build_game(player, match_id=None, **kw):
+        if match_id == "EUW1_0":
+            raise FileNotFoundError(f"raw manquant pour {match_id}")
+        pl = _game_payload()
+        pl["meta"]["match_id"] = match_id
+        return pl
+
+    monkeypatch.setattr(C.payload_mod, "build_game", fake_build_game)
+    monkeypatch.setattr(C.llm_client, "generate_json",
+                        lambda *a, **k: _game_review_dict())
+    rc = C.run_batch("spadzze", "adc", "challenger", "m", 10,
+                     root=root, silver_dir=silver)
+    assert rc == 0
+    lines = [json.loads(l) for l in
+             (root / "spadzze" / "reviews.jsonl").read_text().splitlines()]
+    new_ids = {l["match_id"] for l in lines if l["ts"] != "tEUW1_2"}
+    assert new_ids == {"EUW1_1"}                 # EUW1_0 échouée, EUW1_2 dédupliquée
+    out = capsys.readouterr().out
+    assert "1 générée" in out and "1 déjà reviewée" in out and "1 échouée" in out
+
+
+def test_run_batch_returns_1_when_all_attempts_fail(tmp_path, monkeypatch, capsys):
+    root, silver = _batch_env(tmp_path, reviewed=())
+
+    def boom(*a, **k):
+        raise C.llm_client.LLMError("api down")
+
+    monkeypatch.setattr(C.payload_mod, "build_game",
+                        lambda player, match_id=None, **kw: _game_payload())
+    monkeypatch.setattr(C.llm_client, "generate_json", boom)
+    rc = C.run_batch("spadzze", "adc", "challenger", "m", 2,
+                     root=root, silver_dir=silver)
+    assert rc == 1
+    assert "échouée" in capsys.readouterr().out
+
+
+def test_run_batch_nothing_to_do(tmp_path, capsys):
+    root, silver = _batch_env(tmp_path, n_games=1, reviewed=("EUW1_0",))
+    rc = C.run_batch("spadzze", "adc", "challenger", "m", 10,
+                     root=root, silver_dir=silver)
+    assert rc == 0
+    assert "déjà reviewée" in capsys.readouterr().out
+
+
+def test_main_game_and_game_batch_mutually_exclusive(monkeypatch, capsys):
+    monkeypatch.setattr(C.sys, "argv",
+                        ["coach.py", "--game", "--game-batch", "5"])
+    with pytest.raises(SystemExit) as e:
+        C.main()
+    assert e.value.code == 2                     # erreur argparse
