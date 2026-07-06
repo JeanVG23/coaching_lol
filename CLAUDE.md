@@ -353,7 +353,10 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     composantes est impossible ; une passe contrôle (même nombre de games retirées au
     hasard) isole la fuite pure. `auc_cv` = purgée (headline honnête), `auc_cv_naive`/
     `auc_cv_control` dans `player_metrics.json` ; conserve le test d'hypothèse
-    dispersion vs tendance centrale du POC) → `calibrate_player_rank.py`. Implémente en prod
+    dispersion vs tendance centrale du POC) → `calibrate_player_rank.py`. `analyze_auc_vs_ngames.py`
+    sweep du nombre de games agrégées par ligne (cap N, label fixe sur l'historique
+    complet, purged CV) pour calibrer `MIN_PLAYER_GAMES` — cf. note AUC vs N ci-dessous.
+    Implémente en prod
     `poc/per_player_hypothesis.py` : `web/backend/ml_rank.py` utilise désormais ce
     modèle (seuil `MIN_ADC_GAMES=15`, pas de fallback en dessous) au lieu de la moyenne
     per-game. Cf. `docs/superpowers/specs/2026-07-03-per-player-consistency-design.md`.
@@ -381,6 +384,19 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     > games de train, 0 joueur droppé), l'hypothèse constance tient (dispersion 62.4 %
     > du signal SHAP). Les AUC antérieures (0.631/0.6216, naïves) étaient donc
     > légèrement optimistes mais pas invalidées.
+    > **AUC vs nombre de games agrégées (2026-07-06, `analyze_auc_vs_ngames.py`)** :
+    > sweep du cap N games par joueur (features cappées à N, rang résolu sur
+    > l'historique complet = label fixe, purged CV). **Pool fixe ≥50 (effet pur de la
+    > profondeur)** : N=15→0.588, 20→0.619, 25→0.628, **30→0.635 (peak)**, 40→0.624,
+    > 50→0.599 — montée nette 15→30 puis plateau/déclin. Conclusion : 15 games
+    > sous-estiment le signal de dispersion, ~30 est le sweet spot, au-delà c'est du
+    > bruit CV. La config prod (qualify=15, cap=tout l'historique dispo) = AUC purgée
+    > 0.635 ≈ le peak du sweep — déjà au plateau ; monter le seuil à 30-40 ne
+    > gagnerait que ~+0.01-0.02 d'AUC pour un pool divisé par 2-3 (976→362, variance
+    > CV plus forte). N n'est pas le levier qui casse le plafond ~0.65 de la frontière
+    > master/GM ; les leviers sont le pool (densifier pour réduire la variance), les
+    > features, ou la frontière de rang (dia_chall 0.72 vs master/GM peu séparable).
+    > Sorties `data/05_model/auc_vs_ngames.{json,png}`.
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
