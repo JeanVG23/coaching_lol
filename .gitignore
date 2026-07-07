@@ -12,6 +12,7 @@ venv/
 
 # Données / dataset (ne pas versionner les games brutes)
 data/
+poc/output/
 *.parquet
 *.duckdb
 *.rofl
