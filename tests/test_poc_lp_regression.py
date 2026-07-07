@@ -61,3 +61,20 @@ def test_spearman_report_rmse():
     df = pd.DataFrame({"rank": ["master", "master"], "y_true": [0, 10], "y_pred": [0, 0]})
     report = lp_metrics.spearman_report(df)
     assert report["rmse_pooled"] == pytest.approx(7.07, abs=0.01)
+
+
+def test_spearman_report_pooled_none_when_degenerate():
+    df = pd.DataFrame({"rank": ["master", "master"], "y_true": [10, 20], "y_pred": [5, 5]})
+    report = lp_metrics.spearman_report(df)
+    assert report["spearman_pooled"] is None
+
+
+def test_spearman_report_by_tier_none_when_y_pred_constant():
+    df = pd.DataFrame({
+        "rank": ["master"] * 3 + ["challenger"] * 3,
+        "y_true": [10, 20, 30, 500, 600, 700],
+        "y_pred": [5, 5, 5, 510, 590, 710],
+    })
+    report = lp_metrics.spearman_report(df)
+    assert report["spearman_by_tier"]["master"]["spearman"] is None
+    assert report["spearman_by_tier"]["challenger"]["spearman"] is not None

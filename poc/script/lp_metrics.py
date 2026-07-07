@@ -17,24 +17,36 @@ from scipy.stats import spearmanr
 MIN_TIER_N = 3  # sous ce seuil, spearman non significatif -> None plutôt qu'une valeur trompeuse
 
 
+def _safe_spearman(a, b) -> float | None:
+    """Compute Spearman correlation, returning None if it's undefined.
+
+    Returns None if:
+    - fewer than MIN_TIER_N points
+    - a (or b) is constant (nunique < 2)
+
+    Otherwise returns the rounded correlation coefficient.
+    """
+    a, b = pd.Series(a), pd.Series(b)
+    if len(a) < MIN_TIER_N or a.nunique() < 2 or b.nunique() < 2:
+        return None
+    return round(float(spearmanr(a, b)[0]), 4)
+
+
 def spearman_report(df: pd.DataFrame) -> dict:
     """df : colonnes rank (str), y_true (float), y_pred (float). Une ligne par
     joueur. Retourne spearman pooled + par tier (None si <MIN_TIER_N lignes ou
-    y_true constant sur le tier) + rmse pooled."""
-    pooled_rho = float(spearmanr(df["y_true"], df["y_pred"])[0])
+    y_true/y_pred constant sur le tier) + rmse pooled."""
+    pooled_rho = _safe_spearman(df["y_true"], df["y_pred"])
 
     by_tier: dict[str, dict] = {}
     for tier, g in df.groupby("rank"):
-        if len(g) < MIN_TIER_N or g["y_true"].nunique() < 2:
-            by_tier[str(tier)] = {"spearman": None, "n": int(len(g))}
-            continue
-        rho = float(spearmanr(g["y_true"], g["y_pred"])[0])
-        by_tier[str(tier)] = {"spearman": round(rho, 4), "n": int(len(g))}
+        rho = _safe_spearman(g["y_true"], g["y_pred"])
+        by_tier[str(tier)] = {"spearman": rho, "n": int(len(g))}
 
     rmse = float(np.sqrt(np.mean((df["y_true"] - df["y_pred"]) ** 2)))
 
     return {
-        "spearman_pooled": round(pooled_rho, 4),
+        "spearman_pooled": pooled_rho,
         "spearman_by_tier": by_tier,
         "rmse_pooled": round(rmse, 2),
         "n_players_total": int(len(df)),
