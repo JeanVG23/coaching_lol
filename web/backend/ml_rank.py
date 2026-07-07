@@ -17,6 +17,11 @@ chemin de code — décision actée en brainstorming). Relevé depuis 5 : le mod
 entraîné sur des agrégats mean/std/p10/p50/p90 calculés sur >= 15 games — le nourrir
 à l'inférence avec un agrégat 5 games introduirait un décalage train/serve (la
 dispersion mesurée sur 5 games est dominée par le bruit, pas la vraie régularité).
+
+Hybride LP (2026-07-07) : si le rang placé est apex (master/GM/chall) et que les
+regressors LP ({xgb,rf,ebm}_player_lp.pkl, cf. train_player_lp.py) sont présents,
+le retour porte en plus "predicted_lp" (LP estimé sur l'échelle continue
+master->challenger). Diamond n'en a jamais (divisions avec reset, hors échelle).
 """
 from __future__ import annotations
 
@@ -66,6 +71,49 @@ def _load_calibration() -> list[dict]:
     return json.loads((MODEL_DIR / "player_rank_calibration.json").read_text())
 
 
+APEX_RANKS = {"master", "grandmaster", "challenger"}
+
+
+@functools.lru_cache(maxsize=1)
+def _load_lp_bundle() -> tuple[list, list[str]] | None:
+    """Regressors LP + ordre des features, ou None si les artefacts sont absents
+    (modèle LP pas encore entraîné sur cette machine) — dégradation propre : le
+    placement binaire suffit, pas de crash ni de log bruyant."""
+    try:
+        models = []
+        for name in ("xgb", "rf", "ebm"):
+            with open(MODEL_DIR / f"{name}_player_lp.pkl", "rb") as f:
+                models.append(pickle.load(f))
+        features = json.loads((MODEL_DIR / "player_lp_features.json").read_text())
+        return models, features
+    except FileNotFoundError:
+        return None
+
+
+def predict_lp(agg: dict) -> int | None:
+    """LP estimé (moyenne de l'ensemble, arrondi, borné >= 0) depuis l'agrégat de
+    features per-player déjà calculé par predict_rank. None si modèles absents.
+    N'a de sens que pour un joueur placé apex (échelle LP continue master->chall,
+    diamond hors échelle — divisions avec reset)."""
+    bundle = _load_lp_bundle()
+    if bundle is None:
+        return None
+    models, features = bundle
+    X = pd.DataFrame([agg]).reindex(columns=features).astype(float)
+    preds = [float(m.predict(X)[0]) for m in models]
+    return max(0, round(sum(preds) / len(preds)))
+
+
+def attach_lp(result: dict, agg: dict) -> dict:
+    """Ajoute predicted_lp au retour de predict_rank quand le rang placé est apex
+    ET que le modèle LP est disponible. Purement additif : ne touche à rien d'autre."""
+    if result.get("predicted_rank") in APEX_RANKS:
+        lp = predict_lp(agg)
+        if lp is not None:
+            result["predicted_lp"] = lp
+    return result
+
+
 def predict_rank(games: list[dict]) -> dict | None:
     """None si moins de MIN_ADC_GAMES games ADC (BOTTOM) dans l'historique fourni."""
     adc_games = [g for g in games if g.get("role") == "BOTTOM"]
@@ -87,8 +135,8 @@ def predict_rank(games: list[dict]) -> dict | None:
 
     calibration = _load_calibration()
     closest = min(calibration, key=lambda c: abs(c["mean_proba"] - player_proba))
-    return {
+    return attach_lp({
         "predicted_rank": closest["rank"],
         "proba": round(player_proba, 4),
         "n_games_used": len(adc_games),
-    }
+    }, agg)
