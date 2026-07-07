@@ -312,18 +312,29 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
   pendant une game ; zéro dépendance hors stdlib (copiable seul sur une machine sans le
   reste du repo).
 - **`src/collection/densify_targets.py`** — sélection **chirurgicale** des joueurs à
-  densifier pour atteindre `MIN_PLAYER_GAMES` (dataset ML per-player). 0 appel API :
+  densifier vers le sweet spot ~30 games/joueur (cf. `analyze_auc_vs_ngames.py`,
+  Courbe 2 ; defaults `--threshold 30 --min-games 15`). 0 appel API :
   relit `adc_dataset.parquet` (comptage par joueur sur le référentiel double-ADC, plus
   fiable que le silver qui sous-compte les joueurs vus surtout comme ADC ennemi), ne
   cible que la bande `[--min-games, --threshold[` (loin en dessous = chasse coûteuse
-  pour un gain incertain ; déjà au-dessus = rien à faire), trie par écart croissant.
-  Écrit `data/04_dataset/densify_targets.json` (`{puuid: rank}`), consommé par
-  `densify_players.py --target-list`.
+  pour un gain incertain ; déjà au-dessus = rien à faire), trie par écart croissant,
+  `--exclude-ranks` pour écarter diamond (frontière apprise = challenger vs master ;
+  densifier diamond pousse la classe low loin du boundary = bruit).
+  Écrit `data/04_dataset/densify_targets.json` (`{puuid: {"rank", "gap"}}`), consommé
+  par `densify_players.py --target-list`.
+- **`src/collection/densify_sweet_spot.py`** — orchestrateur one-command qui bake-in
+  les recommandations post-analyse AUC-vs-N : bande `[15,30[` (sweet spot), exclut
+  diamond, tri par gap croissant → écrit `densify_targets.json` → chaîne vers
+  `densify_players.py --target-list`. Dry-run par défaut (sélection 0 API, montre le
+  plan) ; `--run` lance le scraping. `--threshold/--min-games/--exclude/--history/--days`
+  surchargeables. Usage : `poetry run python3 src/collection/densify_sweet_spot.py
+  --run --history 60`.
 - **`src/collection/densify_players.py`** — reprend une liste de joueurs (tous ceux
-  d'un rang, ou `--target-list` ciblé via `densify_targets.py`) et va chercher leur
-  historique de matchs supplémentaire (`--history`, `--days`) pour approfondir le
-  dataset au-delà des N games collectées initialement ; dédup par match_id déjà connu,
-  checkpoint silver+gold périodique.
+  d'un rang, ou `--target-list` ciblé via `densify_targets.py`/`densify_sweet_spot.py`)
+  et va chercher leur historique de matchs supplémentaire (`--history`, `--days`) pour
+  approfondir le dataset au-delà des N games collectées initialement ; dédup par
+  match_id déjà connu, arrêt anticipé par joueur dès que `gap` games ADC neuves sont
+  trouvées (format enrichi), checkpoint silver+gold périodique.
 - **`src/pipeline_ops/rebuild_gold.py`** — régénère tout le gold depuis le silver, sans
   appel API.
 - **`src/reporting/compare.py`** — livrable coaching : slice perso vs référentiels, à issue égale.
@@ -360,6 +371,9 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     `poc/per_player_hypothesis.py` : `web/backend/ml_rank.py` utilise désormais ce
     modèle (seuil `MIN_ADC_GAMES=15`, pas de fallback en dessous) au lieu de la moyenne
     per-game. Cf. `docs/superpowers/specs/2026-07-03-per-player-consistency-design.md`.
+    `train_player_lp.py` — régression LP per-player (apex tiers, cf. bloc
+    « Régression LP » de l'État d'avancement) ; `lp_metrics.py` — Spearman
+    pooled/by-tier + RMSE (garde anti-NaN `_safe_spearman`).
     > ⚠️ **`MIN_PLAYER_GAMES` relevé 5→15 (2026-07-05).** À 5 games, l'AUC per-player
     > s'effondrait à 0.531 (bruit de matchmaking noyant le signal de dispersion, cœur du
     > modèle) malgré un dataset équilibré (865/865). Cause : l'écart-type/percentiles sur
@@ -397,6 +411,18 @@ config source, pas de la donnée). Le cache DDragon sous `00_static/ddragon/` re
     > master/GM ; les leviers sont le pool (densifier pour réduire la variance), les
     > features, ou la frontière de rang (dia_chall 0.72 vs master/GM peu séparable).
     > Sorties `data/05_model/auc_vs_ngames.{json,png}`.
+    > **Densification sweet-spot exécutée (2026-07-06)** : `densify_sweet_spot.py --run`
+    > sur la bande `[15,30[` hors diamond (471 joueurs ciblés, 4146 games manquantes,
+    > cf. script). Ré-entraîné après scraping (`build_dataset.py` → `build_player_dataset.py`
+    > → `train_player_ensemble.py`) : **982 joueurs (491/491), AUC_cv purgée 0.635**
+    > (xgb 0.623 / rf 0.634 / ebm 0.635, purge 8.7 % des games de train, 0 joueur
+    > droppé, fuite pure ≈ -0.003, dispersion 57.9 % du signal SHAP). Confirme
+    > exactement la prédiction du sweep (peak à N=30) : 0.603 → **0.635 (+0.032)**,
+    > le pool per-player étant désormais concentré près du sweet spot au lieu d'être
+    > étalé sur `[15, 20[` (agrégats bruités). Plafond ~0.65 toujours en place — la
+    > densification a fait le gain qu'elle pouvait faire ; pousser plus haut demande
+    > des features nouvelles ou une frontière de rang différente, pas plus de N ni de
+    > joueurs sur cette même bande.
   - **`src/03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM : direction par feature via `explain_local`, interactions par paires via `explain_global`) et traceurs pour la dérivation d'insights.
   - **`src/04_coaching/`** : narration LLM du coaching (Ollama Cloud, structured output).
     `payload.py` (gold perso+réf → payload déterministe, **safe-only** : positioning ⊂
@@ -477,10 +503,35 @@ reprocher une décision sur une info cachée.
   qui reprend en prod l'hypothèse validée par `poc/per_player_hypothesis.py`
   (dispersion/plancher > tendance centrale). Seuil relevé 5→15 après effondrement de
   l'AUC à 0.531 sous 5 games (bruit de matchmaking > signal de constance, cf. note
-  ci-dessus) : **AUC_cv purgée 0.603** (2026-07-06, 974 joueurs 487/487, dataset
-  41 715 games ; naïve 0.612 — la fuite par games partagées entre folds ne valait que
-  ≈ +0.005) ; historiquement 0.6216 naïve sur 1040 joueurs, 0.631 sur les 718 initiaux
-  — voir `data/05_model/player_metrics.json` (dispersion ~62 % du signal SHAP).
+  ci-dessus) : **AUC_cv purgée 0.635** (2026-07-06, après densification sweet-spot
+  `[15,30[` hors diamond, 982 joueurs 491/491, dispersion 57.9 % du signal SHAP —
+  cf. note AUC vs N ci-dessus, ce chiffre confirme le peak prédit par le sweep) ;
+  avant densification 0.603 (974 joueurs 487/487, 41 715 games) ; historiquement
+  0.6216 naïve sur 1040 joueurs, 0.631 sur les 718 initiaux — voir
+  `data/05_model/player_metrics.json` (historique complet des runs).
+- **Régression LP (hybride, apex tiers)** ✅ — 2026-07-07. Suite prod du POC LP
+  (signal within-tier confirmé : master 0.38, GM 0.55, chall 0.60). Pipeline :
+  `fetch_apex_lp.py` (3 appels API, LP courant horodaté) →
+  `build_player_lp_dataset.py` (per-player SANS balance-cap, apex seulement,
+  diamond exclu — LP non comparable) → `train_player_lp.py` (ensemble
+  xgb/rf/ebm REGRESSORS, random search graine fixe en purged CV — purge
+  précalculée par fold —, sélection au Spearman pooled OOF, SHAP, baseline POC
+  0.5028 rappelée dans `player_lp_metrics.json`). Serving hybride :
+  `ml_rank.predict_rank` ajoute `predicted_lp` (moyenne ensemble, ≥0) quand le
+  rang placé est apex et que les `.pkl` LP existent (dégradation propre sinon) ;
+  le placement binaire 4 rangs est inchangé. Drift temporel du label LP (fetch
+  au train vs games jusqu'à ~13 j) = limite connue actée. Spec :
+  `docs/superpowers/specs/2026-07-07-lp-production-design.md`.
+  **Métriques réelles (run 2026-07-07, `data/05_model/player_lp_metrics.json`)** :
+  1148 joueurs (master 703 / challenger 367 / grandmaster 78, 130 droppés sans
+  LP courant), label LP fetched_at=2026-07-07T10:19:02+00:00. Ensemble OOF
+  purgé : **Spearman pooled = 0.5186** (baseline POC 0.5028 → +0.016, gate
+  passée) ; by_tier challenger 0.5995 (n=367), grandmaster 0.5979 (n=78),
+  master 0.4103 (n=703) ; RMSE 517.2 LP. Per-model CV : xgb 0.506, rf 0.4652,
+  ebm 0.5146. Dispersion (std/p10/p90) = 56.1 % du signal SHAP (xgb) —
+  l'hypothèse constance tient sur la cible LP continue. Serving vérifié :
+  `_load_lp_bundle` charge 3 modèles + 207 features, `predict_lp` renvoie un
+  int ≥ 0.
 - **Compte-rendu par-game (axe prioritaire coaching)** ✅ — 2026-07-05. Diagnostic depuis
   la boucle de feedback (1 review annotée, premier signal) : les tags « trop-vague »/
   « non-actionnable » venaient du **payload agrégé** (le LLM ne peut pas être plus précis
