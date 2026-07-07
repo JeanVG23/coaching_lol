@@ -78,3 +78,37 @@ def test_spearman_report_by_tier_none_when_y_pred_constant():
     report = lp_metrics.spearman_report(df)
     assert report["spearman_by_tier"]["master"]["spearman"] is None
     assert report["spearman_by_tier"]["challenger"]["spearman"] is not None
+
+
+import train_lp_regression
+
+
+# --- qualified_apex_players ---------------------------------------------------
+
+def _games(puuid, rank, n, csm10):
+    return pd.DataFrame({
+        "puuid": [puuid] * n,
+        "rank": [rank] * n,
+        "win": [1] * n,
+        "csm10": csm10,
+    })
+
+
+def test_qualified_apex_players_filters_min_games_and_excludes_diamond():
+    ref = pd.concat([
+        _games("p1", "master", 3, [4.0, 6.0, 8.0]),   # qualifie : master, 3>=2 games
+        _games("p2", "master", 1, [5.0]),              # exclu : trop peu de games
+        _games("p3", "diamond", 3, [4.0, 6.0, 8.0]),   # exclu : diamond hors scope LP
+    ], ignore_index=True)
+    out = train_lp_regression.qualified_apex_players(ref, min_games=2, features=["csm10"])
+    assert set(out["puuid"]) == {"p1"}
+    assert out.iloc[0]["csm10__mean"] == pytest.approx(6.0)
+
+
+def test_qualified_apex_players_resolves_rank_by_mode_across_all_games():
+    ref = pd.concat([
+        _games("p4", "master", 2, [4.0, 6.0]),
+        _games("p4", "diamond", 1, [5.0]),
+    ], ignore_index=True)
+    out = train_lp_regression.qualified_apex_players(ref, min_games=2, features=["csm10"])
+    assert list(out["rank"]) == ["master"]     # mode sur tout l'historique : 2 master > 1 diamond
