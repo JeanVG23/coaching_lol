@@ -207,12 +207,15 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   et recalls **horodatés** (clock mm:ss) avec contexte : zone/phase, gold-state vs adversaire,
   **gold non dépensé**, killer/gank, **objectif up/imminent** (timers v1 en tête de module :
   drake 5:00/+5:00, baron 25:00/+6:00 — ajuster par patch ; Elder/Atakhan ignorés). Recalls =
-  clusters d'`ITEM_PURCHASED` (inclut resets après mort, `gold_before` = plancher frame précédente).
+  clusters d'`ITEM_PURCHASED` (inclut resets après mort, `gold_before` = plancher frame précédente),
+  **`item_ids`** par recall (achats bruts, `ITEM_UNDO` honoré = retiré, `ITEM_SOLD` ignoré v1).
   **Asymétrie** : uniquement de l'info que le joueur avait — aucun proxy ML_ONLY.
 - **`champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon + table curée,
   résolution casse-insensible), `derive_context(comp)` → `lane_pattern`
   (poke/all_in/scaling/mixed/unknown) et `gank_exposure` (low/med/high/unknown). `fetch_ddragon`
-  (one-shot, idempotent). Champion inconnu → `unknown`, jamais d'erreur.
+  (one-shot, idempotent). Champion inconnu → `unknown`, jamais d'erreur. `fetch_ddragon_items`/
+  `load_items` — même pattern one-shot pour le catalogue d'items Data Dragon (`item.json` →
+  `data/00_static/ddragon/<version>/`, `{id: {name, cost}}`).
 - **`ml_features.py`** — FEATURES canonique (partagé train/serve) + `aggregate_player_features`
   (mean/std/p10/p50/p90 + `win_rate`) + `resolve_rank` (mode, tie-break rang le plus bas).
 
@@ -317,7 +320,10 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   défaut `kimi-k2.6`), `coach.py` (CLI : payload→prompt→client→validation→affiche+persiste),
   `feedback.py` (CLI `annotate`/`summary` : boucle d'éval par-insight).
   **Chemin par-game** : `payload.build_game` (journal `game_journal` + repères référentiel à issue
-  égale), `prompt.SYSTEM_GAME`, `coach.py --game [latest|MATCH_ID]` (records `kind: "game"` +
+  égale ; recalls enrichis d'items résolus {nom, coût} via `champion_profiles.load_items` — plus
+  d'`item_ids` bruts côté LLM ; bloc `context` = comp botlane/jungle/mid + `lane_pattern`/
+  `gank_exposure` via `derive_context`), `prompt.SYSTEM_GAME` (règle matchup basée sur ce
+  `context` + règle de gold relatif au prochain achat de chaque recall), `coach.py --game [latest|MATCH_ID]` (records `kind: "game"` +
   `match_id`), `coach.py --game-batch [N]` (défaut 10 : reviews par-game des N dernières games ADC
   pas encore reviewées, dédup par `match_id`, poursuit sur échec, bilan final).
   `feedback.py annotate --pending` : itère en série toutes les reviews sans feedback. `summary` :
