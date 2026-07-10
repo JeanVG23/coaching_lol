@@ -43,8 +43,14 @@ def _kill(t_ms, victim, killer, assists=(), x=13000, y=2000):
             "position": {"x": x, "y": y}}
 
 
-def _buy(t_ms, pid):
-    return {"type": "ITEM_PURCHASED", "timestamp": t_ms, "participantId": pid}
+def _buy(t_ms, pid, item=1055):
+    return {"type": "ITEM_PURCHASED", "timestamp": t_ms,
+            "participantId": pid, "itemId": item}
+
+
+def _undo(t_ms, pid, before):
+    return {"type": "ITEM_UNDO", "timestamp": t_ms,
+            "participantId": pid, "beforeId": before}
 
 
 def _dragon_kill(t_ms):
@@ -166,3 +172,42 @@ def test_journal_never_leaks_ml_only_features():
                 yield from keys_of(v)
 
     assert set(keys_of(j)) & P.ML_ONLY == set()
+
+
+def test_recalls_capture_item_ids_in_purchase_order():
+    tl = _basic_timeline({
+        5: [_buy(310000, 1, item=1038), _buy(315000, 1, item=1055)],
+        10: [_buy(605000, 1, item=3031)],
+    })
+    r1, r2 = J.game_journal(_match(), tl, ME)["recalls"]
+    assert r1["item_ids"] == [1038, 1055]
+    assert r2["item_ids"] == [3031]
+
+
+def test_recalls_honor_item_undo():
+    # Achat 1038 annulé 5 s plus tard, puis rachat 1036 : seul 1036 subsiste.
+    tl = _basic_timeline({
+        5: [_buy(310000, 1, item=1038), _undo(315000, 1, before=1038),
+            _buy(320000, 1, item=1036)],
+    })
+    (r1,) = J.game_journal(_match(), tl, ME)["recalls"]
+    assert r1["item_ids"] == [1036]
+    assert r1["items_bought"] == 1
+
+
+def test_recalls_undo_removes_last_matching_purchase_only():
+    # Deux achats du même item, un seul undo -> il en reste un.
+    tl = _basic_timeline({
+        5: [_buy(310000, 1, item=1036), _buy(315000, 1, item=1036),
+            _undo(320000, 1, before=1036)],
+    })
+    (r1,) = J.game_journal(_match(), tl, ME)["recalls"]
+    assert r1["item_ids"] == [1036]
+
+
+def test_recalls_undo_of_other_player_ignored():
+    tl = _basic_timeline({
+        5: [_buy(310000, 1, item=1038), _undo(315000, 6, before=1038)],
+    })
+    (r1,) = J.game_journal(_match(), tl, ME)["recalls"]
+    assert r1["item_ids"] == [1038]

@@ -111,25 +111,37 @@ def _recalls(timeline: dict, pid: int, obj_kills) -> list[dict]:
     Approximation v1 : un achat implique la présence au shop (recall ou reset
     après mort — les deux sont des « resets » à coacher). gold_before = currentGold
     de la dernière frame avant la visite (léger plancher, frames espacées de 60 s).
+    ITEM_UNDO honoré (retire le dernier achat correspondant) ; ITEM_SOLD ignoré.
     """
-    buys = sorted(ev["timestamp"] for ev in _events(timeline)
+    buys = sorted((ev["timestamp"], ev.get("itemId"))
+                  for ev in _events(timeline)
                   if ev.get("type") == "ITEM_PURCHASED"
                   and ev.get("participantId") == pid
                   and ev["timestamp"] >= OPENING_BUY_MS)
-    visits: list[list[int]] = []
-    for t in buys:
-        if visits and t - visits[-1][-1] <= RECALL_CLUSTER_GAP_MS:
-            visits[-1].append(t)
+    undos = sorted((ev["timestamp"], ev.get("beforeId"))
+                   for ev in _events(timeline)
+                   if ev.get("type") == "ITEM_UNDO"
+                   and ev.get("participantId") == pid)
+    for undo_t, before in undos:
+        for i in range(len(buys) - 1, -1, -1):
+            if buys[i][1] == before and buys[i][0] <= undo_t:
+                del buys[i]
+                break
+    visits: list[list[tuple[int, int | None]]] = []
+    for t, item in buys:
+        if visits and t - visits[-1][-1][0] <= RECALL_CLUSTER_GAP_MS:
+            visits[-1].append((t, item))
         else:
-            visits.append([t])
+            visits.append([(t, item)])
     out = []
     for visit in visits:
-        t0 = visit[0]
+        t0 = visit[0][0]
         pf = _frame_before(timeline, pid, t0)
         out.append({
             "t_ms": t0, "clock": _clock(t0),
             "minute": t0 // 60000, "phase": phase_of(t0 // 60000),
             "items_bought": len(visit),
+            "item_ids": [item for _, item in visit if item is not None],
             "gold_before": pf.get("currentGold") if pf else None,
             "objective": _objective_at(obj_kills, t0),
         })
