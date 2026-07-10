@@ -49,11 +49,36 @@ class AnchoredInsight(Insight):
         return v
 
 
+class GameInsight(AnchoredInsight):
+    """Insight par-game : `point` = la leçon actionnable, `cause` = le POURQUOI
+    (mécanisme), `evidence` = la preuve chiffrée + l'horodatage mm:ss (hérité).
+
+    Réponse au feedback (boucle d'éval, 2026-07-08) : l'horodatage seul laissait le
+    joueur sans cause de mort (« je sais pas pourquoi je suis mort ») et les forces
+    sans explication (« aucune idée de pourquoi »). `cause` force le LLM à expliciter
+    le mécanisme (solo 1v1 vs gank, comportement à l'origine d'une force), et ancre les
+    forces sur un moment au même titre que les erreurs."""
+
+    cause: str = Field(description=(
+        "Le POURQUOI de l'insight : mécanisme de mort (solo 1v1 sans flash, gank 3v1, "
+        "overextension) ou comportement à l'origine d'une force. Jamais l'issue."))
+
+    @field_validator("cause")
+    @classmethod
+    def _cause_nonempty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("cause vide")
+        return v
+
+
 class GameReview(BaseModel):
     """Review d'UNE game. Pas de section habits : une habitude est un pattern
-    multi-games, indétectable sur une game isolée (source de vague assurée)."""
-    strengths: Annotated[list[Insight], Field(max_length=2)]
-    mistakes: Annotated[list[AnchoredInsight], Field(min_length=1, max_length=3)]
+    multi-games, indétectable sur une game isolée (source de vague assurée).
+    Forces ET erreurs sont des `GameInsight` : ancrées sur un moment mm:ss + cause
+    explicite (cf. GameInsight) — une force sans preuve temporelle ni cause est du
+    remplissage vague, on l'exclut plutôt que de la produire."""
+    strengths: Annotated[list[GameInsight], Field(max_length=2)]
+    mistakes: Annotated[list[GameInsight], Field(min_length=1, max_length=3)]
     next_focus: str
     confidence: Annotated[float, Field(ge=0.0, le=1.0)]
 

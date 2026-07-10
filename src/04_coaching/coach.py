@@ -151,9 +151,11 @@ def render_game_text(review: schema_mod.GameReview) -> str:
     lines = [f"\n  Confiance : {review.confidence:.0%}"]
     if review.strengths:
         lines.append("\n  Forces :")
-        lines += [f"    + {i.point}  ({i.evidence})" for i in review.strengths]
+        lines += [f"    + {i.point}  — pourquoi : {i.cause}  ({i.evidence})"
+                  for i in review.strengths]
     lines.append("\n  Erreurs prioritaires :")
-    lines += [f"    - {i.point}  ({i.evidence})" for i in review.mistakes]
+    lines += [f"    - {i.point}  — pourquoi : {i.cause}  ({i.evidence})"
+              for i in review.mistakes]
     lines.append(f"\n  Focus prochaine game : {review.next_focus}")
     return "\n".join(lines)
 

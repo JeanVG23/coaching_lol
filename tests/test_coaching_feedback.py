@@ -75,7 +75,7 @@ def _game_review_record():
             "scope": "adc", "target": "challenger",
             "payload": {"meta": {}},
             "review": {"strengths": [],
-                       "mistakes": [{"point": "m",
+                       "mistakes": [{"point": "m", "cause": "solo 1v1 sans flash",
                                      "evidence": "mort à 17:05, drake dans 6 s"}],
                        "next_focus": "f", "confidence": 0.4}}
 

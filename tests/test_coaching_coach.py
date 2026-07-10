@@ -47,7 +47,8 @@ def test_persist_appends_jsonl(tmp_path):
 
 def _game_review_dict():
     return {"strengths": [],
-            "mistakes": [{"point": "m", "evidence": "mort à 17:05, drake dans 6 s"}],
+            "mistakes": [{"point": "m", "cause": "solo 1v1 sans flash",
+                          "evidence": "mort à 17:05, drake dans 6 s"}],
             "next_focus": "f", "confidence": 0.4}
 
 

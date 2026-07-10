@@ -58,6 +58,18 @@ def test_system_game_encodes_anchor_asymmetry_and_recall_caveat():
     assert "plancher" in s.lower()      # gold_before des recalls = approximation basse
 
 
+def test_system_game_requires_cause_and_death_context():
+    # Feedback « je sais pas pourquoi je suis mort » / « aucune idée de pourquoi » :
+    # le prompt doit exiger la cause (mécanisme) + restituer le contexte de mort du
+    # journal (killer/gank/zone), pas seulement l'horodatage.
+    s = PR.SYSTEM_GAME.lower()
+    assert "cause" in s               # champ cause exigé
+    assert "pourquoi" in s            # le POURQUOI, pas seulement le moment
+    assert "killer" in s              # restituer killer_champ/killer_role du journal
+    assert "gank" in s                # restituer is_ganked_by_jungle
+    assert "comportement" in s        # forces = comportement, pas l'issue
+
+
 def test_render_game_includes_journal_and_match():
     system, user = PR.render_game(_game_payload())
     assert system == PR.SYSTEM_GAME

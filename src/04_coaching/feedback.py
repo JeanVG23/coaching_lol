@@ -237,9 +237,13 @@ def _display_items(review) -> list[tuple[str, int, str]]:
     """Retourne [(kind, index, ligne_affichage)] pour les items (ordre fixe)."""
     out = []
     for i, ins in enumerate(review.strengths):
-        out.append(("strength", i, f"Force  {i}: {ins.point}  ({ins.evidence})"))
+        cause = getattr(ins, "cause", None)
+        cause_txt = f"  — pourquoi : {cause}" if cause else ""
+        out.append(("strength", i, f"Force  {i}: {ins.point}{cause_txt}  ({ins.evidence})"))
     for i, ins in enumerate(review.mistakes):
-        out.append(("mistake", i, f"Erreur {i}: {ins.point}  ({ins.evidence})"))
+        cause = getattr(ins, "cause", None)
+        cause_txt = f"  — pourquoi : {cause}" if cause else ""
+        out.append(("mistake", i, f"Erreur {i}: {ins.point}{cause_txt}  ({ins.evidence})"))
     for i, h in enumerate(getattr(review, "habits", [])):
         out.append(("habit", i, f"Habitude {i}: {h}"))
     out.append(("focus", 0, f"Focus : {review.next_focus}"))
