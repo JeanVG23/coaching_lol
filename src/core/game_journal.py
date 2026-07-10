@@ -113,15 +113,17 @@ def _recalls(timeline: dict, pid: int, obj_kills) -> list[dict]:
     de la dernière frame avant la visite (léger plancher, frames espacées de 60 s).
     ITEM_UNDO honoré (retire le dernier achat correspondant) ; ITEM_SOLD ignoré.
     """
-    buys = sorted((ev["timestamp"], ev.get("itemId"))
-                  for ev in _events(timeline)
-                  if ev.get("type") == "ITEM_PURCHASED"
-                  and ev.get("participantId") == pid
-                  and ev["timestamp"] >= OPENING_BUY_MS)
-    undos = sorted((ev["timestamp"], ev.get("beforeId"))
+    buys = sorted(((ev["timestamp"], ev.get("itemId"))
                    for ev in _events(timeline)
-                   if ev.get("type") == "ITEM_UNDO"
-                   and ev.get("participantId") == pid)
+                   if ev.get("type") == "ITEM_PURCHASED"
+                   and ev.get("participantId") == pid
+                   and ev["timestamp"] >= OPENING_BUY_MS),
+                  key=lambda e: e[0])
+    undos = sorted(((ev["timestamp"], ev.get("beforeId"))
+                    for ev in _events(timeline)
+                    if ev.get("type") == "ITEM_UNDO"
+                    and ev.get("participantId") == pid),
+                   key=lambda e: e[0])
     for undo_t, before in undos:
         for i in range(len(buys) - 1, -1, -1):
             if buys[i][1] == before and buys[i][0] <= undo_t:

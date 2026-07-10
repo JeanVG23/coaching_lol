@@ -211,3 +211,21 @@ def test_recalls_undo_of_other_player_ignored():
     })
     (r1,) = J.game_journal(_match(), tl, ME)["recalls"]
     assert r1["item_ids"] == [1038]
+
+
+def test_recalls_same_timestamp_mixed_none_ids_no_typeerror():
+    # Deux achats au même timestamp, l'un sans itemId ; deux undos au même
+    # timestamp, l'un sans beforeId : aucune exception, l'item réel capturé.
+    buy_no_item = {"type": "ITEM_PURCHASED", "timestamp": 310000,
+                   "participantId": 1}  # pas de clé itemId
+    undo_no_before = {"type": "ITEM_UNDO", "timestamp": 320000,
+                      "participantId": 1}  # pas de clé beforeId
+    tl = _basic_timeline({
+        5: [buy_no_item, _buy(310000, 1, item=1038),
+            undo_no_before, _undo(320000, 1, before=9999)],
+    })
+    (r1,) = J.game_journal(_match(), tl, ME)["recalls"]
+    assert r1["item_ids"] == [1038]
+    # Dégradation acceptée : l'undo sans beforeId (None) consomme l'achat
+    # sans itemId (None) — l'achat réel 1038 est intact.
+    assert r1["items_bought"] == 1
