@@ -75,3 +75,18 @@ def test_render_game_includes_journal_and_match():
     assert system == PR.SYSTEM_GAME
     assert "EUW1_42" in user and "Zeri" in user
     assert json.loads(user[user.index("{"):user.rindex("}") + 1])
+
+
+def test_system_game_frames_matchup_context():
+    s = PR.SYSTEM_GAME
+    assert "context" in s and "champ select" in s.lower()
+    assert "lane_pattern" in s and "gank_exposure" in s
+    # connaissance générale des champions autorisée, mais ancrée sur le journal
+    assert "connaissance générale" in s
+    assert "n'invente jamais un événement" in s
+
+
+def test_system_game_judges_gold_relative_to_next_buy():
+    s = PR.SYSTEM_GAME
+    assert "PROCHAIN ACHAT" in s
+    assert "légitime" in s
