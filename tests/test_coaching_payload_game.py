@@ -14,7 +14,11 @@ def _dirs(tmp_path):
     p.mkdir(parents=True)
     recs = [  # la game ADC n'est PAS la dernière ligne -> prouve le filtre de scope
         {"match_id": "EUW1_42", "puuid": TJ.ME, "role": "BOTTOM",
-         "champion": "Zeri", "win": True, "queue": 420},
+         "champion": "Zeri", "win": True, "queue": 420,
+         "comp": {"self_adc": "Zeri", "self_support": "Lulu",
+                  "enemy_adc": "Jinx", "enemy_support": "Thresh",
+                  "self_jungle": "Vi", "enemy_jungle": "LeeSin",
+                  "enemy_mid": "Orianna"}},
         {"match_id": "EUW1_43", "puuid": TJ.ME, "role": "JUNGLE",
          "champion": "Diana", "win": False, "queue": 420},
     ]
@@ -89,3 +93,49 @@ def test_filter_scope_by_role_champion_and_all():
     assert [r["match_id"] for r in PL.filter_scope(records, "adc")] == ["m1", "m3"]
     assert [r["match_id"] for r in PL.filter_scope(records, "zeri")] == ["m1"]
     assert [r["match_id"] for r in PL.filter_scope(records, "all")] == ["m1", "m2", "m3"]
+
+
+# --- Items résolus et contexte de matchup ----------------------------------------
+
+FAKE_CATALOG = {1055: {"name": "Doran's Blade", "cost": 450}}
+
+
+def test_build_game_resolves_recall_items(tmp_path, monkeypatch):
+    silver, gold = _dirs(tmp_path)
+    monkeypatch.setattr(PL.cprof, "load_items", lambda: FAKE_CATALOG)
+    pl = PL.build_game("spadzze", scope="adc", target="challenger",
+                       gold_dir=gold, silver_dir=silver, load_raw=_load_raw)
+    (r1,) = pl["journal"]["recalls"]
+    assert r1["items"] == [{"name": "Doran's Blade", "cost": 450}]
+    assert "item_ids" not in r1                      # ids bruts non exposés au LLM
+
+
+def test_build_game_degrades_without_item_catalog(tmp_path, monkeypatch):
+    silver, gold = _dirs(tmp_path)
+    monkeypatch.setattr(PL.cprof, "load_items", lambda: {})
+    pl = PL.build_game("spadzze", scope="adc", target="challenger",
+                       gold_dir=gold, silver_dir=silver, load_raw=_load_raw)
+    (r1,) = pl["journal"]["recalls"]
+    assert "items" not in r1 and "item_ids" not in r1
+
+
+def test_build_game_exposes_matchup_context(tmp_path, monkeypatch):
+    silver, gold = _dirs(tmp_path)
+    monkeypatch.setattr(PL.cprof, "load_items", lambda: {})
+    monkeypatch.setattr(PL.cprof, "derive_context",
+                        lambda comp: {"lane_pattern": "all_in",
+                                      "gank_exposure": "high"})
+    pl = PL.build_game("spadzze", scope="adc", target="challenger",
+                       gold_dir=gold, silver_dir=silver, load_raw=_load_raw)
+    ctx = pl["context"]
+    assert ctx["comp"]["enemy_support"] == "Thresh"
+    assert ctx["lane_pattern"] == "all_in" and ctx["gank_exposure"] == "high"
+
+
+def test_build_game_omits_context_without_comp(tmp_path, monkeypatch):
+    # La game jungle EUW1_43 n'a pas de comp -> pas de bloc context.
+    silver, gold = _dirs(tmp_path)
+    monkeypatch.setattr(PL.cprof, "load_items", lambda: {})
+    pl = PL.build_game("spadzze", match_id="EUW1_43", scope="adc",
+                       gold_dir=gold, silver_dir=silver, load_raw=_load_raw)
+    assert "context" not in pl

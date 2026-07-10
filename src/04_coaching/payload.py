@@ -17,6 +17,7 @@ import riotlib as rl
 import positioning
 import game_journal as gj
 import compare
+import champion_profiles as cprof
 
 LANE_SIGNALS = ["gd10", "gd14", "gd20", "csd10", "csd14"]
 LANE_LABELS = {"gd10": "gold diff @10", "gd14": "gold diff @14", "gd20": "gold diff @20",
@@ -152,6 +153,15 @@ def build(player: str, scope: str = "adc", target: str = "challenger",
 _SCOPE_ROLE = {"adc": "BOTTOM"}   # scope champion (ex. zeri) = filtre sur le nom
 
 
+def _resolve_recall_items(recall: dict, catalog: dict) -> dict:
+    """item_ids bruts -> items {nom, coût} ; ids bruts jamais exposés au LLM."""
+    out = {k: v for k, v in recall.items() if k != "item_ids"}
+    items = [catalog[i] for i in recall.get("item_ids", []) if i in catalog]
+    if items:
+        out["items"] = items
+    return out
+
+
 def filter_scope(records: list[dict], scope: str) -> list[dict]:
     """Sous-liste des records du scope, ordre du fichier préservé."""
     role = _SCOPE_ROLE.get(scope)
@@ -213,6 +223,13 @@ def build_game(player: str, match_id: str | None = None, scope: str = "adc",
         "death_zone_phase": rf.get("by_zone_phase", {}),
         "death_gold_state": rf.get("death_gold_state", {}),
     }
-    return {"meta": meta,
-            "journal": {"deaths": journal["deaths"], "recalls": journal["recalls"]},
-            "benchmarks": benchmarks}
+    catalog = cprof.load_items()
+    recalls = [_resolve_recall_items(r, catalog) for r in journal["recalls"]]
+    out = {"meta": meta,
+           "journal": {"deaths": journal["deaths"], "recalls": recalls},
+           "benchmarks": benchmarks}
+    comp = rec.get("comp")
+    if comp:
+        # Champ select = info que le joueur avait (asymétrie-safe).
+        out["context"] = {"comp": comp, **cprof.derive_context(comp)}
+    return out
