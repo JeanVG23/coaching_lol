@@ -49,6 +49,34 @@ def load_ddragon() -> dict:
     return out
 
 
+def fetch_ddragon_items(version: str | None = None) -> Path:
+    version = version or DDRAGON_VERSION
+    dest = STATIC_DIR / "ddragon" / version / "item.json"
+    if dest.exists():
+        return dest  # idempotent : cache déjà chaud (refresh = supprimer le fichier)
+    url = f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/item.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+    dest.write_text(resp.text)
+    load_items.cache_clear()
+    return dest
+
+
+def _parse_items(raw: dict) -> dict:
+    return {int(iid): {"name": it.get("name", f"item_{iid}"),
+                       "cost": it.get("gold", {}).get("total")}
+            for iid, it in raw.items()}
+
+
+@lru_cache(maxsize=1)
+def load_items() -> dict:
+    path = STATIC_DIR / "ddragon" / DDRAGON_VERSION / "item.json"
+    if not path.exists():
+        return {}
+    return _parse_items(json.loads(path.read_text())["data"])
+
+
 @lru_cache(maxsize=1)
 def load_traits() -> dict:
     if not TRAITS_PATH.exists():
