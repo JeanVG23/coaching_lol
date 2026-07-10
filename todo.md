@@ -44,6 +44,7 @@
 ## 📊 Données — densifier si besoin
 
 - [ ] **Benchmark Zeri** densifié (sampling champion ciblé) si la slice `zeri` reste trop fine pour des conseils fiables.
+- [ ] **Vérifier l'équilibrage des classes (ML)** : nous avons probablement beaucoup plus de games en Diamond et Challenger qu'en Master et GM, ce qui pourrait déséquilibrer l'entraînement et les prédictions.
 
 ## 🌐 Dev web — interface Fly.io (FastAPI + front statique)
 
