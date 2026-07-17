@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""
+02_data_science — couche donnée/CV partagée par train_sequence_model et
+pretrain_sequence_model (DRY). Chargement npz, labels par tâche, folds joueur-groupés,
+purge miroir, standardisation per-feature (z-score sur le train du fold).
+
+⚠ Standardisation non négociable (spec 2026-07-18 décision 3) : totalGold ~15000 dans la
+même projection que position [0,1] rend l'entraînement instable ; sans standardisation un
+null est un artefact d'optimisation, pas une réponse à la question de recherche.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_CORE = Path(__file__).resolve().parent.parent / "core"
+sys.path.insert(0, str(_CORE))
+import numpy as np
+import riotlib as rl
+
+DATASET = rl.DATA / "04_dataset" / "adc_sequence_dataset.npz"
+HIGH_ELO = {"grandmaster", "challenger"}
+DIA_CHALL = {"diamond", "challenger"}
+TASKS = ("high_elo", "dia_chall")
+
+
+def load_dataset(path: Path = DATASET) -> dict:
+    d = np.load(path, allow_pickle=True)
+    return {k: d[k] for k in d.files}
+
+
+def task_subset(data: dict, task: str) -> tuple[np.ndarray, np.ndarray]:
+    """-> (idx rows, y binaire). high_elo : toutes rows label=GM/C. dia_chall : filter
+    diamond+challenger, label=challenger."""
+    ranks = data["rank"]
+    if task == "high_elo":
+        # perso (rank None) exclu -> on garde les rows dont rank est défini
+        idx = np.array([i for i, r in enumerate(ranks) if r is not None])
+        y = np.array([1 if r in HIGH_ELO else 0 for r in ranks[idx]], dtype=np.int64)
+    elif task == "dia_chall":
+        idx = np.array([i for i, r in enumerate(ranks) if r in DIA_CHALL])
+        y = np.array([1 if ranks[i] == "challenger" else 0 for i in idx], dtype=np.int64)
+    else:
+        raise ValueError(f"task inconnue: {task}")
+    return idx, y
+
+
+def player_folds(puuids: np.ndarray, y: np.ndarray,
+                 n_splits: int = 5, seed: int = 42) -> list[tuple[np.ndarray, np.ndarray]]:
+    """StratifiedKFold sur les joueurs (chaque joueur -> 1 fold), expandu en indices de rows.
+    Stratification sur le label du joueur (mode de ses rows). Aucun joueur à cheval train/val."""
+    import pandas as pd
+    from sklearn.model_selection import StratifiedKFold
+    df = pd.DataFrame({"puuid": puuids, "y": y})
+    player_label = df.groupby("puuid")["y"].agg(lambda s: s.mode().iloc[0]).reset_index()
+    player_label.columns = ["puuid", "plabel"]
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    folds = []
+    player_arr = player_label["puuid"].to_numpy()
+    plabel_arr = player_label["plabel"].to_numpy()
+    for p_tr, p_va in cv.split(player_arr, plabel_arr):
+        tr_p = set(player_arr[p_tr]); va_p = set(player_arr[p_va])
+        tr_idx = np.array([i for i, p in enumerate(puuids) if p in tr_p])
+        va_idx = np.array([i for i, p in enumerate(puuids) if p in va_p])
+        folds.append((tr_idx, va_idx))
+    return folds
+
+
+def mirror_purge(train_idx: np.ndarray, val_puuids: set,
+                 match_ids: np.ndarray, puuids: np.ndarray) -> np.ndarray:
+    """Drop les rows de train dont l'ADC adverse (autre puuid du même match_id) est un
+    joueur de val (fuite par games miroir : les 2 ADC d'une game sont des lignes en miroir).
+    O(N) : pré-indexe match_id -> puuids une fois, puis lookup par row de train (vs O(n²)
+    naïf qui coûterait ~500M itérations Python sur 5 folds × 2 tâches)."""
+    val_puuids = set(val_puuids)
+    match_to_puuids: dict[object, list] = {}
+    for mid, p in zip(match_ids, puuids):
+        match_to_puuids.setdefault(mid, []).append(p)
+    keep = []
+    for i in train_idx:
+        mid = match_ids[i]; me = puuids[i]
+        opps = match_to_puuids.get(mid, [])
+        if any(o != me and o in val_puuids for o in opps):
+            continue
+        keep.append(i)
+    return np.array(keep, dtype=train_idx.dtype)
+
+
+def standardize_fit(sequences: np.ndarray, mask: np.ndarray,
+                    train_idx: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """mean/std par feature (20) sur les frames valides des rows de train."""
+    X = sequences[train_idx][mask[train_idx]]      # [n_valid, 20]
+    mean = X.mean(axis=0)
+    std = X.std(axis=0)
+    std[std < 1e-6] = 1.0                          # garde-fou feature constante
+    return mean.astype(np.float32), std.astype(np.float32)
+
+
+def standardize_apply(sequences: np.ndarray, mean: np.ndarray,
+                      std: np.ndarray) -> np.ndarray:
+    return ((sequences - mean) / std).astype(np.float32)
