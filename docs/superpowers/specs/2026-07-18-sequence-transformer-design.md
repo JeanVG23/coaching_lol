@@ -140,10 +140,14 @@ chaque étape est un résultat falsifiable.
 
 ### 4. `src/02_data_science/pretrain_sequence_model.py` — étape 2 self-supervised
 
-- Pretrain sur TOUTES les rows (les deux ADC par game, peu importe le rang — pas de label).
-  Masque ~15 % des minutes au hasard (par séquence), reconstruit le state 20-d des frames
-  masquées. Perte : MSE sur les frames masquées uniquement (`src_key_padding_mask` +
-  masque de pretrain distinct du masque de padding).
+- Pretrain **par-fold, train-only** (puriste) : pour chaque fold, on standardise train-only
+  (mêmes stats qu'au finetune → transfert non saboté), on pretrain l'encodeur mask-and-reconstruct
+  sur le **TRAIN du fold uniquement** (joueurs de val jamais vus → pas de fuite transductive),
+  puis on finetune. Masque ~15 % des minutes au hasard (par séquence), reconstruit le state
+  20-d des frames masquées. Perte : MSE sur les frames masquées uniquement. Choix délibéré
+  vs pretrain sur toutes les données : on sacrifie du volume de pretrain par fold pour un
+  `delta_ssl` propre (pas d'avantage transductif). `delta_ssl = AUC_ssl − AUC_supervisé`
+  (étape 1, même CV purgé).
 - **Faiblesse connue du prétexte** : MSE-reconstruct sur des signaux lisses (gold monotone,
   position continue) est de la **quasi-interpolation** — le modèle peut cartonner la
   reconstruction sans rien apprendre de pertinent au rang. Un prétexte plus dur (prédiction
@@ -187,6 +191,9 @@ Trois nulls possibles, trois significations différentes — ne pas conclure tro
 3. **≈0 `delta_ssl`** : ne condamne pas le SSL. Le prétexte MSE-reconstruct est faible sur
    signaux lisses (interpolation). Répond à « ce prétexte aide-t-il ? », pas à « le SSL
    aide-t-il ? ». Un prétexte prédictif (étape 3) reste à tester.
+   > Choix puriste résolvant la caveat transductive : pretrain **par-fold train-only**
+   > (pas de fuite val) → un delta positif est un signal propre, pas un artefact transductif.
+   > Coût : moins de données de pretrain par fold.
 
 Chaque null est donc assorti de la raison pour laquelle il pourrait être un artefact. Le
 design vise à mesurer proprement, pas à forcer un résultat positif — mais aussi à ne pas

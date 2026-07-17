@@ -890,9 +890,7 @@ def task_subset(data: dict, task: str) -> tuple[np.ndarray, np.ndarray]:
     diamond+challenger, label=challenger."""
     ranks = data["rank"]
     if task == "high_elo":
-        idx = np.where(ranks != np.array(None, dtype=object))[0] if False else \
-              np.array([i for i, r in enumerate(ranks) if r is not None])
-        # NOTE perso (rank None) exclu -> on garde les rows dont rank est défini
+        # perso (rank None) exclu -> on garde les rows dont rank est défini
         idx = np.array([i for i, r in enumerate(ranks) if r is not None])
         y = np.array([1 if r in HIGH_ELO else 0 for r in ranks[idx]], dtype=np.int64)
     elif task == "dia_chall":
@@ -927,14 +925,18 @@ def player_folds(puuids: np.ndarray, y: np.ndarray,
 def mirror_purge(train_idx: np.ndarray, val_puuids: set,
                  match_ids: np.ndarray, puuids: np.ndarray) -> np.ndarray:
     """Drop les rows de train dont l'ADC adverse (autre puuid du même match_id) est un
-    joueur de val (fuite par games miroir : les 2 ADC d'une game sont des lignes en miroir)."""
+    joueur de val (fuite par games miroir : les 2 ADC d'une game sont des lignes en miroir).
+    O(N) : pré-indexe match_id -> puuids une fois, puis lookup par row de train (vs O(n²)
+    naïf qui coûterait ~500M itérations Python sur 5 folds × 2 tâches)."""
     val_puuids = set(val_puuids)
+    match_to_puuids: dict[object, list] = {}
+    for mid, p in zip(match_ids, puuids):
+        match_to_puuids.setdefault(mid, []).append(p)
     keep = []
     for i in train_idx:
         mid = match_ids[i]; me = puuids[i]
-        opps = [p for j, p in enumerate(puuids)
-                if match_ids[j] == mid and p != me]
-        if any(o in val_puuids for o in opps):
+        opps = match_to_puuids.get(mid, [])
+        if any(o != me and o in val_puuids for o in opps):
             continue
         keep.append(i)
     return np.array(keep, dtype=train_idx.dtype)
@@ -960,26 +962,11 @@ def standardize_apply(sequences: np.ndarray, mean: np.ndarray,
 Run: `poetry run pytest tests/test_sequence_data.py -v`
 Expected: PASS (6 tests).
 
-> Note : nettoyer la double assignation `idx` dans `task_subset` high_elo avant commit (garder la version `np.array([i for i, r in enumerate(ranks) if r is not None])`). Le code ci-dessus contient un reliquat à effacer.
-
-- [ ] **Step 5: Nettoyer + repasser**
-
-Dans `src/02_data_science/sequence_data.py`, remplacer le bloc high_elo par :
-
-```python
-    if task == "high_elo":
-        idx = np.array([i for i, r in enumerate(ranks) if r is not None])
-        y = np.array([1 if r in HIGH_ELO else 0 for r in ranks[idx]], dtype=np.int64)
-```
-
-Run: `poetry run pytest tests/test_sequence_data.py -v`
-Expected: PASS (6 tests).
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/02_data_science/sequence_data.py tests/test_sequence_data.py
-git commit -m "feat(sequence): sequence_data (labels, folds joueur-groupés, purge miroir, standardisation)"
+git commit -m "feat(sequence): sequence_data (labels, folds joueur-groupés, purge miroir O(N), standardisation)"
 ```
 
 ---
@@ -1081,19 +1068,21 @@ SEED = 42
 
 
 def _baseline_tabular(task, folds, idx, y, data, seed=SEED):
-    """xgb sur adc_dataset.parquet (features agrégées), même fold partition joueur + purge miroir."""
+    """Ensemble xgb+rf sur adc_dataset.parquet (features agrégées), MÊME fold partition
+    joueur + purge miroir que le transformer. Donne à l'agrégat son meilleur coup (pas un
+    xgb sous-tuné qui offrirait une victoire facile au transformer). NB : les 0.724/0.589 de
+    CLAUDE.md viennent d'un autre protocole (ensemble 3-modèles, CV per-game non purgée) ->
+    notre baseline est le comparatif propre, PAS une reproduction de ces chiffres."""
     import xgboost as xgb
+    from sklearn.ensemble import RandomForestClassifier
     from sklearn.metrics import roc_auc_score
     df = pd.read_parquet(TABULAR)
-    # aligne les rows du tabulaire sur (match_id, puuid) de la séquence
-    key = lambda i: (data["match_id"][i], data["puuid"][i])
-    tab_idx = df.set_index(["match_id", "puuid"]).index
     feat_cols = [c for c in df.columns if c not in
                  ("match_id", "puuid", "source", "rank", "champion", "win",
                   "patch", "game_ts", "rank_ord", "high_elo")]
-    oof = np.full(len(idx), np.nan)
+    oof_xgb = np.full(len(idx), np.nan)
+    oof_rf = np.full(len(idx), np.nan)
     for tr_i, va_i in folds:
-        # rows tabulaires pour train/val (par puuid)
         tr_puuids = set(data["puuid"][idx][tr_i]); va_puuids = set(data["puuid"][idx][va_i])
         tr_df = df[df["puuid"].isin(tr_puuids)
                    & ~df["match_id"].isin(set(data["match_id"][idx][va_i]))]
@@ -1105,18 +1094,26 @@ def _baseline_tabular(task, folds, idx, y, data, seed=SEED):
         yv = va_df["rank"].isin(sd.HIGH_ELO if task == "high_elo" else {"challenger"}).astype(int)
         if len(set(yv)) < 2:
             continue
-        m = xgb.XGBClassifier(n_estimators=200, max_depth=3, learning_rate=0.05,
-                              subsample=0.8, colsample_bybytree=0.8, eval_metric="logloss",
-                              tree_method="hist", random_state=seed)
-        m.fit(tr_df[feat_cols], yt)
-        proba = m.predict_proba(va_df[feat_cols])[:, 1]
-        # map back val rows -> oof
-        va_map = {(r["match_id"], r["puuid"]): p
-                  for (_, r), p in zip(va_df.iterrows(), proba)}
-        for k, j in enumerate(va_i):
-            oof[j] = va_map.get(key(idx[j]), np.nan)
-    mask = ~np.isnan(oof)
-    return float(roc_auc_score(y[mask], oof[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
+        mx = xgb.XGBClassifier(n_estimators=400, max_depth=4, learning_rate=0.05,
+                               subsample=0.8, colsample_bytree=0.8, min_child_weight=3,
+                               reg_lambda=1.0, eval_metric="logloss", tree_method="hist",
+                               random_state=seed)
+        mr = RandomForestClassifier(n_estimators=400, max_depth=6, min_samples_leaf=4,
+                                    max_features="sqrt", n_jobs=-1, random_state=seed)
+        Xt = tr_df[feat_cols]; Xv = va_df[feat_cols]
+        mx.fit(Xt, yt)
+        mr.fit(Xt.fillna(Xt.median(numeric_only=True)), yt)
+        p_x = mx.predict_proba(Xv)[:, 1]
+        p_r = mr.predict_proba(Xv.fillna(Xv.median(numeric_only=True)))[:, 1]
+        va_map = {(r["match_id"], r["puuid"]): (px, pr)
+                  for (_, r), px, pr in zip(va_df.iterrows(), p_x, p_r)}
+        for j in va_i:
+            v = va_map.get((data["match_id"][idx[j]], data["puuid"][idx[j]]))
+            if v is not None:
+                oof_xgb[j], oof_rf[j] = v
+    ens = np.where(np.isnan(oof_xgb) | np.isnan(oof_rf), np.nan, (oof_xgb + oof_rf) / 2.0)
+    mask = ~np.isnan(ens)
+    return float(roc_auc_score(y[mask], ens[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
 
 
 def _baseline_mlp(task, folds, idx, y, data, seed=SEED):
@@ -1153,13 +1150,14 @@ def _baseline_mlp(task, folds, idx, y, data, seed=SEED):
 
 def _train_one_task(task, data, device, epochs, batch, seed):
     from sklearn.metrics import roc_auc_score
+    import copy
     idx, y = sd.task_subset(data, task)
     if len(set(y)) < 2 or len(idx) < 50:
-        return {"auc_mean": None, "auc_std": None, "n_rows": int(len(idx)),
-                "reason": "trop peu de rows ou 1 classe"}
+        return ({"auc_mean": None, "auc_std": None, "n_rows": int(len(idx)),
+                 "reason": "trop peu de rows ou 1 classe"}, None)
     folds = sd.player_folds(data["puuid"][idx], y, n_splits=5, seed=seed)
     oof = np.full(len(idx), np.nan)
-    best_state, best_auc = None, -1.0
+    best_state_global, best_auc_global = None, -1.0
     for fi, (tr_i, va_i) in enumerate(folds):
         val_puuids = set(data["puuid"][idx][va_i])
         tr_purged = sd.mirror_purge(tr_i, val_puuids, data["match_id"][idx], data["puuid"][idx])
@@ -1175,7 +1173,7 @@ def _train_one_task(task, data, device, epochs, batch, seed):
         model = sm.SequenceClassifier().to(device)
         opt = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-2)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
-        best_fold_auc, patience, bad = 0.0, 10, 0
+        best_fold_auc, best_state, patience, bad = 0.0, None, 10, 0
         for ep in range(epochs):
             model.train()
             perm = torch.randperm(len(Xtr))
@@ -1193,28 +1191,34 @@ def _train_one_task(task, data, device, epochs, batch, seed):
             auc = roc_auc_score(y[va_i], pv)
             if auc > best_fold_auc:
                 best_fold_auc = auc
+                bad = 0                                  # patience reset sur amélioration
+                best_state = {k: v.detach().cpu().clone()
+                              for k, v in model.state_dict().items()}
             else:
                 bad += 1
                 if bad >= patience:
                     break
+        # OOF au MEILLEUR état (restaure best_state, pas le dernier)
+        if best_state is not None:
+            model.load_state_dict({k: v.to(device) for k, v in best_state.items()})
         model.eval()
         with torch.no_grad():
             oof[va_i] = torch.sigmoid(model(Xva, Mva)).cpu().numpy()
-        if best_fold_auc > best_auc:
-            best_auc = best_fold_auc
-            best_state = {k: v.cpu() for k, v in model.state_dict().items()}
+        if best_fold_auc > best_auc_global:
+            best_auc_global = best_fold_auc
+            best_state_global = best_state
     mask = ~np.isnan(oof)
     auc = float(roc_auc_score(y[mask], oof[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
     per_fold = [float(roc_auc_score(y[v], oof[v])) for (_, v) in folds
                 if not np.isnan(oof[v]).any() and len(set(y[v])) > 1]
-    return {
+    return ({
         "auc_mean": auc,
         "auc_std": float(np.std(per_fold)) if per_fold else None,
         "n_rows": int(len(idx)), "n_val_folds": len(per_fold),
         "baseline_tabular_auc": _baseline_tabular(task, folds, idx, y, data, seed),
         "baseline_mlp_auc": _baseline_mlp(task, folds, idx, y, data, seed),
-        "best_fold_auc": float(best_auc),
-    }
+        "best_fold_auc": float(best_auc_global),
+    }, best_state_global)
 
 
 def run(epochs=60, batch=64, seed=SEED, device_force=None) -> dict:
@@ -1223,18 +1227,18 @@ def run(epochs=60, batch=64, seed=SEED, device_force=None) -> dict:
     print(f"  device={device} | {len(data['sequences'])} séquences")
     metrics = {"tasks": {}, "params": {"epochs": epochs, "batch": batch, "seed": seed,
                 "d_model": 64, "n_layers": 4, "nhead": 4, "device": str(device)}}
+    saved_state = None
     for task in sd.TASKS:
         print(f"\n=== tâche {task} ===")
-        m = _train_one_task(task, data, device, epochs, batch, seed)
+        m, state = _train_one_task(task, data, device, epochs, batch, seed)
         metrics["tasks"][task] = m
         print(f"  séquence AUC={m.get('auc_mean')} (±{m.get('auc_std')})  "
               f"tabulaire={m.get('baseline_tabular_auc')}  mlp={m.get('baseline_mlp_auc')}")
+        if task == "high_elo" and state is not None:
+            saved_state = state                              # meilleur modèle high_elo (best fold)
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    if metrics["tasks"].get("high_elo", {}).get("auc_mean") is not None:
-        clf = sm.SequenceClassifier().to(device)
-        # on ne persiste que les poids du meilleur fold (heuristique : dernier état suffit
-        # pour un POC ; pour prod on sauverait le best_state strict)
-        torch.save(clf.state_dict(), MODEL_DIR / "sequence_supervised.pt")
+    if saved_state is not None:
+        torch.save(saved_state, MODEL_DIR / "sequence_supervised.pt")
     (MODEL_DIR / "sequence_metrics.json").write_text(json.dumps(metrics, indent=2))
     print(f"\n✓ {MODEL_DIR}/sequence_metrics.json")
     return metrics
@@ -1261,7 +1265,7 @@ Expected: PASS (le mini-dataset a un signal injecté → auc_mean > 0.5 ; baseli
 - [ ] **Step 5: Lancer sur les vraies données**
 
 Run: `poetry run python3 src/02_data_science/train_sequence_model.py --epochs 60`
-Expected: affiche AUC séquence / tabulaire / MLP pour high_elo et dia_chall ; écrit `data/05_model/sequence_metrics.json` + `sequence_supervised.pt`. Note : la baseline tabulaire doit reproduire ~0.72 dia_chall / ~0.59 master-GM (aux folds près) — sinon le join (match_id, puuid) est cassé, à debugger.
+Expected: affiche AUC séquence / tabulaire / MLP pour high_elo et dia_chall ; écrit `data/05_model/sequence_metrics.json` + `sequence_supervised.pt`. Note : les 0.724 dia_chall / 0.589 master-GM de CLAUDE.md viennent d'un AUTRE protocole (ensemble 3-modèles, CV per-game non purgée) — notre baseline tabulaire (xgb+rf sur folds purgés) N'A PAS à reproduire ces chiffres exacts ; c'est un *prior* (dia_chall attendu ~0.6-0.7, master/GM ~0.55-0.62), pas un oracle. Si la baseline tabulaire sort ~0.5 (aléatoire) sur dia_chall, ALORS seulement debugger le join (match_id, puuid) — sinon c'est juste un modèle/protocole différent.
 
 - [ ] **Step 6: Commit**
 
@@ -1339,8 +1343,14 @@ Expected: FAIL — module non trouvé.
 ```python
 #!/usr/bin/env python3
 """
-02_data_science — étape 2 : pretrain self-supervised (mask-and-reconstruct) sur TOUTES
-les games (les deux ADC, sans label), puis fine-tune sur high_elo avec le même CV purgé.
+02_data_science — étape 2 : pretrain self-supervised (mask-and-reconstruct) PURISTE
+par-fold : pour chaque fold, on standardise train-only, on pretrain l'encodeur sur le
+TRAIN du fold uniquement (joueurs de val jamais vus -> pas de fuite transductive), puis
+on finetune le classifieur high_elo. Mêmes stats de standardisation au pretrain et au
+finetune -> transfert non saboté. delta_ssl = AUC_ssl - AUC_supervisé (étape 1, même CV),
+donc un delta propre (pas d'avantage transductif). NB : moins de données de pretrain par
+fold (~train rows seulement) que si on préentraînait sur tout — choix délibéré pour la
+propreté du comparatif.
 
 ⚠ Le prétexte MSE-reconstruct est FAIBLE sur signaux lisses (gold monotone, position
 continue -> quasi-interpolation) : le modèle peut cartonner la reconstruction sans rien
@@ -1368,40 +1378,17 @@ SEED = 42
 MASK_FRAC = 0.15
 
 
-def _pretrain(data, device, epochs, batch, seed):
-    rng = np.random.RandomState(seed)
-    enc = sm.SequenceEncoder().to(device)
-    head = sm.ReconstructHead().to(device)
-    opt = torch.optim.AdamW(list(enc.parameters()) + list(head.parameters()),
-                            lr=3e-4, weight_decay=1e-2)
-    mean = data["sequences"][data["mask"]].mean(0)
-    std = data["sequences"][data["mask"]].std(0); std[std < 1e-6] = 1.0
-    Xs = ((data["sequences"] - mean) / std).astype(np.float32)
-    X = torch.from_numpy(Xs).to(device)
-    M = torch.from_numpy(data["mask"]).to(device)
-    n = len(X)
-    for ep in range(epochs):
-        enc.train(); head.train()
-        perm = torch.randperm(n)
-        for b in range(0, n, batch):
-            bi = perm[b:b + batch]
-            xb, mb = X[bi], M[bi]
-            ssl_mask = (torch.rand_like(mb.float()) < MASK_FRAC) & mb   # masque 15% des valides
-            h = enc(xb, mb & ~ssl_mask)                                # encode sans les frames masquées
-            pred = head(h)
-            target = xb
-            loss = ((pred - target) ** 2 * ssl_mask.unsqueeze(-1)).sum() / \
-                   ssl_mask.float().sum().clamp(min=1.0) / 20.0
-            opt.zero_grad(); loss.backward(); opt.step()
-    torch.save(enc.state_dict(), MODEL_DIR / "sequence_encoder_pretrain.pt")
-    return enc
-
-
-def _finetune(data, enc, device, epochs, batch, seed):
+def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed):
+    """SSL puriste par-fold : pour chaque fold, (1) standardise train-only, (2) pretrain
+    mask-and-reconstruct sur le TRAIN du fold uniquement, (3) finetune classifieur avec
+    l'encodeur pré-entraîné. Même échelle d'entrée au pretrain et au finetune (mêmes stats
+    train-only) -> transfert non saboté. Aucune fuite : joueurs de val jamais vus au
+    pretrain. delta_ssl est donc un signal propre (pas d'avantage transductif)."""
     from sklearn.metrics import roc_auc_score
     idx, y = sd.task_subset(data, "high_elo")
     folds = sd.player_folds(data["puuid"][idx], y, n_splits=5, seed=seed)
     oof = np.full(len(idx), np.nan)
+    best_enc, best_auc = None, -1.0
     for tr_i, va_i in folds:
         val_puuids = set(data["puuid"][idx][va_i])
         tr_purged = sd.mirror_purge(tr_i, val_puuids, data["match_id"][idx], data["puuid"][idx])
@@ -1409,47 +1396,75 @@ def _finetune(data, enc, device, epochs, batch, seed):
             continue
         mean, std = sd.standardize_fit(data["sequences"], data["mask"], idx[tr_purged])
         Xs = sd.standardize_apply(data["sequences"], mean, std)
-        clf = sm.SequenceClassifier().to(device)
-        clf.encoder.load_state_dict(enc.state_dict())     # initialisation pré-entraînée
-        opt = torch.optim.AdamW(clf.parameters(), lr=3e-4, weight_decay=1e-2)
         Xtr = torch.from_numpy(Xs[idx[tr_purged]]).to(device)
         Mtr = torch.from_numpy(data["mask"][idx[tr_purged]]).to(device)
         ytr = torch.from_numpy(y[tr_purged].astype(np.float32)).to(device)
         Xva = torch.from_numpy(Xs[idx[va_i]]).to(device)
         Mva = torch.from_numpy(data["mask"][idx[va_i]]).to(device)
-        for ep in range(epochs):
+        n = len(Xtr)
+        # (1)+(2) pretrain SSL sur le TRAIN du fold
+        enc = sm.SequenceEncoder().to(device)
+        head = sm.ReconstructHead().to(device)
+        opt_p = torch.optim.AdamW(list(enc.parameters()) + list(head.parameters()),
+                                  lr=3e-4, weight_decay=1e-2)
+        for ep in range(pretrain_epochs):
+            enc.train(); head.train()
+            perm = torch.randperm(n)
+            for b0 in range(0, n, batch):
+                bi = perm[b0:b0 + batch]
+                xb, mb = Xtr[bi], Mtr[bi]
+                ssl_mask = (torch.rand_like(mb.float()) < MASK_FRAC) & mb   # 15% des valides masquées
+                h = enc(xb, mb & ~ssl_mask)                                 # encode sans les masquées
+                pred = head(h)
+                loss = ((pred - xb) ** 2 * ssl_mask.unsqueeze(-1)).sum() / \
+                       ssl_mask.float().sum().clamp(min=1.0) / 20.0
+                opt_p.zero_grad(); loss.backward(); opt_p.step()
+        # (3) finetune : encodeur pré-entraîné + tête fraîche
+        clf = sm.SequenceClassifier().to(device)
+        clf.encoder.load_state_dict(enc.state_dict())
+        opt_f = torch.optim.AdamW(clf.parameters(), lr=3e-4, weight_decay=1e-2)
+        for ep in range(finetune_epochs):
             clf.train()
-            perm = torch.randperm(len(Xtr))
-            for b in range(0, len(perm), batch):
-                bi = perm[b:b + batch]
+            perm = torch.randperm(n)
+            for b0 in range(0, n, batch):
+                bi = perm[b0:b0 + batch]
                 loss = torch.nn.functional.binary_cross_entropy_with_logits(
                     clf(Xtr[bi], Mtr[bi]), ytr[bi])
-                opt.zero_grad(); loss.backward(); opt.step()
+                opt_f.zero_grad(); loss.backward(); opt_f.step()
         clf.eval()
         with torch.no_grad():
             oof[va_i] = torch.sigmoid(clf(Xva, Mva)).cpu().numpy()
+        if len(set(y[va_i])) > 1:
+            a = roc_auc_score(y[va_i], oof[va_i])
+            if a > best_auc:
+                best_auc = a
+                best_enc = {k: v.detach().cpu().clone()
+                            for k, v in clf.encoder.state_dict().items()}
     mask = ~np.isnan(oof)
-    return float(roc_auc_score(y[mask], oof[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
+    auc = float(roc_auc_score(y[mask], oof[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
+    return auc, best_enc
 
 
 def run(pretrain_epochs=30, finetune_epochs=40, batch=64, seed=SEED, device_force=None) -> dict:
     data = sd.load_dataset()
     device = torch.device(device_force) if device_force else sm.get_device()
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    enc = _pretrain(data, device, pretrain_epochs, batch, seed)
-    auc_ssl = _finetune(data, enc, device, finetune_epochs, batch, seed)
-    # lit l'AUC supervisé étape 1
+    auc_ssl, best_enc = _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed)
+    # lit l'AUC supervisé étape 1 (même protocole CV purgé, sans pretrain)
     metrics_path = MODEL_DIR / "sequence_metrics.json"
     prev = json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
     auc_sup = prev.get("tasks", {}).get("high_elo", {}).get("auc_mean")
     out = {"auc_supervised": auc_sup, "auc_ssl": auc_ssl,
            "delta_ssl": (auc_ssl - auc_sup) if (auc_ssl is not None and auc_sup is not None) else None,
            "pretext": "mask-and-reconstruct (MSE, 15% mask) — prétexte faible sur signaux lisses ; "
-                      "≈0 delta n'est pas un verdict sur le SSL en général (cf. spec §Pièges)",
+                      "≈0 delta n'est pas un verdict sur le SSL en général (cf. spec §Pièges). "
+                      "Pretrain par-fold train-only : pas d'avantage transductif, delta propre.",
            "params": {"pretrain_epochs": pretrain_epochs, "finetune_epochs": finetune_epochs,
                       "seed": seed, "device": str(device)}}
     prev["ssl"] = out
     metrics_path.write_text(json.dumps(prev, indent=2))
+    if best_enc is not None:
+        torch.save(best_enc, MODEL_DIR / "sequence_encoder_pretrain.pt")
     print(f"  AUC supervisé={auc_sup}  AUC ssl={auc_ssl}  delta={out['delta_ssl']}")
     print(f"✓ {MODEL_DIR}/sequence_encoder_pretrain.pt + delta dans sequence_metrics.json")
     return out
@@ -1522,7 +1537,10 @@ Run: `poetry run python3 -c "import json; m=json.load(open('data/05_model/sequen
 Interprétation (à écrire dans un commentaire de commit / note, pas dans le code) :
 - **dia_chall** : si `auc_mean(seq) > baseline_tabular_auc` → la séquence capte un signal que l'agrégat rate (thèse séquence renforcée). Si ≈ → null v1 non concluant (rappeler §Pièges : v1 = frames que l'agrégat résume déjà ; signal fort vit dans les events, étape 2 d'enrichissement).
 - **master/GM** : null attendu et non interprétable (bruit de label). Ne pas conclure.
-- **ssl.delta_ssl** : > 0 → ce prétexte aide à N=8k. ≈0 → ce prétexte est faible (interpolation), pas un verdict sur le SSL ; un prétexte prédictif reste à tester (étape 3).
+- **ssl.delta_ssl** : pretrain par-fold train-only → delta propre (pas d'avantage
+  transductif, pas de fuite val). > 0 → ce prétexte aide vraiment à N=8k (signal réel).
+  ≈0 → ce prétexte est faible (interpolation sur signaux lisses), pas un verdict sur le
+  SSL en général ; un prétexte prédictif (future-event) reste à tester en étape 3.
 
 - [ ] **Step 3: Mettre à jour CLAUDE.md**
 
@@ -1548,24 +1566,31 @@ git commit -m "docs: état recherche transformer séquentiel + SSL (CLAUDE.md)"
 
 ---
 
-## Self-Review (post-écriture)
+## Self-Review (post-écriture, post-review critique)
+
+Review externe intégré (7 points) : bugs de validité (#1-3) + bugs de qualité (#4-7) + nit
+process. Tous corrigés inline ci-dessus.
 
 **1. Spec coverage :**
 - State vector 20-d (8+8+4) — Task 1-2 ✓
-- Standardisation per-feature non négociable — Task 7 (`standardize_fit/apply`) + Task 8 (appliquée par fold) ✓
+- Standardisation per-feature non négociable, IDENTIQUE pretrain+finetune (train-only par fold) — Task 7 (`standardize_fit/apply`) + Task 8 (appliquée par fold) + Task 9 (`_ssl_cv` réutilise les mêmes stats) ✓ (fix #2)
 - Cap T=40 + pad mask — Task 2 ✓
 - Deux tâches co-primaires high_elo + dia_chall — Task 7 (`task_subset`, `TASKS`) + Task 8 (boucle sur `sd.TASKS`) ✓
-- CV purgé joueur-groupé + miroir — Task 7 (`player_folds`, `mirror_purge`) + Task 8 (applique) ✓
+- CV purgé joueur-groupé + miroir (O(N)) — Task 7 (`player_folds`, `mirror_purge` indexé) + Task 8/9 (applique) ✓ (fix #6)
 - Transformer à la main (pas HF) — Task 4-6 ✓
 - masked-mean-pool + ablation CLS notée — Task 5 (commentaire dans `sequence_model.py`) ✓
-- Baselines tabulaire + MLP même folds — Task 8 (`_baseline_tabular`, `_baseline_mlp`) ✓
-- SSL mask-and-reconstruct + delta + caveat interpolation — Task 9 ✓
+- Baseline tabulaire = ensemble xgb+rf correctement tuné (pas un xgb sous-tuné), MLP contrôle — Task 8 ✓ (fix #1 + typo #5)
+- Assertion de reproduction 0.72/0.59 adoucie en *prior* (pas un oracle) — Task 8 Step 5 ✓ (fix #1)
+- SSL mask-and-reconstruct par-fold train-only (pas de fuite val, pas d'avantage transductif) + delta + caveat interpolation + caveat transductif documenté — Task 9 ✓ (fix #3)
+- `sequence_supervised.pt` sauve le `best_state` réel (meilleur fold), plus un modèle frais — Task 8 `_train_one_task` retourne best_state + `run` le persiste ✓ (fix #4)
+- Early-stop : patience reset sur amélioration + OOF au meilleur état (restaure best_state) — Task 8 ✓ (fix #7)
 - `embed_game` bonus — Task 9 ✓
 - `sequence_metrics.json` — Task 8 + Task 9 ✓
-- Pièges d'interprétation — Task 10 Step 2 ✓
+- Pièges d'interprétation (delta propre vs transductif) — Task 10 Step 2 ✓
 - 0 API, branche parallèle, torch ajouté — Task 0 + réutilisation `_read_raw` ✓
 
-**2. Placeholder scan :** Task 7 Step 4 contient un reliquat à nettoyer (double assignation `idx`), traité explicitement Step 5 avant commit. Pas de TBD/TODO ailleurs. ✓ (à exécuter comme décrit).
+**2. Placeholder scan :** aucun reliquat cassé (le code Task 7 est propre du premier coup,
+fix nit process). Pas de TBD/TODO. ✓
 
 **3. Type consistency :**
 - `frame_state -> list[float]` (Task 1) consommé par `build_sequence` (Task 2) ✓
@@ -1573,6 +1598,7 @@ git commit -m "docs: état recherche transformer séquentiel + SSL (CLAUDE.md)"
 - `SequenceEncoder.forward(x, mask) -> [B,T,d_model]` (Task 4) consommé par `ClassifierHead`/`SequenceClassifier` (Task 5) et `ReconstructHead` (Task 6 via `enc(xb, mb&~ssl_mask)` Task 9) ✓
 - `masked_mean(h, mask) -> [B,d_model]` (Task 5) consommé par `embed` (Task 5) et `embed_game` (Task 9) ✓
 - `sd.task_subset/task->(idx,y)`, `sd.player_folds->list[(tr,va)]`, `sd.mirror_purge->idx`, `sd.standardize_fit/apply` (Task 7) consommés par Task 8 et Task 9 ✓
+- `_train_one_task -> (metrics_dict, best_state_global)` (Task 8) consommé par `run` qui persiste `best_state_global` ✓
 - `sm.get_device()`, `sm.SequenceClassifier`, `sm.SequenceEncoder`, `sm.ReconstructHead` (Task 4-6) consommés par Task 8-9 ✓
 
 Tous les noms/signatures alignés entre tâches.
