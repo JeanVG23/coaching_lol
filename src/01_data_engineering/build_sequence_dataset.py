@@ -68,3 +68,36 @@ def opponent_pid(match: dict, target_puuid: str) -> int | None:
         if p["teamId"] != my_team and (p.get("teamPosition") or "") == my_role and my_role:
             return i + 1
     return None
+
+
+def _diffs(self_state: list[float], opp_state: list[float]) -> list[float]:
+    """4 diffs relatives : gold, cs, xp, level (signaux de lane)."""
+    return [
+        self_state[2] - opp_state[2],                              # totalGold
+        (self_state[6] + self_state[7]) - (opp_state[6] + opp_state[7]),  # cs
+        self_state[4] - opp_state[4],                              # xp
+        self_state[5] - opp_state[5],                              # level
+    ]
+
+
+def build_sequence(match: dict, timeline: dict,
+                   target_puuid: str) -> tuple[np.ndarray, np.ndarray] | None:
+    """Une game -> (seq[40,20] float32, mask[40] bool). None si pas d'opponent ou 0 frame."""
+    pid = participant_pid(match, target_puuid)
+    opp = opponent_pid(match, target_puuid)
+    if opp is None:
+        return None
+    my_fr = rl._frames_by_minute(timeline, pid)      # {minute_int: participantFrame}
+    opp_fr = rl._frames_by_minute(timeline, opp)
+    seq = np.zeros((MAX_LEN, 20), dtype=np.float32)
+    mask = np.zeros(MAX_LEN, dtype=bool)
+    for minute, pf in my_fr.items():
+        if minute >= MAX_LEN:
+            continue
+        self_s = frame_state(pf)
+        opp_s = frame_state(opp_fr.get(minute, {}))  # frame adverse manquante -> zeros
+        seq[minute] = self_s + opp_s + _diffs(self_s, opp_s)
+        mask[minute] = True
+    if mask.sum() == 0:
+        return None
+    return seq, mask

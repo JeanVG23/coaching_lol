@@ -3,6 +3,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import numpy as np
+
 _SRC = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_SRC))
 _spec = importlib.util.spec_from_file_location(
@@ -56,3 +58,58 @@ def test_opponent_pid_none_if_role_missing():
     m = _fake_match()
     m["info"]["participants"][5]["teamPosition"] = "MIDDLE"  # l'ancien BOTTOM 200 devient MID
     assert bsd.opponent_pid(m, "p_BOTTOM_100") is None
+
+
+def _fake_timeline(n_minutes=3):
+    frames = []
+    for minute in range(n_minutes):
+        pf = {}
+        for pid in range(1, 11):
+            pf[str(pid)] = {
+                "position": {"x": 1000 * pid + minute, "y": 2000 * pid},
+                "totalGold": 500 * pid + 100 * minute,
+                "currentGold": 50 * pid,
+                "xp": 100 * pid * minute if minute else 0,
+                "level": 1 + minute,
+                "minionsKilled": 5 * minute,
+                "jungleMinionsKilled": minute,
+            }
+        frames.append({"timestamp": minute * 60000, "participantFrames": pf})
+    return {"info": {"frames": frames}}
+
+
+def test_build_sequence_shapes_and_mask():
+    m = _fake_match(); t = _fake_timeline(3)
+    out = bsd.build_sequence(m, t, "p_BOTTOM_100")
+    assert out is not None
+    seq, mask = out
+    assert seq.shape == (40, 20) and seq.dtype == np.float32
+    assert mask.shape == (40,) and mask.dtype == bool
+    assert mask.sum() == 3              # 3 minutes valides
+    assert mask[0] and mask[1] and mask[2] and not mask[3]
+
+
+def test_build_sequence_values_minute1():
+    m = _fake_match(); t = _fake_timeline(3)
+    seq, mask = bsd.build_sequence(m, t, "p_BOTTOM_100")
+    # pid1 @min1 : x=1001,y=2000,gold=600,cur=50,xp=100,lvl=2,cs=5,jg=1
+    self_state = [1001 / 14800, 2000 / 14800, 600.0, 50.0, 100.0, 2.0, 5.0, 1.0]
+    # opp pid6 @min1 : x=6001,y=12000,gold=3100,cur=300,xp=600,lvl=2,cs=5,jg=1
+    opp_state = [6001 / 14800, 12000 / 14800, 3100.0, 300.0, 600.0, 2.0, 5.0, 1.0]
+    diffs = [600.0 - 3100.0,                 # gold diff
+             (5.0 + 1.0) - (5.0 + 1.0),      # cs diff
+             100.0 - 600.0,                  # xp diff
+             2.0 - 2.0]                      # level diff
+    expected = self_state + opp_state + diffs
+    np.testing.assert_allclose(seq[1], expected, rtol=1e-5)
+
+
+def test_build_sequence_none_if_no_opponent_role():
+    # match sans adversaire BOTTOM : opponent_pid None -> None
+    puuids = ["p_bottom_100"] + [f"p_{r}_{t}" for t in (100, 200)
+              for r in ("UTILITY", "JUNGLE", "MIDDLE", "TOP")]
+    parts = [{"teamId": 100, "teamPosition": "BOTTOM", "championName": "a"}] + \
+            [{"teamId": t, "teamPosition": r, "championName": f"{r}_{t}"}
+             for t in (100, 200) for r in ("UTILITY", "JUNGLE", "MIDDLE", "TOP")]
+    m = {"metadata": {"participants": puuids}, "info": {"participants": parts}}
+    assert bsd.build_sequence(m, _fake_timeline(2), "p_bottom_100") is None
