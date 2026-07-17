@@ -41,3 +41,10 @@ def test_classifier_head_shape():
     mask = torch.ones(8, 40, dtype=torch.bool); mask[:, 25:] = False
     logits = clf(x, mask)
     assert logits.shape == (8,)
+
+
+def test_reconstruct_head_shape():
+    rh = sm.ReconstructHead(d_model=64, d_in=20)
+    h = torch.randn(4, 40, 64)
+    out = rh(h)
+    assert out.shape == (4, 40, 20)

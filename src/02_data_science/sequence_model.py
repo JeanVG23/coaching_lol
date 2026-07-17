@@ -73,3 +73,13 @@ class SequenceClassifier(nn.Module):
 
     def embed(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         return masked_mean(self.encoder(x, mask), mask)  # [B,d_model]
+
+
+class ReconstructHead(nn.Module):
+    """Tête SSL : reconstruit le state 20-d des frames (utilisée sur les frames masquées)."""
+    def __init__(self, d_model: int = 64, d_in: int = 20):
+        super().__init__()
+        self.fc = nn.Linear(d_model, d_in)
+
+    def forward(self, h: torch.Tensor) -> torch.Tensor:
+        return self.fc(h)                               # [B,T,d_in]
