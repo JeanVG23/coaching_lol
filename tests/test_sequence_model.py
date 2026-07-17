@@ -18,3 +18,26 @@ def test_encoder_forward_shapes():
     mask[:, 30:] = False                      # 30 minutes valides
     h = enc(x, mask)
     assert h.shape == (4, 40, 64)
+
+
+def test_masked_mean_ignores_pad():
+    torch.manual_seed(0)
+    h = torch.randn(2, 40, 64)
+    m = torch.ones(2, 40, dtype=torch.bool); m[:, 30:] = False   # 30 frames valides
+    # le pooled ne dépend que des frames valides : changer le contenu paddé ne change rien
+    a = sm.masked_mean(h, m)
+    h_pad_garbage = h.clone()
+    h_pad_garbage[:, 30:] = torch.randn(2, 10, 64) * 1000.0
+    b = sm.masked_mean(h_pad_garbage, m)
+    torch.testing.assert_close(a, b, rtol=1e-5, atol=1e-6)
+    # et le pooled == moyenne directe des 30 frames valides
+    torch.testing.assert_close(a, h[:, :30].mean(dim=1), rtol=1e-5, atol=1e-6)
+
+
+def test_classifier_head_shape():
+    torch.manual_seed(0)
+    clf = sm.SequenceClassifier(d_in=20, d_model=64, max_len=40)
+    x = torch.randn(8, 40, 20)
+    mask = torch.ones(8, 40, dtype=torch.bool); mask[:, 25:] = False
+    logits = clf(x, mask)
+    assert logits.shape == (8,)

@@ -43,3 +43,33 @@ class SequenceEncoder(nn.Module):
         h = self.proj(x) + self.pos(positions)
         h = self.enc(h, src_key_padding_mask=~mask)   # True at pad
         return h                                        # [B,T,d_model]
+
+
+def masked_mean(h: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Moyenne sur les frames valides. h [B,T,d], mask [B,T] bool."""
+    m = mask.unsqueeze(-1).float()                     # [B,T,1]
+    return (h * m).sum(1) / m.sum(1).clamp(min=1.0)      # [B,d]
+
+
+class ClassifierHead(nn.Module):
+    def __init__(self, d_model: int = 64, dropout: float = 0.1):
+        super().__init__()
+        self.fc = nn.Sequential(nn.Dropout(dropout), nn.Linear(d_model, 1))
+
+    def forward(self, h: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        pooled = masked_mean(h, mask)
+        return self.fc(pooled).squeeze(-1)              # [B]
+
+
+class SequenceClassifier(nn.Module):
+    def __init__(self, d_in: int = 20, d_model: int = 64, nhead: int = 4,
+                 n_layers: int = 4, ff: int = 128, dropout: float = 0.1, max_len: int = 40):
+        super().__init__()
+        self.encoder = SequenceEncoder(d_in, d_model, nhead, n_layers, ff, dropout, max_len)
+        self.head = ClassifierHead(d_model, dropout)
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        return self.head(self.encoder(x, mask), mask)
+
+    def embed(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        return masked_mean(self.encoder(x, mask), mask)  # [B,d_model]
