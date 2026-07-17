@@ -12,6 +12,8 @@ _spec = importlib.util.spec_from_file_location(
 bsd = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(bsd)
 
+build_dataset = bsd.build_dataset   # même objet que celui utilisé par bsd.main()
+
 
 def test_frame_state_returns_8dim_normalized():
     pf = {"position": {"x": 14800, "y": 7400},
@@ -113,3 +115,28 @@ def test_build_sequence_none_if_no_opponent_role():
              for t in (100, 200) for r in ("UTILITY", "JUNGLE", "MIDDLE", "TOP")]
     m = {"metadata": {"participants": puuids}, "info": {"participants": parts}}
     assert bsd.build_sequence(m, _fake_timeline(2), "p_bottom_100") is None
+
+
+def test_champion_of():
+    m = _fake_match()
+    assert bsd.champion_of(m, "p_BOTTOM_100") == "BOTTOM_100"
+    assert bsd.champion_of(m, "p_BOTTOM_200") == "BOTTOM_200"
+
+
+def test_main_writes_npz(tmp_path, monkeypatch):
+    # redirige DATASET_DIR vers tmp_path ; mock build_rank_map + _load_raw + adc_puuids
+    monkeypatch.setattr(bsd, "DATASET_DIR", tmp_path)
+    m = _fake_match(); t = _fake_timeline(3)
+    monkeypatch.setattr(build_dataset, "build_rank_map",
+                        lambda: ({"EUW1_1": "challenger"}, 0))
+    monkeypatch.setattr(build_dataset, "_load_raw", lambda mid: (m, t))
+    monkeypatch.setattr(build_dataset, "adc_puuids", lambda match: ["p_BOTTOM_100"])
+    rc = bsd.main()
+    assert rc == 0
+    import numpy as np
+    d = np.load(tmp_path / "adc_sequence_dataset.npz", allow_pickle=True)
+    assert d["sequences"].shape == (1, 40, 20)
+    assert d["mask"].sum() == 3
+    assert list(d["rank"]) == ["challenger"]
+    assert list(d["label_highelo"]) == [1]
+    assert list(d["match_id"]) == ["EUW1_1"]

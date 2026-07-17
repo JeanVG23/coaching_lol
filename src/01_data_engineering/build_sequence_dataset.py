@@ -101,3 +101,57 @@ def build_sequence(match: dict, timeline: dict,
     if mask.sum() == 0:
         return None
     return seq, mask
+
+
+DATASET_DIR = rl.DATA / "04_dataset"
+
+
+def champion_of(match: dict, puuid: str) -> str:
+    pidx = match["metadata"]["participants"].index(puuid)
+    return match["info"]["participants"][pidx].get("championName") or "unknown"
+
+
+def main() -> int:
+    rank_of, multi = build_dataset.build_rank_map()
+    print(f"  {len(rank_of)} games référentiel distinctes ({multi} multi-rang)")
+    seqs, masks, labels, ranks, puuids, mids, champs = [], [], [], [], [], [], []
+    raw_miss = 0
+    for mid, rank in rank_of.items():
+        raw = build_dataset._load_raw(mid)
+        if not raw:
+            raw_miss += 1
+            continue
+        match, timeline = raw
+        for puuid in build_dataset.adc_puuids(match):
+            out = build_sequence(match, timeline, puuid)
+            if out is None:
+                continue
+            seq, mask = out
+            seqs.append(seq)
+            masks.append(mask)
+            ranks.append(rank)
+            puuids.append(puuid)
+            mids.append(mid)
+            champs.append(champion_of(match, puuid))
+            labels.append(1 if rank in build_dataset.HIGH_ELO else 0)
+    if raw_miss:
+        print(f"  ⚠ {raw_miss} games sans raw lisible -> ignorées")
+
+    DATASET_DIR.mkdir(parents=True, exist_ok=True)
+    np.savez(
+        DATASET_DIR / "adc_sequence_dataset.npz",
+        sequences=np.stack(seqs).astype(np.float32),
+        mask=np.stack(masks).astype(bool),
+        label_highelo=np.array(labels, dtype=np.int64),
+        rank=np.array(ranks, dtype=object),
+        puuid=np.array(puuids, dtype=object),
+        match_id=np.array(mids, dtype=object),
+        champion=np.array(champs, dtype=object),
+    )
+    print(f"\n✓ {len(seqs)} séquences ADC -> {DATASET_DIR}/adc_sequence_dataset.npz")
+    print(f"  high_elo (GM+Chall=1) : {int(np.sum(labels))} / {len(labels)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
