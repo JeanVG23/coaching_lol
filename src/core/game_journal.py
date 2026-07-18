@@ -26,6 +26,11 @@ IMMINENT_WINDOW_S = 90        # objectif "imminent" si spawn dans <= 90 s
 OPENING_BUY_MS = 90000        # achats avant 1:30 = shopping de départ, pas un recall
 RECALL_CLUSTER_GAP_MS = 30000 # achats espacés de <= 30 s = même visite de shop
 
+# Fenêtres de conséquences post-mort — approximation v1 : la timeline ne donne
+# pas le death timer réel, on attribue à la mort ce que l'ennemi prend juste après.
+CONSEQUENCE_WINDOW_S = 60     # objectifs + bâtiments pris dans les 60 s
+GOLD_SWING_WINDOW_S = 90      # swing de gold d'équipe mesuré à ~90 s
+
 
 def _clock(t_ms: int) -> str:
     return f"{t_ms // 60000}:{(t_ms % 60000) // 1000:02d}"
@@ -75,8 +80,59 @@ def _frame_before(timeline: dict, pid: int, t_ms: int) -> dict | None:
     return best
 
 
+def _team_gold_diff(frame: dict, pid_team: dict[int, int], my_team: int) -> int:
+    """Écart de gold d'équipe (mon équipe - ennemie) sur une frame."""
+    diff = 0
+    for pid_str, pf in frame["participantFrames"].items():
+        g = pf.get("totalGold", 0)
+        diff += g if pid_team.get(int(pid_str)) == my_team else -g
+    return diff
+
+
+def _consequences(timeline: dict, t_ms: int, my_team: int,
+                  pid_team: dict[int, int]) -> dict:
+    """Conséquences mécaniques d'une mort : ce que l'ennemi prend dans la
+    fenêtre post-mort + swing de gold d'équipe. ASYMÉTRIE : tout est de l'info
+    que le joueur avait (annonces objectif/tour, gold d'équipe au scoreboard).
+
+    ⚠️ Sémantique timeline : BUILDING_KILL.teamId = équipe qui PERD le bâtiment.
+    """
+    win_end = t_ms + CONSEQUENCE_WINDOW_S * 1000
+    objectives, buildings = [], []
+    for ev in _events(timeline):
+        et = ev.get("timestamp", 0)
+        if not t_ms < et <= win_end:
+            continue
+        if ev.get("type") == "ELITE_MONSTER_KILL":
+            team = ev.get("killerTeamId") or pid_team.get(ev.get("killerId"))
+            if team != my_team:
+                objectives.append({"type": ev.get("monsterType"),
+                                   "clock": _clock(et),
+                                   "delta_s": round((et - t_ms) / 1000)})
+        elif ev.get("type") == "BUILDING_KILL" and ev.get("teamId") == my_team:
+            buildings.append({"type": ev.get("towerType") or ev.get("buildingType"),
+                              "lane": ev.get("laneType"),
+                              "clock": _clock(et)})
+    before = after = None
+    for fr in timeline["info"]["frames"]:
+        if fr["timestamp"] <= t_ms:
+            before = fr
+        elif after is None and fr["timestamp"] >= t_ms + GOLD_SWING_WINDOW_S * 1000:
+            after = fr
+    out: dict = {}
+    if objectives:
+        out["objectives_lost"] = objectives
+    if buildings:
+        out["buildings_lost"] = buildings
+    if before is not None and after is not None:
+        out["team_gold_swing_90s"] = (_team_gold_diff(after, pid_team, my_team)
+                                      - _team_gold_diff(before, pid_team, my_team))
+    return out
+
+
 def _deaths(timeline: dict, pid: int, pid_champ: dict, pid_role: dict,
-            enemy_jungle_pid: int | None, gold_state_at, obj_kills) -> list[dict]:
+            enemy_jungle_pid: int | None, gold_state_at, obj_kills, my_team: int,
+            pid_team: dict[int, int]) -> list[dict]:
     out = []
     for ev in _events(timeline):
         if ev.get("type") != "CHAMPION_KILL" or ev.get("victimId") != pid:
@@ -87,7 +143,7 @@ def _deaths(timeline: dict, pid: int, pid_champ: dict, pid_role: dict,
         involved = ({kpid} | set(assisters)) - {None}
         pos = ev.get("position", {})
         pf = _frame_before(timeline, pid, t)
-        out.append({
+        entry = {
             "t_ms": t, "clock": _clock(t),
             "minute": t // 60000, "phase": phase_of(t // 60000),
             "zone": approx_zone(pos.get("x", 0), pos.get("y", 0)),
@@ -100,7 +156,11 @@ def _deaths(timeline: dict, pid: int, pid_champ: dict, pid_role: dict,
             "unspent_gold": pf.get("currentGold") if pf else None,
             "level": pf.get("level") if pf else None,
             "objective": _objective_at(obj_kills, t),
-        })
+        }
+        cons = _consequences(timeline, t, my_team, pid_team)
+        if cons:
+            entry["consequences"] = cons
+        out.append(entry)
     out.sort(key=lambda d: d["t_ms"])
     return out
 
@@ -165,6 +225,7 @@ def game_journal(match: dict, timeline: dict, puuid: str) -> dict | None:
 
     pid_champ = {i + 1: p["championName"] for i, p in enumerate(parts)}
     pid_role = {i + 1: p.get("teamPosition") or "?" for i, p in enumerate(parts)}
+    pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
     my_role = me.get("teamPosition") or ""
     opp_pid = next((i + 1 for i, p in enumerate(parts)
                     if p["teamId"] != my_team and my_role
@@ -195,6 +256,7 @@ def game_journal(match: dict, timeline: dict, puuid: str) -> dict | None:
                 "assists": me.get("assists", 0)},
         "opponent": pid_champ.get(opp_pid),
         "deaths": _deaths(timeline, pid, pid_champ, pid_role,
-                          enemy_jungle_pid, gold_state_at, obj_kills),
+                          enemy_jungle_pid, gold_state_at, obj_kills,
+                          my_team, pid_team),
         "recalls": _recalls(timeline, pid, obj_kills),
     }
