@@ -210,6 +210,12 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   clusters d'`ITEM_PURCHASED` (inclut resets après mort, `gold_before` = plancher frame précédente),
   **`item_ids`** par recall (achats bruts, `ITEM_UNDO` honoré = retiré, `ITEM_SOLD` ignoré v1).
   **Asymétrie** : uniquement de l'info que le joueur avait — aucun proxy ML_ONLY.
+  **Conséquences post-mort** (chaîne causale, 2026-07-18) : chaque mort porte un bloc
+  `consequences` calculé mécaniquement — objectifs (`ELITE_MONSTER_KILL` ennemi) et
+  bâtiments (`BUILDING_KILL`, ⚠️ `teamId` = équipe qui PERD) pris dans les
+  `CONSEQUENCE_WINDOW_S=60` s post-mort, + `team_gold_swing_90s` (écart de gold
+  d'équipe avant vs ~90 s après). Clé omise si fenêtre vide. `SYSTEM_GAME` impose de
+  restituer la chaîne (« mort → Baron perdu → -1 840 g ») en formulation corrélationnelle.
 - **`champion_profiles.py`** — identité champion : `champion_vector` (Data Dragon + table curée,
   résolution casse-insensible), `derive_context(comp)` → `lane_pattern`
   (poke/all_in/scaling/mixed/unknown) et `gank_exposure` (low/med/high/unknown). `fetch_ddragon`
