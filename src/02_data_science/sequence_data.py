@@ -87,12 +87,18 @@ def mirror_purge(train_idx: np.ndarray, val_puuids: set,
 
 
 def standardize_fit(sequences: np.ndarray, mask: np.ndarray,
-                    train_idx: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """mean/std par feature (20) sur les frames valides des rows de train."""
-    X = sequences[train_idx][mask[train_idx]]      # [n_valid, 20]
+                    train_idx: np.ndarray, bin_cols=None) -> tuple[np.ndarray, np.ndarray]:
+    """mean/std par feature sur les frames valides des rows de train. bin_cols = indices de
+    colonnes à laisser brutes (canaux events binaires v2) : on force mean=0/std=1 -> apply
+    est l'identité sur ces cols. Défaut None = toutes cols standardisées (v1, backward-compat)."""
+    X = sequences[train_idx][mask[train_idx]]      # [n_valid, F]
     mean = X.mean(axis=0)
     std = X.std(axis=0)
     std[std < 1e-6] = 1.0                          # garde-fou feature constante
+    if bin_cols is not None:
+        bc = list(bin_cols)
+        mean[bc] = 0.0
+        std[bc] = 1.0
     return mean.astype(np.float32), std.astype(np.float32)
 
 

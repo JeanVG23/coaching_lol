@@ -83,3 +83,19 @@ def test_standardize_uses_train_stats_on_val():
     # val n'a PAS mean 0 (stats du train appliquées) -> on vérifie juste la shape + pas de NaN
     assert z_val.shape == (5, 40, 20)
     assert np.isfinite(z_val).all()
+
+
+def test_standardize_fit_bin_cols_left_raw():
+    rng = np.random.RandomState(0)
+    d = _data(n=20)
+    seq = d["sequences"].copy()
+    seq[..., 18] = (rng.rand(20, 40) > 0.5).astype(np.float32)   # simulé binaire
+    seq[..., 19] = (rng.rand(20, 40) > 0.5).astype(np.float32)
+    train_idx = np.arange(15)
+    mean, std = sd.standardize_fit(seq, d["mask"], train_idx, bin_cols=[18, 19])
+    assert mean[18] == 0.0 and std[18] == 1.0      # binaires laissés bruts
+    assert mean[19] == 0.0 and std[19] == 1.0
+    assert mean[0] != 0.0                            # continue standardisée
+    z = sd.standardize_apply(seq[train_idx], mean, std)
+    np.testing.assert_allclose(z[:, :, 18], seq[train_idx, :, 18])   # inchangé
+    np.testing.assert_allclose(z[:, :, 19], seq[train_idx, :, 19])
