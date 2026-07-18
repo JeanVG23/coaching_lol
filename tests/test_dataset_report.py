@@ -160,6 +160,50 @@ def test_model_crosscheck_no_drift_and_missing_metrics():
     assert dr.model_crosscheck(None, 1040) == {"available": False}
 
 
+# --- model_crosscheck : nouveau schéma held-out (gold-standard-eval-protocol) --
+
+def _held_out_metrics(test_auc=0.62, n_train=700, n_calib=150, n_test=190):
+    return {
+        "cv_train": {"auc": 0.635, "acc": 0.6, "per_model": {}, "n": n_train,
+                     "n_pos": n_train // 2, "n_neg": n_train // 2},
+        "test": {"auc": test_auc, "acc": 0.61, "n": n_test,
+                  "n_pos": n_test // 2, "n_neg": n_test // 2},
+        "split": {
+            "proportions": {"train": 0.7, "calibration": 0.15, "test": 0.15},
+            "n_by_bucket_by_rank": {
+                "train": {"master": n_train // 2, "challenger": n_train - n_train // 2},
+                "calibration": {"master": n_calib // 2, "challenger": n_calib - n_calib // 2},
+                "test": {"master": n_test // 2, "challenger": n_test - n_test // 2},
+            },
+        },
+        "features": [],
+        "dispersion_analysis": {},
+    }
+
+
+def test_model_crosscheck_held_out_schema_uses_test_auc_and_split_population():
+    metrics = _held_out_metrics(test_auc=0.62, n_train=700, n_calib=150, n_test=190)
+    s = dr.model_crosscheck(metrics, n_players_dataset=2000)
+    assert s["available"] is True
+    assert s["auc_cv"] == 0.62  # headline = test.auc, pas cv_train.auc
+    assert s["n_players_model"] == 700 + 150 + 190  # somme des buckets du split
+    assert s["n_players_dataset"] == 2000
+    assert s["drift"] is True
+
+
+def test_model_crosscheck_held_out_schema_no_drift_when_split_matches_dataset():
+    metrics = _held_out_metrics(n_train=700, n_calib=150, n_test=190)
+    s = dr.model_crosscheck(metrics, n_players_dataset=1040)
+    assert s["drift"] is False
+
+
+def test_model_crosscheck_held_out_schema_falls_back_to_cv_train_auc_without_test():
+    metrics = _held_out_metrics()
+    del metrics["test"]
+    s = dr.model_crosscheck(metrics, n_players_dataset=1040)
+    assert s["auc_cv"] == 0.635  # repli sur cv_train.auc
+
+
 # --- report / render ----------------------------------------------------------
 
 def _report(metrics):

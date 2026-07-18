@@ -120,15 +120,43 @@ def per_player_stats(pdf: pd.DataFrame) -> dict:
 def model_crosscheck(metrics: dict | None, n_players_dataset: int) -> dict:
     """Compare le dataset per-player actuel au dernier modèle entraîné : une
     dérive (n différents) signifie que player_metrics.json / les .pkl servis
-    ne reflètent plus le dataset -> ré-entraîner avant d'en citer les chiffres."""
+    ne reflètent plus le dataset -> ré-entraîner avant d'en citer les chiffres.
+    Schéma held-out (`split`/`test`/`cv_train`) supporté en priorité, ancien
+    schéma racine (`n_players`/`auc_cv`) en repli ; population du modèle =
+    somme de tous les buckets (train+calibration+test, tous rangs) du split
+    quand disponible, car le held-out ne fit le modèle que sur ~70 % du total."""
     if metrics is None:
         return {"available": False}
+
+    split = metrics.get("split")
+    if split is not None:
+        n_by_bucket = split.get("n_by_bucket_by_rank", {})
+        n_players_model = sum(
+            n for by_rank in n_by_bucket.values() for n in by_rank.values()
+        )
+    else:
+        n_players_model = metrics.get("n_players")
+
+    auc_cv = (
+        metrics.get("test", {}).get("auc")
+        if metrics.get("test") is not None
+        else None
+    )
+    if auc_cv is None:
+        auc_cv = (
+            metrics.get("cv_train", {}).get("auc")
+            if metrics.get("cv_train") is not None
+            else None
+        )
+    if auc_cv is None:
+        auc_cv = metrics.get("auc_cv")
+
     return {
         "available": True,
-        "n_players_model": int(metrics["n_players"]),
-        "auc_cv": float(metrics["auc_cv"]),
+        "n_players_model": int(n_players_model),
+        "auc_cv": float(auc_cv),
         "n_players_dataset": int(n_players_dataset),
-        "drift": int(metrics["n_players"]) != int(n_players_dataset),
+        "drift": int(n_players_model) != int(n_players_dataset),
     }
 
 
@@ -189,7 +217,7 @@ def render(report: dict) -> str:
     if not md["available"]:
         lines.append("  player_metrics.json absent — modèle jamais entraîné ?")
     else:
-        lines.append(f"  AUC_cv {md['auc_cv']} sur {md['n_players_model']} joueurs")
+        lines.append(f"  AUC test held-out {md['auc_cv']} sur {md['n_players_model']} joueurs")
         if md["drift"]:
             lines.append(f"  ⚠ DÉRIVE : dataset à {md['n_players_dataset']} joueurs "
                          f"vs modèle entraîné sur {md['n_players_model']} — "

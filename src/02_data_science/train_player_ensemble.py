@@ -15,15 +15,16 @@ N'écrase JAMAIS les artefacts du pipeline per-game (xgb_highelo.pkl, features.j
 etc., cf. docs/superpowers/specs/2026-07-03-per-player-consistency-design.md) : tous
 les fichiers de sortie portent le marqueur "player".
 
-CV : StratifiedKFold sur les joueurs + PURGE des games partagées. 1 ligne = 1 joueur
-(pas de fuite joueur->fold), MAIS ~37 % des games des qualifiés opposent deux joueurs
-du dataset (2 ADC extraits par game, features en miroir) et le graphe des games
-partagées est une composante géante (98.7 % des joueurs) -> group-CV par composantes
-impossible. À la place, à chaque fold les agrégats des joueurs de TRAIN sont
-recalculés en excluant les matchs joués par un joueur de VAL (purged CV, exact) ;
-une passe contrôle retire le même nombre de games au hasard pour distinguer l'effet
-"fuite retirée" de l'effet "moins de games". auc_cv (headline) = AUC purgée ;
-auc_cv_naive / auc_cv_control exposés dans player_metrics.json pour comparaison.
+Protocole held-out (gold-standard-eval-protocol) : le dataset per-player est d'abord
+scindé en buckets train/calibration/test (joueurs disjoints, cf. dataset_split.py).
+Les hyperparamètres et le choix de modèle sont sélectionnés en CV purgée
+(StratifiedKFold sur les joueurs + purge des games partagées, cf. historique ci-dessus)
+UNIQUEMENT sur le bucket TRAIN ; le headline honnête (`test.auc`) est l'AUC mesurée
+une seule fois sur le bucket TEST held-out, jamais vu pendant la sélection. Le bucket
+calibration est réservé à un usage ultérieur (calibration proba->rang/LP, cf. AOS4) et
+n'intervient pas dans ce script. player_metrics.json expose `cv_train` (diagnostic CV
+sur le train) et `test` (headline held-out) ; `player_train_oof.json` (prédictions
+out-of-fold sur le train) est exporté pour la calibration en aval.
 
 Conserve le test d'hypothèse "constance" du POC (masse |SHAP| groupée par type
 d'agrégat, dispersion vs tendance centrale) dans player_metrics.json, pour garder
@@ -48,7 +49,7 @@ import riotlib as rl
 import ml_features as mf
 import dataset_split as ds
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import roc_auc_score, accuracy_score, classification_report
+from sklearn.metrics import roc_auc_score, accuracy_score
 import xgboost as xgb
 from sklearn.ensemble import RandomForestClassifier
 from interpret.glassbox import ExplainableBoostingClassifier
