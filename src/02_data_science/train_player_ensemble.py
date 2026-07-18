@@ -46,6 +46,7 @@ import numpy as np
 import pandas as pd
 import riotlib as rl
 import ml_features as mf
+import dataset_split as ds
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, accuracy_score, classification_report
 import xgboost as xgb
@@ -178,100 +179,89 @@ def shap_dispersion_analysis(X: pd.DataFrame, y: pd.Series, models: dict) -> dic
 
 
 def main() -> int:
+    split = ds.load_split()
     df = pd.read_parquet(DATASET)
     ref = pd.read_parquet(DATASET_PER_GAME)
     ref = ref[(ref["source"] == "referentiel")
               & ref["puuid"].isin(set(df["puuid"]))].copy()
     features = mf.player_feature_names(mf.FEATURES)
-    X = df.reindex(columns=features)
-    y = df["rank"].isin(HIGH_ELO).astype(int)
-    y_of = dict(zip(df["puuid"], y))
-    orig_counts = ref.groupby("puuid").size()
-    print(f"  {len(df)} joueurs | pos={int(y.sum())} / neg={int((1-y).sum())} | "
-          f"{len(ref)} games per-game pour la purge")
+    y_of = dict(zip(df["puuid"], df["rank"].isin(HIGH_ELO).astype(int)))
 
+    pop = set(df["puuid"])
+    train_p = ds.puuids_in(split, "train") & pop
+    holdout = (ds.puuids_in(split, "calibration") | ds.puuids_in(split, "test")) & pop
+    df_train = df[df["puuid"].isin(train_p)].copy()
+    df_test = ds.partition(df, split, "test")
+    print(f"  split: train={len(df_train)} test={len(df_test)} "
+          f"(calibration réservée, non utilisée) | {len(ref)} games pour la purge")
+
+    # --- Diagnostic/observabilité : CV purgée SUR LE TRAIN (purge externe = holdout) ---
+    X_train_natural = df_train.reindex(columns=features)
+    y_train = df_train["puuid"].map(y_of).astype(int).values
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    variants = ("purged", "naive", "control")
-    oof = {v: {name: np.zeros(len(X)) for name in make_models()} for v in variants}
-    games_purged, games_train, dropped_players = 0, 0, 0
-    for train_idx, val_idx in cv.split(X, y):
-        X_val = X.iloc[val_idx]
-        train_puuids = df["puuid"].iloc[train_idx].tolist()
-        val_puuids = set(df["puuid"].iloc[val_idx])
+    oof = {name: np.zeros(len(df_train)) for name in make_models()}
+    for tr_idx, va_idx in cv.split(X_train_natural, y_train):
+        inner_train = df_train["puuid"].iloc[tr_idx].tolist()
+        inner_val = set(df_train["puuid"].iloc[va_idx])
+        Xtr, _ = purged_train_features(ref, inner_train, inner_val | holdout)
+        y_inner = Xtr["puuid"].map(y_of).astype(int)
+        Xva = X_train_natural.iloc[va_idx]
+        for name, model in make_models().items():
+            model.fit(Xtr.reindex(columns=features), y_inner)
+            oof[name][va_idx] = model.predict_proba(Xva)[:, 1]
+    ens_oof = np.mean(list(oof.values()), axis=0)
+    auc_cv = roc_auc_score(y_train, ens_oof)
+    acc_cv = accuracy_score(y_train, (ens_oof >= 0.5).astype(int))
+    per_model = {name: {"auc": round(roc_auc_score(y_train, p), 4)}
+                 for name, p in oof.items()}
+    print(f"  CV train (purgée) : AUC={auc_cv:.3f}  acc={acc_cv:.3f}  n={len(df_train)}")
 
-        # purged : agrégats train sans les matchs des joueurs de val (fuite = 0)
-        Xtr_p, drop_p = purged_train_features(ref, train_puuids, val_puuids)
-        n_drop = {p: int(orig_counts[p]) for p in drop_p}
-        n_drop.update({row["puuid"]: int(orig_counts[row["puuid"]] - row["n_games"])
-                       for _, row in Xtr_p.iterrows()})
-        # control : même nombre de games retirées, au hasard
-        Xtr_c, drop_c = control_train_features(ref, train_puuids, n_drop)
-        games_purged += sum(n_drop.values())
-        games_train += int(orig_counts.loc[train_puuids].sum())
-        dropped_players += len(drop_p)
-
-        fits = {
-            "naive": (X.iloc[train_idx], y.iloc[train_idx]),
-            "purged": (Xtr_p.reindex(columns=features),
-                       Xtr_p["puuid"].map(y_of).astype(int)),
-            "control": (Xtr_c.reindex(columns=features),
-                        Xtr_c["puuid"].map(y_of).astype(int)),
-        }
-        for variant, (X_train, y_train) in fits.items():
-            for name, model in make_models().items():
-                model.fit(X_train, y_train)
-                oof[variant][name][val_idx] = model.predict_proba(X_val)[:, 1]
-
-    per_model = {}
-    print("\n  Perf par modèle (CV out-of-fold, PURGÉE) :")
-    for name, preds in oof["purged"].items():
-        m_auc = roc_auc_score(y, preds)
-        m_acc = accuracy_score(y, (preds >= 0.5).astype(int))
-        per_model[name] = {"auc": round(m_auc, 4), "acc": round(m_acc, 4)}
-        print(f"    {name:<4} AUC={m_auc:.3f}  accuracy={m_acc:.3f}")
-
-    ens = {v: np.mean(list(oof[v].values()), axis=0) for v in variants}
-    auc = roc_auc_score(y, ens["purged"])
-    acc = accuracy_score(y, (ens["purged"] >= 0.5).astype(int))
-    auc_naive = roc_auc_score(y, ens["naive"])
-    auc_control = roc_auc_score(y, ens["control"])
-    frac_purged = games_purged / max(1, games_train)
-    print(f"\n  Ensemble CV out-of-fold : AUC purgée={auc:.3f} (headline)  "
-          f"naïve={auc_naive:.3f}  contrôle={auc_control:.3f}")
-    print(f"  purge : {frac_purged:.1%} des games de train retirées, "
-          f"{dropped_players} joueurs droppés (cumul 5 folds)")
-    print(f"  fuite pure ≈ contrôle - purgée = {auc_control - auc:+.4f} ; "
-          f"effet 'moins de games' ≈ naïve - contrôle = {auc_naive - auc_control:+.4f}")
-    print(classification_report(y, (ens["purged"] >= 0.5).astype(int),
-                                target_names=["low(M/D)", "high(GM/C)"], digits=3))
-
+    # --- Modèle servi : refit sur le TRAIN, features purgées de holdout ---
+    Xtr_final, _ = purged_train_features(ref, df_train["puuid"].tolist(), holdout)
+    y_final = Xtr_final["puuid"].map(y_of).astype(int)
+    Xtr_final_feat = Xtr_final.reindex(columns=features)
     final_models = make_models()
-    for name, model in final_models.items():
-        model.fit(X, y)
+    for model in final_models.values():
+        model.fit(Xtr_final_feat, y_final)
+
+    # --- Headline : TEST held-out (features naturelles, comme au serving) ---
+    X_test = df_test.reindex(columns=features)
+    y_test = df_test["puuid"].map(y_of).astype(int).values
+    ens_test = np.mean([m.predict_proba(X_test)[:, 1]
+                        for m in final_models.values()], axis=0)
+    auc_test = roc_auc_score(y_test, ens_test)
+    acc_test = accuracy_score(y_test, (ens_test >= 0.5).astype(int))
+    print(f"  TEST held-out (HEADLINE) : AUC={auc_test:.3f}  acc={acc_test:.3f}  "
+          f"n={len(df_test)}")
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     for name, model in final_models.items():
         with open(MODEL_DIR / f"{name}_player_highelo.pkl", "wb") as f:
             pickle.dump(model, f)
+    # OOF du train exporté pour calibrate_player_rank.py (calibration hors in-sample)
+    train_oof = {p: float(v) for p, v in zip(df_train["puuid"], ens_oof)}
+    (MODEL_DIR / "player_train_oof.json").write_text(json.dumps(train_oof, indent=2))
 
-    dispersion = shap_dispersion_analysis(X.fillna(X.median()), y, final_models)
-    print(f"\n  -> dispersion (std/p10/p90) = {dispersion['shap_dispersion_share']:.1%} du "
-          f"signal (SHAP) | EBM cross-check = {dispersion['ebm_dispersion_share']:.1%}")
+    dispersion = shap_dispersion_analysis(
+        Xtr_final_feat.fillna(Xtr_final_feat.median()), y_final, final_models)
+    print(f"  dispersion (std/p10/p90) = {dispersion['shap_dispersion_share']:.1%} "
+          f"du signal | EBM cross-check = {dispersion['ebm_dispersion_share']:.1%}")
 
     (MODEL_DIR / "player_features.json").write_text(json.dumps(features, indent=2))
     (MODEL_DIR / "player_metrics.json").write_text(json.dumps({
-        "auc_cv": round(auc, 4), "acc_cv": round(acc, 4),   # PURGÉE (honnête)
-        "auc_cv_naive": round(auc_naive, 4),
-        "auc_cv_control": round(auc_control, 4),
-        "purge": {"train_games_removed_frac": round(frac_purged, 4),
-                  "dropped_players_5folds": dropped_players},
-        "per_model_cv": per_model,
-        "n_players": len(df), "n_pos": int(y.sum()), "n_neg": int((1 - y).sum()),
+        "cv_train": {"auc": round(auc_cv, 4), "acc": round(acc_cv, 4),
+                     "per_model": per_model, "n": len(df_train),
+                     "n_pos": int(y_train.sum()), "n_neg": int((1 - y_train).sum())},
+        "test": {"auc": round(auc_test, 4), "acc": round(acc_test, 4),
+                 "n": len(df_test), "n_pos": int(y_test.sum()),
+                 "n_neg": int((1 - y_test).sum())},
+        "split": {"proportions": split["proportions"],
+                  "n_by_bucket_by_rank": split["n_by_bucket_by_rank"]},
         "features": features,
         "dispersion_analysis": dispersion,
     }, indent=2))
-
-    print(f"\n✓ Modèles per-player écrits dans {MODEL_DIR}/ (marqueur 'player_highelo')")
+    print("\n✓ Modèles per-player écrits (HEADLINE = TEST held-out ; "
+          "calibration réservée AOS4)")
     return 0
 
 
