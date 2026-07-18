@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """
+DÉPRÉCIÉ — arrêté le 2026-07-18. Calibration du modèle per-game (déprécié) : non servie
+en prod (le web utilise player_rank_calibration.json via calibrate_player_rank.py).
+Conservé pour l'historique. Voir
+docs/superpowers/specs/2026-07-18-gold-standard-eval-protocol-design.md.
+
 02_data_science — calibration proba -> rang pour le placement ML web.
 
 Le modèle high_elo (xgb+rf) est binaire (low M/D vs high GM/C) : il ne "connaît"

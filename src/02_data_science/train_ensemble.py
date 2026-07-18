@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
 """
+DÉPRÉCIÉ — arrêté le 2026-07-18. Modèle per-game (1 ligne = 1 ADC d'une game) NON servi
+en prod : le web (web/backend/ml_rank.py) tourne sur le per-player « constance/plancher ».
+AUC trop basse (~0.63 dia_chall / ~0.59 high_elo) — 1 game porte un signal quasi aléatoire
+(RNG matchmaking/stomps), sans valeur prédictive utile. Conservé pour l'historique et la
+reproductibilité (aucune suppression). Ne pas migrer au protocole gold standard.
+Voir docs/superpowers/specs/2026-07-18-gold-standard-eval-protocol-design.md.
+
 02_data_science — entraîne un Ensemble (XGBoost, Random Forest + EBM) pour séparer
 high-elo (GM+Chall) de low (master+diam).
 
