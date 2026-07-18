@@ -23,6 +23,7 @@ _CORE = Path(__file__).resolve().parent.parent / "core"
 sys.path.insert(0, str(_CORE))                       # import riotlib
 import numpy as np
 import riotlib as rl
+import game_journal as gj      # réutilise OBJECTIVES, _objective_kills, _events, _recalls (DRY)
 
 # reutilise build_dataset (vit dans un dossier non-importable) via importlib
 _BD = Path(__file__).resolve().parent / "build_dataset.py"
@@ -80,23 +81,79 @@ def _diffs(self_state: list[float], opp_state: list[float]) -> list[float]:
     ]
 
 
+def _obj_up(obj_kills: dict, name: str, t_ms: int) -> bool:
+    """Objectif `name` respawné (up) à t_ms ? Réutilise game_journal.OBJECTIVES (timers)."""
+    cfg = gj.OBJECTIVES[name]
+    past = [k for k in obj_kills[name] if k <= t_ms]
+    next_spawn = past[-1] + cfg["respawn"] if past else cfg["first"]
+    return t_ms >= next_spawn
+
+
+def _event_channels(timeline: dict, pid: int, opp_pid: int,
+                    enemy_jungle_pid: int | None) -> np.ndarray:
+    """-> [40, 7] float32. Canaux events binaires par minute, COACHING_SAFE (info que le
+    joueur avait : sa mort, l'annonce de la mort adverse, timers objectifs = HUD public).
+    Ordre : self_death_m, opp_death_m, self_recall_m, drake_up, baron_up, is_ganked,
+    is_solo_death. Réutilise game_journal (OBJECTIVES, _objective_kills, _events, _recalls)
+    — version allégée : on ne calcule que le bucket minute + gank/solo, PAS gold_state/
+    consequences (coût inutile sur 43-95k games × 2 ADC)."""
+    ch = np.zeros((MAX_LEN, 7), dtype=np.float32)
+    obj_kills = gj._objective_kills(timeline)
+    for m in range(MAX_LEN):
+        t_end = (m + 1) * 60000 - 1                       # fin de la minute m
+        if _obj_up(obj_kills, "DRAGON", t_end):
+            ch[m, 3] = 1.0                                # drake_up
+        if _obj_up(obj_kills, "BARON_NASHOR", t_end):
+            ch[m, 4] = 1.0                                # baron_up
+    for ev in gj._events(timeline):
+        et = ev.get("timestamp", 0)
+        m = et // 60000
+        if m >= MAX_LEN:
+            continue
+        if ev.get("type") == "CHAMPION_KILL":
+            vid = ev.get("victimId")
+            if vid == pid:
+                ch[m, 0] = 1.0                            # self_death_m
+                assisters = ev.get("assistingParticipantIds") or []
+                involved = ({ev.get("killerId")} | set(assisters)) - {None}
+                if enemy_jungle_pid is not None and enemy_jungle_pid in involved:
+                    ch[m, 5] = 1.0                        # is_ganked
+                if len(assisters) == 0:
+                    ch[m, 6] = 1.0                        # is_solo_death
+            elif vid == opp_pid:
+                ch[m, 1] = 1.0                            # opp_death_m
+    for rec in gj._recalls(timeline, pid, obj_kills):     # visites de shop (clusters d'achats)
+        m = rec["t_ms"] // 60000
+        if m < MAX_LEN:
+            ch[m, 2] = 1.0                               # self_recall_m
+    return ch
+
+
 def build_sequence(match: dict, timeline: dict,
                    target_puuid: str) -> tuple[np.ndarray, np.ndarray] | None:
-    """Une game -> (seq[40,20] float32, mask[40] bool). None si pas d'opponent ou 0 frame."""
+    """Une game -> (seq[40,27] float32, mask[40] bool). None si pas d'opponent ou 0 frame.
+    Frame = self(8) + opp(8) + diffs(4) + event_channels(7) = 27-d."""
     pid = participant_pid(match, target_puuid)
     opp = opponent_pid(match, target_puuid)
     if opp is None:
         return None
-    my_fr = rl._frames_by_minute(timeline, pid)      # {minute_int: participantFrame}
+    parts = match["info"]["participants"]
+    pidx = match["metadata"]["participants"].index(target_puuid)
+    my_team = parts[pidx]["teamId"]
+    enemy_jungle_pid = next((i + 1 for i, p in enumerate(parts)
+                             if p["teamId"] != my_team
+                             and (p.get("teamPosition") or "") == "JUNGLE"), None)
+    my_fr = rl._frames_by_minute(timeline, pid)
     opp_fr = rl._frames_by_minute(timeline, opp)
-    seq = np.zeros((MAX_LEN, 20), dtype=np.float32)
+    ev = _event_channels(timeline, pid, opp, enemy_jungle_pid)
+    seq = np.zeros((MAX_LEN, 27), dtype=np.float32)
     mask = np.zeros(MAX_LEN, dtype=bool)
     for minute, pf in my_fr.items():
         if minute >= MAX_LEN:
             continue
         self_s = frame_state(pf)
-        opp_s = frame_state(opp_fr.get(minute, {}))  # frame adverse manquante -> zeros
-        seq[minute] = self_s + opp_s + _diffs(self_s, opp_s)
+        opp_s = frame_state(opp_fr.get(minute, {}))   # frame adverse manquante -> zeros
+        seq[minute] = self_s + opp_s + _diffs(self_s, opp_s) + list(ev[minute])
         mask[minute] = True
     if mask.sum() == 0:
         return None

@@ -80,12 +80,63 @@ def _fake_timeline(n_minutes=3):
     return {"info": {"frames": frames}}
 
 
+def _fake_timeline_with_events(n_minutes=15):
+    t = _fake_timeline(n_minutes)
+    # tous les events placés dans frame[0] — game_journal._events les flatten, peu importe la frame.
+    t["info"]["frames"][0]["events"] = [
+        # mort gank à 4:42 (minute 4) : killer=jungle(8) + assist=adc(6) -> ganked, pas solo
+        {"type": "CHAMPION_KILL", "timestamp": 282000, "victimId": 1, "killerId": 8,
+         "assistingParticipantIds": [6], "position": {"x": 1000, "y": 2000}},
+        # mort solo à 12:30 (minute 12) : killer=adc(6), 0 assist -> pas ganked, solo
+        {"type": "CHAMPION_KILL", "timestamp": 750000, "victimId": 1, "killerId": 6,
+         "assistingParticipantIds": [], "position": {"x": 2000, "y": 3000}},
+        # mort adverse à 8:15 (minute 8) : victimId=6 (opp)
+        {"type": "CHAMPION_KILL", "timestamp": 495000, "victimId": 6, "killerId": 1,
+         "assistingParticipantIds": [], "position": {"x": 3000, "y": 4000}},
+        # drake tué à 7:00 par équipe 200 -> up avant, down 7-11, respawn à 12:00
+        {"type": "ELITE_MONSTER_KILL", "timestamp": 420000, "monsterType": "DRAGON",
+         "killerTeamId": 200, "killerId": 8},
+        # achat à 2:30 (minute 2), hors opening (<90s) -> recall
+        {"type": "ITEM_PURCHASED", "timestamp": 150000, "participantId": 1, "itemId": 1001},
+    ]
+    return t
+
+
+def test_event_channels_death_gank_solo():
+    t = _fake_timeline_with_events()
+    ch = bsd._event_channels(t, pid=1, opp_pid=6, enemy_jungle_pid=8)
+    assert ch.shape == (40, 7)
+    assert ch[4, 0] == 1.0 and ch[4, 5] == 1.0 and ch[4, 6] == 0.0   # ganked, pas solo
+    assert ch[12, 0] == 1.0 and ch[12, 5] == 0.0 and ch[12, 6] == 1.0  # solo, pas ganked
+
+
+def test_event_channels_opp_death():
+    t = _fake_timeline_with_events()
+    ch = bsd._event_channels(t, pid=1, opp_pid=6, enemy_jungle_pid=8)
+    assert ch[8, 1] == 1.0
+
+
+def test_event_channels_drake_up_respawn():
+    t = _fake_timeline_with_events()
+    ch = bsd._event_channels(t, pid=1, opp_pid=6, enemy_jungle_pid=8)
+    assert ch[5, 3] == 1.0 and ch[6, 3] == 1.0   # up avant le kill (first spawn 5:00)
+    assert ch[9, 3] == 0.0                       # down après kill (respawn 5min)
+    assert ch[12, 3] == 1.0                       # respawn à 12:00
+    assert ch[0, 4] == 0.0                        # baron pas up en early (first 25:00)
+
+
+def test_event_channels_recall():
+    t = _fake_timeline_with_events()
+    ch = bsd._event_channels(t, pid=1, opp_pid=6, enemy_jungle_pid=8)
+    assert ch[2, 2] == 1.0                        # achat à 2:30 -> recall minute 2
+
+
 def test_build_sequence_shapes_and_mask():
     m = _fake_match(); t = _fake_timeline(3)
     out = bsd.build_sequence(m, t, "p_BOTTOM_100")
     assert out is not None
     seq, mask = out
-    assert seq.shape == (40, 20) and seq.dtype == np.float32
+    assert seq.shape == (40, 27) and seq.dtype == np.float32
     assert mask.shape == (40,) and mask.dtype == bool
     assert mask.sum() == 3              # 3 minutes valides
     assert mask[0] and mask[1] and mask[2] and not mask[3]
@@ -102,7 +153,7 @@ def test_build_sequence_values_minute1():
              (5.0 + 1.0) - (5.0 + 1.0),      # cs diff
              100.0 - 600.0,                  # xp diff
              2.0 - 2.0]                      # level diff
-    expected = self_state + opp_state + diffs
+    expected = self_state + opp_state + diffs + [0.0] * 7
     np.testing.assert_allclose(seq[1], expected, rtol=1e-5)
 
 
@@ -135,7 +186,7 @@ def test_main_writes_npz(tmp_path, monkeypatch):
     assert rc == 0
     import numpy as np
     d = np.load(tmp_path / "adc_sequence_dataset.npz", allow_pickle=True)
-    assert d["sequences"].shape == (1, 40, 20)
+    assert d["sequences"].shape == (1, 40, 27)
     assert d["mask"].sum() == 3
     assert list(d["rank"]) == ["challenger"]
     assert list(d["label_highelo"]) == [1]
