@@ -368,7 +368,8 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
 - **Phase 1.8 — macro-positionnement (timeline, 0 CV)** ✅ — module `positioning` (17 features).
   ML : AUC **dia_chall 0.655 → 0.724 (+0.069)**, top-3 discriminants EBM tous positionnels.
   Coaching : 14 features câblées dans `aggregate`/`compare`. ⚠️ `xgb/rf/ebm_highelo.pkl` à
-  ré-entraîner avant de servir en inférence web. **AUC high_elo = 0.589** (frontière Master|GM
+  ré-entraîner avant de servir en inférence web — per-game déprécié 2026-07-18, non servi ; le
+  serving utilise les `*_player_highelo.pkl`. **AUC high_elo = 0.589** (frontière Master|GM
   peu séparable sur features macro, contrairement à dia_chall).
 - **Rang ML estimé (web)** ✅ — onglet Historique de `/c/{slug}` : rang placé par l'ensemble
   xgb+rf sur les dernières games ADC, calibré par `calibrate_rank.py`. Confiance affichée
@@ -420,6 +421,23 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
   torch+xgboost ne cohabitent pas (double-load libomp → SIGSEGV) → baseline tabulaire RF+EBM
   (xgb exclu) ; MPS n'implémente pas le nested-tensor de `src_key_padding_mask` → run CPU
   (`--device cpu`). 0 API (relit `_read_raw`).
+- **Protocole d'éval gold standard (per-player)** ✅ — 2026-07-18. Split canonique unique
+  `data/04_dataset/split.json` (par joueur, stratifié, graine fixe, 70/15/15, cf.
+  `src/core/dataset_split.py` + `src/01_data_engineering/build_split.py`). Sélection des
+  hyperparamètres en k-fold SUR LE TRAIN, headline sur le TEST held-out ; calibration + test
+  hors du modèle servi (calibration RÉSERVÉE à une future couche AOS4, non encore implémentée).
+  Purge étendue via `purged_train_features` (fold-val ∪ holdout). ⚠ Le headline test est
+  volontairement plus bas que les anciens OOF-à-plat (fin de l'optimisme de sélection + modèle
+  sur ~70 % des joueurs) : c'est la mesure honnête. **FLAW ASSUMÉ (GM)** : ~78 GM au total →
+  calib/test GM petits (~12 chacun), métriques GM bruitées ; remédiation renvoyée à un script
+  ultérieur. Spec : `docs/superpowers/specs/2026-07-18-gold-standard-eval-protocol-design.md`.
+  **Métriques run 2026-07-18** — rang (`player_metrics.json`) : cv_train.auc=0.5912 (n=687,
+  343/344) / test.auc=0.677 (n=147, 73/74) ; split 1345 joueurs (train 942 / calib 202 / test
+  201, 70/15/15 stratifié). LP (`player_lp_metrics.json`) : cv_train.spearman_pooled=0.4931
+  (rmse 535.4, n=805) / test.spearman_pooled=0.5373 (rmse 555.1, n=170) ; by_tier test :
+  challenger 0.6601 (n=55), grandmaster 0.7545 (n=11, bruité), master 0.3634 (n=104).
+- **Per-game DÉPRÉCIÉ** — 2026-07-18. `train_ensemble.py` / `calibrate_rank.py` arrêtés (non
+  servis, AUC ~0.63/0.59 trop aléatoire) ; code et artefacts conservés pour l'historique.
 - **Compte-rendu par-game (axe prioritaire coaching)** ✅ — 2026-07-05. Diagnostic feedback :
   les tags « trop-vague »/« non-actionnable » venaient du **payload agrégé** (le LLM ne peut pas
   être plus précis que des médianes) + du schéma forçant 3 forces. Fix : `game_journal` (morts/
