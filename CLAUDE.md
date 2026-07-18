@@ -167,10 +167,13 @@ src/
                   archive_patch.py, list_unknown_champions.py, dataset_report.py
   reporting/      compare.py
   experiments/    phase1_pull.py
-  01_data_engineering/  build_dataset.py, build_player_dataset.py, build_player_lp_dataset.py
+  01_data_engineering/  build_dataset.py, build_player_dataset.py, build_player_lp_dataset.py,
+                        build_sequence_dataset.py
   02_data_science/      train_ensemble.py, calibrate_rank.py, train_player_ensemble.py,
                         train_player_lp.py, calibrate_player_rank.py, analyze_auc_vs_ngames.py,
-                        lp_metrics.py, audit_leakage.py, poc/per_player_hypothesis.py
+                        lp_metrics.py, audit_leakage.py, poc/per_player_hypothesis.py,
+                        sequence_model.py, sequence_data.py, train_sequence_model.py,
+                        pretrain_sequence_model.py
   03_data_analyse/      shap_analysis.py, plot_custom_shap.py
   04_coaching/          payload.py, prompt.py, schema.py, llm_client.py, coach.py, feedback.py
 data/
@@ -397,6 +400,26 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
   (master 703 / challenger 367 / grandmaster 78, 130 droppés sans LP courant). Ensemble OOF
   purgé : **Spearman pooled = 0.5186** (baseline POC 0.5028, gate passée) ; by_tier challenger
   0.5995, grandmaster 0.5979, master 0.4103 ; RMSE 517.2 LP. Dispersion = 56.1 % du signal SHAP.
+- **Recherche — transformer séquentiel + SSL** ✅ — 2026-07-18. Branche parallèle
+  `research/sequence-transformer` (0 perturbation du pipeline existant). Transformer à la main
+  (4 couches, d_model=64, masked-mean-pool) sur les séquences d'états par-minute (20-d : ADC ciblé
+  + adverse + diffs gold/cs/xp/level), CV purgé identique au baseline tabulaire (folds
+  joueur-groupés + purge miroir, standardisation per-feature **train-only par fold non
+  négociable**). Étape 1 supervisée vs ensemble tabulaire (RF+EBM) + MLP contrôle ; Étape 2 SSL
+  mask-and-reconstruct (delta mesuré, pretrain par-fold train-only → delta propre, pas d'avantage
+  transductif). Verdict sur `dia_chall` ; `high_elo` (master/GM) null = bruit de label non
+  interprétable (plafond ~0.589 connu). Spec : `docs/superpowers/specs/2026-07-18-sequence-transformer-design.md`.
+  Métriques : `data/05_model/sequence_metrics.json`.
+  **Métriques run 2026-07-18** (`data/05_model/sequence_metrics.json`) : `dia_chall` séquence
+  **AUC 0.645** (±0.008, 42 996 rows) BAT tabular 0.633 / MLP 0.530 → la représentation séquentielle
+  capte un signal que l'agrégat rate sur la frontière séparable (thèse renforcée). `high_elo`
+  séquence 0.546 ≈ tabular 0.554 ≈ bruit (95 378 rows, master/GM peu séparable). SSL
+  `delta_ssl = -0.0195` (≈0) : le prétexte MSE mask-and-reconstruct est faible sur signaux lisses
+  (gold monotone, position continue → quasi-interpolation) — **pas un verdict sur le SSL en
+  général**, un prétexte prédictif (future-event) reste à tester en étape 3. ⚠ **Caveat env Mac** :
+  torch+xgboost ne cohabitent pas (double-load libomp → SIGSEGV) → baseline tabulaire RF+EBM
+  (xgb exclu) ; MPS n'implémente pas le nested-tensor de `src_key_padding_mask` → run CPU
+  (`--device cpu`). 0 API (relit `_read_raw`).
 - **Compte-rendu par-game (axe prioritaire coaching)** ✅ — 2026-07-05. Diagnostic feedback :
   les tags « trop-vague »/« non-actionnable » venaient du **payload agrégé** (le LLM ne peut pas
   être plus précis que des médianes) + du schéma forçant 3 forces. Fix : `game_journal` (morts/
