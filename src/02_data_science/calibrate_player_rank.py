@@ -29,19 +29,19 @@ RANKS = ["diamond", "master", "grandmaster", "challenger"]
 
 
 def main() -> int:
-    features = json.loads((MODEL_DIR / "player_features.json").read_text())
-    models = {}
-    for name in ("xgb", "rf"):
-        with open(MODEL_DIR / f"{name}_player_highelo.pkl", "rb") as f:
-            models[name] = pickle.load(f)
-
+    oof_path = MODEL_DIR / "player_train_oof.json"
+    if not oof_path.exists():
+        raise FileNotFoundError(
+            f"{oof_path} absent. Lance d'abord "
+            "`train_player_ensemble.py` (il exporte les OOF du train)."
+        )
+    train_oof = json.loads(oof_path.read_text())
     df = pd.read_parquet(DATASET)
-    X = df.reindex(columns=features)
-    proba = np.mean([m.predict_proba(X)[:, 1] for m in models.values()], axis=0)
-    df["ensemble_proba"] = proba
+    df = df[df["puuid"].isin(train_oof)].copy()
+    df["ensemble_proba"] = df["puuid"].map(train_oof)
 
     calibration = []
-    print("  Calibration proba -> rang (per-player) :")
+    print("  Calibration proba -> rang (per-player, OOF du TRAIN, hors in-sample) :")
     for rank in RANKS:
         sub = df[df["rank"] == rank]["ensemble_proba"]
         if not len(sub):
