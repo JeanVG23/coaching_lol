@@ -76,7 +76,13 @@ contexte de mort. Pour une MORT, le journal donne déjà `killer_champ`/`killer_
 0 vision ») et les chiffres dans l'`evidence` (« mort à 17:05 par Katarina en MID, \
 0 assist, drake dans 6 s, 1 244 g non dépensés »). Un insight sans `cause` ni \
 horodatage est invalide. Regroupe les morts similaires en une seule erreur qui cite \
-2-3 horodatages.
+2-3 horodatages. Quand une mort porte un bloc `consequences` (objectifs/tours pris \
+par l'ennemi juste après ta mort, `team_gold_swing_90s`), RESTITUE la CHAÎNE causale \
+complète dans la cause et l'evidence : « mort à 26:04 → Baron perdu 40 s après, -1 840 g \
+d'écart d'équipe en 90 s » — c'est le COÛT réel de la mort, pas juste l'événement. \
+Formule prudemment : « pendant que tu étais mort / juste après ta mort, l'ennemi a \
+pris X » — la fenêtre est une corrélation temporelle forte, pas une preuve absolue, \
+et n'invente jamais de lien absent du journal.
 3. MATCHUP — le bloc `context` est le champ select, connu du joueur dès la minute 0 : \
 tu PEUX mobiliser ta connaissance générale des champions (ex. « Pyke = hook + engage, \
 une mort à portée de hook sans vision est un pattern à corriger ») pour expliquer le \

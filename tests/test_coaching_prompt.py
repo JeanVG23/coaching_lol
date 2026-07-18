@@ -90,3 +90,11 @@ def test_system_game_judges_gold_relative_to_next_buy():
     s = PR.SYSTEM_GAME
     assert "PROCHAIN ACHAT" in s
     assert "légitime" in s
+
+
+def test_system_game_requires_consequence_chain():
+    s = PR.SYSTEM_GAME
+    assert "consequences" in s            # le LLM sait où chercher
+    assert "chaîne" in s.lower()          # restituer la chaîne causale
+    assert "pendant que tu étais mort" in s.lower()  # formulation prudente
+    assert "corrélation" in s.lower()     # fenêtre = corrélation, pas preuve
