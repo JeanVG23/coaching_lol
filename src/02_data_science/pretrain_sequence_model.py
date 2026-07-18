@@ -41,7 +41,7 @@ SEED = 42
 MASK_FRAC = 0.15
 
 
-def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed):
+def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed, d_in):
     """SSL puriste par-fold : pour chaque fold, (1) standardise train-only, (2) pretrain
     mask-and-reconstruct sur le TRAIN du fold uniquement, (3) finetune classifieur avec
     l'encodeur pré-entraîné. Même échelle d'entrée au pretrain et au finetune (mêmes stats
@@ -49,6 +49,7 @@ def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed):
     pretrain. delta_ssl est donc un signal propre (pas d'avantage transductif)."""
     from sklearn.metrics import roc_auc_score
     idx, y = sd.task_subset(data, "high_elo")
+    bin_cols = range(20, d_in) if d_in > 20 else None
     folds = sd.player_folds(data["puuid"][idx], y, n_splits=5, seed=seed)
     oof = np.full(len(idx), np.nan)
     best_enc, best_auc = None, -1.0
@@ -57,7 +58,7 @@ def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed):
         tr_purged = sd.mirror_purge(tr_i, val_puuids, data["match_id"][idx], data["puuid"][idx])
         if len(tr_purged) == 0:
             continue
-        mean, std = sd.standardize_fit(data["sequences"], data["mask"], idx[tr_purged])
+        mean, std = sd.standardize_fit(data["sequences"], data["mask"], idx[tr_purged], bin_cols)
         Xs = sd.standardize_apply(data["sequences"], mean, std)
         Xtr = torch.from_numpy(Xs[idx[tr_purged]]).to(device)
         Mtr = torch.from_numpy(data["mask"][idx[tr_purged]]).to(device)
@@ -66,8 +67,8 @@ def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed):
         Mva = torch.from_numpy(data["mask"][idx[va_i]]).to(device)
         n = len(Xtr)
         # (1)+(2) pretrain SSL sur le TRAIN du fold
-        enc = sm.SequenceEncoder().to(device)
-        head = sm.ReconstructHead().to(device)
+        enc = sm.SequenceEncoder(d_in=d_in).to(device)
+        head = sm.ReconstructHead(d_in=d_in).to(device)
         opt_p = torch.optim.AdamW(list(enc.parameters()) + list(head.parameters()),
                                   lr=3e-4, weight_decay=1e-2)
         for ep in range(pretrain_epochs):
@@ -80,10 +81,10 @@ def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed):
                 h = enc(xb, mb & ~ssl_mask)                                 # encode sans les masquées
                 pred = head(h)
                 loss = ((pred - xb) ** 2 * ssl_mask.unsqueeze(-1)).sum() / \
-                       ssl_mask.float().sum().clamp(min=1.0) / 20.0
+                       ssl_mask.float().sum().clamp(min=1.0) / d_in
                 opt_p.zero_grad(); loss.backward(); opt_p.step()
         # (3) finetune : encodeur pré-entraîné + tête fraîche
-        clf = sm.SequenceClassifier().to(device)
+        clf = sm.SequenceClassifier(d_in=d_in).to(device)
         clf.encoder.load_state_dict(enc.state_dict())
         opt_f = torch.optim.AdamW(clf.parameters(), lr=3e-4, weight_decay=1e-2)
         for ep in range(finetune_epochs):
@@ -108,37 +109,40 @@ def _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed):
     return auc, best_enc
 
 
-def run(pretrain_epochs=30, finetune_epochs=40, batch=64, seed=SEED, device_force=None) -> dict:
+def run(pretrain_epochs=30, finetune_epochs=40, batch=64, seed=SEED, device_force=None,
+        metrics_name="sequence_metrics.json") -> dict:
     # sd.DATASET lu au call-time (pas via default arg de load_dataset, qui est bound au def-time)
     # -> permet au test de monkeypatcher sd.DATASET pour brancher un mini-dataset synthétique.
     data = sd.load_dataset(sd.DATASET)
     device = torch.device(device_force) if device_force else sm.get_device()
+    d_in = int(data["sequences"].shape[-1])
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    auc_ssl, best_enc = _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed)
+    auc_ssl, best_enc = _ssl_cv(data, device, pretrain_epochs, finetune_epochs, batch, seed, d_in)
     # lit l'AUC supervisé étape 1 (même protocole CV purgé, sans pretrain)
-    metrics_path = MODEL_DIR / "sequence_metrics.json"
+    metrics_path = MODEL_DIR / metrics_name
     prev = json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
     auc_sup = prev.get("tasks", {}).get("high_elo", {}).get("auc_mean")
     out = {"auc_supervised": auc_sup, "auc_ssl": auc_ssl,
            "delta_ssl": (auc_ssl - auc_sup) if (auc_ssl is not None and auc_sup is not None) else None,
            "pretext": "mask-and-reconstruct (MSE, 15% mask) — prétexte faible sur signaux lisses ; "
                       "≈0 delta n'est pas un verdict sur le SSL en général (cf. spec §Pièges). "
-                      "Pretrain par-fold train-only : pas d'avantage transductif, delta propre.",
+                      "Pretrain par-fold train-only : pas d'avantage transductif, delta propre. "
+                      "v2 : canaux events binaires inclus dans la reconstruction (signal non-lisse).",
            "params": {"pretrain_epochs": pretrain_epochs, "finetune_epochs": finetune_epochs,
-                      "seed": seed, "device": str(device)}}
+                      "seed": seed, "device": str(device), "d_in": d_in}}
     prev["ssl"] = out
     metrics_path.write_text(json.dumps(prev, indent=2))
     if best_enc is not None:
         torch.save(best_enc, MODEL_DIR / "sequence_encoder_pretrain.pt")
     print(f"  AUC supervisé={auc_sup}  AUC ssl={auc_ssl}  delta={out['delta_ssl']}")
-    print(f"✓ {MODEL_DIR}/sequence_encoder_pretrain.pt + delta dans sequence_metrics.json")
+    print(f"✓ {MODEL_DIR}/sequence_encoder_pretrain.pt + delta dans {metrics_name}")
     return out
 
 
 def embed_game(seq: np.ndarray, mask: np.ndarray, device_force=None) -> np.ndarray:
     """Vecteur d'embedding 64-d d'une game (pour inspection : projection 2D colorée rang)."""
     device = torch.device(device_force) if device_force else sm.get_device()
-    clf = sm.SequenceClassifier().to(device)
+    clf = sm.SequenceClassifier(d_in=seq.shape[-1]).to(device)
     clf.eval()
     with torch.no_grad():
         x = torch.from_numpy(seq[None].astype(np.float32)).to(device)
@@ -152,9 +156,11 @@ def main() -> int:
     ap.add_argument("--finetune-epochs", type=int, default=40)
     ap.add_argument("--device", type=str, default=None,
                     help="force device (ex: 'cpu') ; défaut = auto (MPS/CUDA/CPU)")
+    ap.add_argument("--metrics-name", type=str, default="sequence_metrics.json",
+                    help="nom du fichier métriques (v2: sequence_metrics_v2.json)")
     args = ap.parse_args()
     run(pretrain_epochs=args.pretrain_epochs, finetune_epochs=args.finetune_epochs,
-        device_force=args.device)
+        device_force=args.device, metrics_name=args.metrics_name)
     return 0
 
 

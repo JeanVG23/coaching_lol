@@ -16,7 +16,7 @@ def _mini(n=40, seed=0):
     ranks = np.array(rng.choice(["diamond", "challenger"], n), dtype=object)
     y = (ranks == "challenger").astype(int)
     # signal : les challenger ont totalGold plus haut à la frame 10 (feature 2)
-    seqs = rng.randn(n, 40, 20).astype(np.float32)
+    seqs = rng.randn(n, 40, 27).astype(np.float32)   # 20 -> 27
     seqs[y == 1, 10, 2] += 5.0
     return {
         "sequences": seqs, "mask": np.ones((n, 40), dtype=bool),

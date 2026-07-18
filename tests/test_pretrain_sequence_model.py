@@ -15,7 +15,7 @@ def _mini(n=40, seed=0):
     puuids = np.array([f"p{i // 4}" for i in range(n)], dtype=object)
     ranks = np.array(rng.choice(["diamond", "challenger"], n), dtype=object)
     y = (ranks == "challenger").astype(int)
-    seqs = rng.randn(n, 40, 20).astype(np.float32)
+    seqs = rng.randn(n, 40, 27).astype(np.float32)   # 20 -> 27
     seqs[y == 1, 10, 2] += 5.0
     return {"sequences": seqs, "mask": np.ones((n, 40), dtype=bool), "rank": ranks,
             "puuid": puuids, "match_id": np.array([f"m{i}" for i in range(n)], dtype=object),
@@ -34,6 +34,6 @@ def test_pretrain_returns_delta(tmp_path, monkeypatch):
 def test_embed_game_shape(tmp_path, monkeypatch):
     monkeypatch.setattr(ptm.sd, "DATASET", tmp_path / "x.npz")
     np.savez(tmp_path / "x.npz", **_mini())
-    emb = ptm.embed_game(np.random.randn(40, 20).astype(np.float32),
+    emb = ptm.embed_game(np.random.randn(40, 27).astype(np.float32),   # 20 -> 27
                          np.ones(40, dtype=bool), device_force="cpu")
     assert emb.shape == (64,)

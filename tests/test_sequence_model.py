@@ -48,3 +48,12 @@ def test_reconstruct_head_shape():
     h = torch.randn(4, 40, 64)
     out = rh(h)
     assert out.shape == (4, 40, 20)
+
+
+def test_sequence_classifier_accepts_d_in_27():
+    torch.manual_seed(0)
+    clf = sm.SequenceClassifier(d_in=27, d_model=64, max_len=40)
+    x = torch.randn(4, 40, 27)
+    mask = torch.ones(4, 40, dtype=torch.bool)
+    assert clf(x, mask).shape == (4,)
+    assert clf.embed(x, mask).shape == (4, 64)

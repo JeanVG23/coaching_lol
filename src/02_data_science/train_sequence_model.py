@@ -119,13 +119,14 @@ def _baseline_mlp(task, folds, idx, y, data, seed=SEED):
     return float(roc_auc_score(y[mask], oof[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
 
 
-def _train_one_task(task, data, device, epochs, batch, seed):
+def _train_one_task(task, data, device, epochs, batch, seed, d_in):
     from sklearn.metrics import roc_auc_score
     import copy
     idx, y = sd.task_subset(data, task)
     if len(set(y)) < 2 or len(idx) < 30:
         return ({"auc_mean": None, "auc_std": None, "n_rows": int(len(idx)),
                  "reason": "trop peu de rows ou 1 classe"}, None)
+    bin_cols = range(20, d_in) if d_in > 20 else None
     folds = sd.player_folds(data["puuid"][idx], y, n_splits=5, seed=seed)
     oof = np.full(len(idx), np.nan)
     best_state_global, best_auc_global = None, -1.0
@@ -135,14 +136,14 @@ def _train_one_task(task, data, device, epochs, batch, seed):
         tr_purged = sd.mirror_purge(tr_i, val_puuids, data["match_id"][idx], data["puuid"][idx])
         if len(tr_purged) == 0:
             continue
-        mean, std = sd.standardize_fit(data["sequences"], data["mask"], idx[tr_purged])
+        mean, std = sd.standardize_fit(data["sequences"], data["mask"], idx[tr_purged], bin_cols)
         Xs = sd.standardize_apply(data["sequences"], mean, std)
         Xtr = torch.from_numpy(Xs[idx[tr_purged]]).to(device)
         Mtr = torch.from_numpy(data["mask"][idx[tr_purged]]).to(device)
         ytr = torch.from_numpy(y[tr_purged].astype(np.float32)).to(device)
         Xva = torch.from_numpy(Xs[idx[va_i]]).to(device)
         Mva = torch.from_numpy(data["mask"][idx[va_i]]).to(device)
-        model = sm.SequenceClassifier().to(device)
+        model = sm.SequenceClassifier(d_in=d_in).to(device)
         opt = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-2)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
         best_fold_auc, best_state, patience, bad = 0.0, None, 10, 0
@@ -196,18 +197,20 @@ def _train_one_task(task, data, device, epochs, batch, seed):
     }, best_state_global)
 
 
-def run(epochs=60, batch=64, seed=SEED, device_force=None) -> dict:
+def run(epochs=60, batch=64, seed=SEED, device_force=None,
+        metrics_name="sequence_metrics.json") -> dict:
     # sd.DATASET lu au call-time (pas via default arg de load_dataset, qui est bound au def-time)
     # -> permet au test de monkeypatcher sd.DATASET pour brancher un mini-dataset synthétique.
     data = sd.load_dataset(sd.DATASET)
     device = torch.device(device_force) if device_force else sm.get_device()
-    print(f"  device={device} | {len(data['sequences'])} séquences")
+    d_in = int(data["sequences"].shape[-1])          # auto : 20 (v1) ou 27 (v2)
+    print(f"  device={device} | {len(data['sequences'])} séquences | d_in={d_in}")
     metrics = {"tasks": {}, "params": {"epochs": epochs, "batch": batch, "seed": seed,
-                "d_model": 64, "n_layers": 4, "nhead": 4, "device": str(device)}}
+                "d_model": 64, "n_layers": 4, "nhead": 4, "d_in": d_in, "device": str(device)}}
     saved_state = None
     for task in sd.TASKS:
         print(f"\n=== tâche {task} ===")
-        m, state = _train_one_task(task, data, device, epochs, batch, seed)
+        m, state = _train_one_task(task, data, device, epochs, batch, seed, d_in)
         metrics["tasks"][task] = m
         print(f"  séquence AUC={m.get('auc_mean')} (±{m.get('auc_std')})  "
               f"tabulaire={m.get('baseline_tabular_auc')}  mlp={m.get('baseline_mlp_auc')}")
@@ -216,8 +219,8 @@ def run(epochs=60, batch=64, seed=SEED, device_force=None) -> dict:
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     if saved_state is not None:
         torch.save(saved_state, MODEL_DIR / "sequence_supervised.pt")
-    (MODEL_DIR / "sequence_metrics.json").write_text(json.dumps(metrics, indent=2))
-    print(f"\n✓ {MODEL_DIR}/sequence_metrics.json")
+    (MODEL_DIR / metrics_name).write_text(json.dumps(metrics, indent=2))
+    print(f"\n✓ {MODEL_DIR}/{metrics_name}")
     return metrics
 
 
@@ -227,8 +230,11 @@ def main() -> int:
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--device", type=str, default=None,
                     help="force device (ex: 'cpu') ; défaut = auto (MPS/CUDA/CPU)")
+    ap.add_argument("--metrics-name", type=str, default="sequence_metrics.json",
+                    help="nom du fichier métriques (v2: sequence_metrics_v2.json)")
     args = ap.parse_args()
-    run(epochs=args.epochs, batch=args.batch, device_force=args.device)
+    run(epochs=args.epochs, batch=args.batch, device_force=args.device,
+        metrics_name=args.metrics_name)
     return 0
 
 
