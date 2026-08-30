@@ -1,4 +1,5 @@
 import { ACCOUNTS } from "./accounts";
+import { apiCoach } from "./coach";
 import {
   KEYS,
   readGames,
@@ -89,6 +90,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       return Response.json(await readJsonl(env.DATA, KEYS.feedback(slug)));
     }
     if (tail === "shap") return Response.json(await readShap(env.DATA, slug));
+  }
+  if (url.pathname === "/api/coach" && request.method === "POST") {
+    return apiCoach(request, env);
   }
   if (url.pathname.startsWith("/api/")) {
     return Response.json({ detail: "Not Found" }, { status: 404 });
