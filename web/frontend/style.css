@@ -180,6 +180,7 @@ h3 { font-size:14px; color:var(--text-dim); text-transform:uppercase; letter-spa
 }
 .insight-col .insight-card:first-of-type { border-top:none; padding-top:0; }
 .insight-card p { margin:0 0 8px; font-size:14px; line-height:1.5; }
+.cause-line { margin:0 0 8px; font-size:13px; line-height:1.5; color:var(--text-dim); font-style:italic; }
 .evidence-chip {
   display:inline-block; font-size:12px; color:var(--text-dim);
   background:var(--bg); border-left:2px solid var(--border);

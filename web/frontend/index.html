@@ -199,6 +199,7 @@
               <template x-for="(it, i) in review.review.strengths" :key="'s'+i">
                 <div class="insight-card">
                   <p x-text="it.point"></p>
+                  <p class="cause-line" x-show="it.cause" x-text="'Pourquoi : ' + (it.cause || '')"></p>
                   <span class="evidence-chip kind-strength" x-text="it.evidence"></span>
                   <div class="fb-row" x-data="{ k: 'strength', i }">
                     <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
@@ -226,6 +227,7 @@
               <template x-for="(it, i) in review.review.mistakes" :key="'m'+i">
                 <div class="insight-card">
                   <p x-text="it.point"></p>
+                  <p class="cause-line" x-show="it.cause" x-text="'Pourquoi : ' + (it.cause || '')"></p>
                   <span class="evidence-chip kind-mistake" x-text="it.evidence"></span>
                   <div class="fb-row" x-data="{ k: 'mistake', i }">
                     <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
