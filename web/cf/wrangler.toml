@@ -6,3 +6,7 @@ compatibility_date = "2026-08-30"
 directory = "../frontend"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+
+[[kv_namespaces]]
+binding = "DATA"
+id = "a7ea0d5fcf0449f9a4fef23e9dda5496"

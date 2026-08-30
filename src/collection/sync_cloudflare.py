@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -187,6 +188,9 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = _parser().parse_args(argv)
     env = rl.load_env()
+    for key in ("CF_API_TOKEN", "CF_ACCOUNT_ID", "CF_NAMESPACE_ID"):
+        if os.environ.get(key):
+            env[key] = os.environ[key]
     if args.dry_run:
         kv: KV = DryKV()
     else:
