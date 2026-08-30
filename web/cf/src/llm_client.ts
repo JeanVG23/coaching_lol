@@ -29,6 +29,7 @@ export async function generateJson(
     ?? ((milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds)));
   const temperature = opts.temperature ?? 0.2;
   const timeoutMs = opts.timeoutMs ?? 180_000;
+  let lastReason = "réponse inattendue";
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     try {
@@ -53,6 +54,7 @@ export async function generateJson(
       if (response.status !== 429 && response.status < 500 && !response.ok) {
         throw new LLMError(`ollama HTTP ${response.status} (auth/requête invalide)`);
       }
+      if (!response.ok) lastReason = `HTTP ${response.status}`;
       if (response.ok) {
         const body = await response.json() as { message?: { content?: string } };
         try {
@@ -60,15 +62,20 @@ export async function generateJson(
           if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
             return parsed as Record<string, unknown>;
           }
+          lastReason = "contenu JSON non objet";
         } catch {
           // Une réponse JSON Ollama dont le contenu n'est pas JSON est retentée.
+          lastReason = "contenu LLM non JSON";
         }
       }
     } catch (error) {
       if (error instanceof LLMError) throw error;
       // Timeout, erreur réseau et réponse Ollama non JSON sont retentés.
+      lastReason = error instanceof Error ? error.message : String(error);
     }
     if (attempt < MAX_ATTEMPTS - 1) await sleep(2_000 * (attempt + 1));
   }
-  throw new LLMError(`ollama : échec après ${MAX_ATTEMPTS} tentatives`);
+  throw new LLMError(
+    `ollama : échec après ${MAX_ATTEMPTS} tentatives (dernier motif : ${lastReason})`,
+  );
 }
