@@ -73,23 +73,18 @@
     </div>
   </div>
 
-  <!-- barre d'actions -->
+  <!-- mise a jour des games : sync locale (le fetch Riot ne passe plus par le web) -->
   <div class="action-bar row wrap">
-    <span class="muted" style="font-size:13px">Mettre à jour :</span>
-    <input class="input narrow num" type="number" min="1" max="100" x-model.number="fetchN">
-    <button class="btn btn-primary" @click="fetchGames()"
-            :disabled="job && job.status === 'running'">Fetcher les games</button>
+    <span class="faint" style="font-size:13px">Mise à jour des games (sync locale) :
+      <code>poetry run python3 src/collection/sync_cloudflare.py</code></span>
     <div class="spacer"></div>
   </div>
 
   <!-- bandeau job (sticky sous le header) -->
   <template x-if="job">
     <div class="job-banner" :class="job.status === 'error' ? 'err' : ''">
-      <template x-if="job.type === 'fetch'">
-        <span><span x-text="job.status === 'running' ? 'Pull Riot… ' + (job.progress || '') : (job.status === 'done' ? '✅ Games mises à jour' : '⛔ Erreur')"></span></span>
-      </template>
       <template x-if="job.type === 'coach'">
-        <span><span x-text="job.status === 'running' ? 'Coaching en cours…' : (job.status === 'done' ? '✅ Coaching prêt' : '⛔ Erreur')"></span></span>
+        <span><span x-text="job.status === 'running' ? 'Coaching en cours… ' + (job.progress || '') : (job.status === 'done' ? '✅ Coaching prêt' : '⛔ Erreur')"></span></span>
       </template>
       <template x-if="job.status === 'error'">
         <span class="faint" x-text="job.error || ''"></span>
@@ -119,7 +114,7 @@
       <template x-if="gamesLoading"><div class="state">Chargement…</div></template>
       <template x-if="gamesError"><div class="state err" x-text="gamesError"></div></template>
       <template x-if="!gamesLoading && !gamesError && games.length === 0">
-        <div class="state">Aucune game en cache. Lance un fetch.</div>
+        <div class="state">Aucune game en cache. Lance le sync local.</div>
       </template>
       <template x-if="!gamesLoading && games.length > 0">
         <div>

@@ -11,23 +11,6 @@ async function api(path, opts) {
   return r.json();
 }
 
-function pollJob(jobId, onUpdate, onDone) {
-  const id = setInterval(async () => {
-    try {
-      const j = await api(`/api/jobs/${jobId}`);
-      onUpdate(j);
-      if (j.status === "done" || j.status === "error") {
-        clearInterval(id);
-        onDone(j);
-      }
-    } catch (e) {
-      clearInterval(id);
-      onDone({ status: "error", error: String(e) });
-    }
-  }, 1500);
-  return id;
-}
-
 function fmtKDA(k, d, a) {
   const ka = k + a;
   const ratio = d === 0 ? "Perfect" : (ka / d).toFixed(2);
@@ -82,7 +65,6 @@ function accountPage(slug) {
     tab: "history",
     games: [], page: 1, size: 20, total: 0,
     gamesLoading: true, gamesError: null,
-    fetchN: 20,
     job: null, // {type, status, progress, error}
     rank: null, rankLoading: true,
     predictedRank: null, predictedRankLoading: true,
@@ -113,7 +95,7 @@ function accountPage(slug) {
     },
 
     rankLabel() {
-      if (!this.rank || !this.rank.tier) return "Rang inconnu — lance un fetch";
+      if (!this.rank || !this.rank.tier) return "Rang inconnu — lance le sync local";
       const tier = this.rank.tier.charAt(0) + this.rank.tier.slice(1).toLowerCase();
       return `${tier} ${this.rank.division} · ${this.rank.league_points} LP`;
     },
@@ -132,27 +114,6 @@ function accountPage(slug) {
     async prevPage() { if (this.page > 1) { this.page--; this.loadGames(); } },
     async nextPage() {
       if (this.page * this.size < this.total) { this.page++; this.loadGames(); }
-    },
-
-    async fetchGames() {
-      this.job = { type: "fetch", status: "running", progress: "0/" + this.fetchN };
-      try {
-        const { job_id } = await api("/api/fetch", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug: this.slug, n: Number(this.fetchN) }),
-        });
-        this.startPoll(job_id);
-      } catch (e) { this.job = { type: "fetch", status: "error", error: String(e) }; }
-    },
-
-    startPoll(jobId) {
-      pollJob(jobId,
-        j => { this.job = j; },
-        j => {
-          this.job = j;
-          if (j.status === "done" && j.type === "fetch") { this.loadGames(); this.loadRank(); this.loadPredictedRank(); }
-        },
-      );
     },
 
     setTab(t) {
@@ -230,22 +191,56 @@ function accountPage(slug) {
     },
 
     async genCoach() {
-      this.job = { type: "coach", status: "running", progress: "coaching" };
+      if (!this.slug) return;
+      this.job = { type: "coach", status: "running" };
       try {
-        const { job_id } = await api("/api/coach", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug: this.slug, scope: this.scope,
-            outcome: this.outcome, target: this.target }),
+        const response = await fetch("/api/coach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: this.slug,
+            scope: this.scope,
+            outcome: this.outcome,
+            target: this.target,
+          }),
         });
-        // étend startPoll pour recharger les reviews au done coach
-        pollJob(job_id,
-          j => { this.job = j; },
-          j => {
-            this.job = j;
-            if (j.status === "done" && j.type === "coach") this.loadReviews();
-          },
-        );
-      } catch (e) { this.job = { type: "coach", status: "error", error: String(e) }; }
+        if (!response.ok || !response.body) {
+          throw new Error(`HTTP ${response.status} sur /api/coach`);
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let boundary;
+          while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+            const frame = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            const event = /^event: (.+)$/m.exec(frame)?.[1];
+            const raw = /^data: (.+)$/m.exec(frame)?.[1];
+            if (!event || !raw) continue;
+            const data = JSON.parse(raw);
+            if (event === "payload") {
+              this.job = { type: "coach", status: "running", progress: "payload construit" };
+            } else if (event === "llm") {
+              this.job = { type: "coach", status: "running", progress: "génération LLM…" };
+            } else if (event === "review") {
+              this.job = { type: "coach", status: "done" };
+              this.loadReviews();
+            } else if (event === "error") {
+              this.job = {
+                type: "coach",
+                status: "error",
+                error: data.error || "erreur inconnue",
+              };
+            }
+          }
+        }
+      } catch (e) {
+        this.job = { type: "coach", status: "error", error: String(e) };
+      }
     },
 
     async loadFeedback() {
