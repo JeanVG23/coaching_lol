@@ -425,7 +425,8 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
   `data/04_dataset/split.json` (par joueur, stratifié, graine fixe, 70/15/15, cf.
   `src/core/dataset_split.py` + `src/01_data_engineering/build_split.py`). Sélection des
   hyperparamètres en k-fold SUR LE TRAIN, headline sur le TEST held-out ; calibration + test
-  hors du modèle servi (calibration RÉSERVÉE à une future couche AOS4, non encore implémentée).
+  hors du modèle servi (réservée à une future couche calibration/conformal, non encore
+  implémentée).
   Purge étendue via `purged_train_features` (fold-val ∪ holdout). ⚠ Le headline test est
   volontairement plus bas que les anciens OOF-à-plat (fin de l'optimisme de sélection + modèle
   sur ~70 % des joueurs) : c'est la mesure honnête. **FLAW ASSUMÉ (GM)** : ~78 GM au total →
