@@ -77,9 +77,9 @@ l'environnement Poetry (`poetry shell` ou préfixer `poetry run`) :
 | Extraction frames/vidéo (phase 2) | FFmpeg, OpenCV, NumPy, Tesseract/EasyOCR |
 | Détection minimap (tardif) | YOLO-like (Ultralytics/supervision) ou template matching + règles |
 | Validation schémas | Pydantic |
-| Stockage | Parquet (compact, colonne) — JSONL acceptable en ingestion |
+| Stockage | Parquet/JSONL en local ; Cloudflare KV pour les données web publiées |
 | Analytics local | DuckDB |
-| Extraction structurée locale | Ollama, structured output JSON (schéma imposé, T° basse) |
+| Extraction structurée | Ollama local ou Cloud, structured output JSON (schéma imposé, T° basse) |
 | Synthèse narration | Petit modèle local pour l'extraction ; modèle plus gros (API) pour la narration nuancée |
 
 **À éviter (sur-ingénierie)** : CV tant que le MVP timeline n'est pas validé ; scraping
@@ -161,7 +161,7 @@ agrégation contextuelle. Lancer : `poetry run pytest tests/`.
 ```
 src/
   core/           riotlib.py, positioning.py, champion_profiles.py, game_journal.py, ml_features.py
-  collection/     build_referential.py, aggregate_games.py, live_capture.py,
+  collection/     build_referential.py, aggregate_games.py, live_capture.py, sync_cloudflare.py,
                   densify_targets.py, densify_sweet_spot.py, densify_players.py, fetch_apex_lp.py
   pipeline_ops/   reextract_silver.py, rebuild_gold.py, compress_raw.py,
                   archive_patch.py, list_unknown_champions.py, dataset_report.py
@@ -187,6 +187,10 @@ data/
                   rank_calibration.json, auc_vs_ngames.{json,png})
   06_shap/        SHAP/EBM outputs
   07_coaching/<player>/reviews.jsonl + feedback.jsonl
+web/
+  cf/             Worker TypeScript de production : API, assets, KV, Ollama SSE
+  frontend/       SPA statique servie par le Worker
+  backend/        FastAPI de référence, non servi en production
 ```
 ⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : config source).
 ⚠️ Les chemins des couches sont définis dans `src/core/riotlib.py` (`RAW_DIR`/`SILVER_DIR`/`GOLD_DIR`).
@@ -235,6 +239,8 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
 - **`aggregate_games.py`** — pipeline perso : N games → silver + gold (all/adc/zeri).
 - **`live_capture.py`** — capture Live Client Data API pendant une game ; zéro dépendance hors
   stdlib (copiable seul sur une machine sans le reste du repo).
+- **`sync_cloudflare.py`** — publication des agrégats, rangs, prédictions ML, SHAP, reviews et
+  feedbacks locaux vers Cloudflare KV. Fusionne l'historique distant et supporte `--dry-run`.
 - **`densify_targets.py`** — sélection **chirurgicale** des joueurs à densifier vers le sweet
   spot ~30 games/joueur (cf. `analyze_auc_vs_ngames.py`). 0 API : relit `adc_dataset.parquet`
   (comptage par joueur sur le référentiel double-ADC), cible la bande `[--min-games, --threshold[`,
@@ -357,6 +363,13 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
 
 ## État d'avancement
 
+- **Migration web Cloudflare** ✅ — 2026-08-31. `web/cf/` sert l'API TypeScript et le frontend
+  sur `https://coaching-lol.jeanvg.fr`, avec lecture/écriture Cloudflare KV et coaching Ollama
+  diffusé en SSE. La collecte Riot et le calcul ML restent locaux puis sont publiés par
+  `sync_cloudflare.py`. L'ancienne app Fly ne reçoit plus de trafic et est inactive ; Fly bloque
+  sa suppression sans ajout de carte bancaire, elle est donc laissée en l'état sans réactiver
+  la facturation. L'historique local disponible a été fusionné dans KV (17 reviews, 5 feedbacks) ;
+  le volume Fly n'a pas été rapatrié davantage, par choix.
 - **Phase 1 VALIDÉE** ✅ — positionnement reconstruit sans vision. Insight type :
   « 1 ennemi = 5/8 de tes morts » >> « meurs moins ».
 - **Phase 1.5 — agrégation multi-games** ✅ — pattern récurrent sur 14-20 games : ~37 % des

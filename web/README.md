@@ -1,145 +1,151 @@
 # web/ — interface web de coaching_lol
 
-Un seul process FastAPI (sur Fly.io) sert à la fois :
-- **l'API** sous `/api/*` (`web/backend/main.py`),
-- **le frontend statique** (`index.html`, CSS, JS) sous `/` et `/static` (`web/frontend/`).
+Le site de production est un **Cloudflare Worker TypeScript** qui sert dans le même
+déploiement :
 
-Les clés (Riot, Ollama) restent côté serveur — jamais dans le navigateur.
+- l'API sous `/api/*` (`web/cf/src/`) ;
+- le frontend statique (`web/frontend/`) via le binding `ASSETS` ;
+- les données de consultation dans Cloudflare KV (`DATA`).
 
-## Lancer en local
+Production : <https://coaching-lol.jeanvg.fr>
+
+Les clés restent côté serveur. La collecte Riot, les agrégations et l'entraînement ML
+continuent de tourner localement en Python ; seul le résultat utile au site est synchronisé
+vers KV.
+
+## Développement local du Worker
 
 ```bash
-poetry install                                    # crée .venv/ et installe les deps (1re fois)
+cd web/cf
+npm install
+npx wrangler dev
+```
+
+Pour lire les vraies données KV pendant un test local :
+
+```bash
+npx wrangler dev --remote
+```
+
+Commandes de validation :
+
+```bash
+cd web/cf
+npm test
+npm run typecheck
+```
+
+Le backend FastAPI dans `web/backend/` reste la référence Python et peut encore être
+lancé pour comparaison :
+
+```bash
 poetry run uvicorn main:app --app-dir web/backend --reload
 ```
 
-Ouvre http://127.0.0.1:8000 — la page doit afficher « ✅ Backend en ligne ».
-Sonde API : http://127.0.0.1:8000/api/health
+## Synchroniser les données locales vers KV
 
-## Déployer sur Fly.io
-
-Prérequis : `flyctl` installé et authentifié (`fly auth login`).
+Le script fusionne les données locales avec celles déjà présentes dans KV ; il ne supprime
+pas l'historique distant.
 
 ```bash
-fly apps create coaching-lol       # nom libre mais unique ; ajuste fly.toml en conséquence
-fly deploy                          # build le Dockerfile + pousse l'image
-fly open                            # ouvre l'URL publique
+poetry run python src/collection/sync_cloudflare.py --dry-run
+poetry run python src/collection/sync_cloudflare.py
 ```
 
-> La donnée (`data/`) n'est PAS dans l'image (cf. `.dockerignore`). Elle vit sur un
-> volume persistant Fly (`coaching_lol_data`, monté sur `/app/data`) — provisionné,
-> déployé et vérifié en prod (games/rang/coaching) le 2026-07-01. App volontairement
-> limitée à **1 machine** (`fly scale count 1`) : un volume Fly est mono-machine, un
-> 2e writer casserait la cohérence des lectures/écritures (route au hasard entre les
-> deux → games « disparaissant » selon la machine qui répond). Le référentiel gold
-> (benchmarks challenger, ~1 Mo d'agrégats — pas les games brutes) n'est pas
-> reproductible via l'API web (vient de `build_referential.py` en local) : à repousser
-> manuellement sur le volume après un `fly deploy` propre via
-> `fly ssh sftp put -R data/03_gold/referentiel /app/data/03_gold/referentiel`.
+Variables requises dans `.env` ou dans l'environnement :
 
-## Structure
+- `CF_API_TOKEN` — jeton limité à l'écriture KV ;
+- `CF_ACCOUNT_ID` — identifiant du compte Cloudflare ;
+- `CF_NAMESPACE_ID` — namespace lié au binding `DATA`.
 
+Le secret `OLLAMA_API_KEY` de production se configure avec Wrangler et ne doit pas être
+placé dans le dépôt :
+
+```bash
+cd web/cf
+npx wrangler secret put OLLAMA_API_KEY
 ```
+
+## Déployer
+
+```bash
+cd web/cf
+npm test
+npm run typecheck
+npm run deploy
+```
+
+Le domaine personnalisé `coaching-lol.jeanvg.fr` est rattaché au Worker dans Cloudflare.
+Après chaque déploiement, vérifier au minimum :
+
+```bash
+curl https://coaching-lol.jeanvg.fr/api/health
+curl https://coaching-lol.jeanvg.fr/api/accounts
+```
+
+## Architecture
+
+```text
 web/
-  backend/main.py     # FastAPI : /api/* + sert index.html et /static
+  cf/
+    src/index.ts        # routeur Worker, CORS, erreurs et assets
+    src/kv.ts           # accès typé à Cloudflare KV
+    src/coach.ts        # coaching en Server-Sent Events
+    src/llm.ts          # client Ollama Cloud avec retries
+    src/schema.ts       # validation des entrées/sorties
+    wrangler.toml       # Worker, assets et binding DATA
   frontend/
-    index.html        # shell SPA (top-bar + templates par page)
-    style.css         # tokens + composants (CSS sur-mesure, pas de build)
-    app.js            # composants Alpine (app/homePage/accountPage/readmePage) + helpers
-    vendor/
-      alpine.min.js   # Alpine 3.x vendored
-      chart.umd.min.js# Chart.js 4.x vendored
-fly.toml
-Dockerfile
-.dockerignore
+    index.html          # shell SPA
+    style.css           # composants et thème
+    app.js              # Alpine, API et consommation SSE
+  backend/              # implémentation FastAPI de référence
+src/collection/sync_cloudflare.py  # publication locale vers KV
 ```
 
-## Périmètre V1
+Flux de données :
 
-> Cadrage fonctionnel validé (2026-07-01). Spec détaillée dans
-> `docs/superpowers/specs/2026-07-01-web-app-design.md`.
->
-> **Esthétique : sombre raffinée, classe/épuré (côté Apple, pas Razer).** Patterns UX
-> inspirés d'op.gg/u.gg (rangées games denses, switcher de compte, onglets), mais fond
-> charbon neutre, accent or discret, zéro néon. Densité équilibrée : le data reste
-> compact, le narratif respire. Palette + principes de détail dans la spec.
+```text
+Riot + pipeline Python local -> sync_cloudflare.py -> Cloudflare KV
+                                                    -> Worker API -> navigateur
+navigateur -> POST /api/coach -> Worker -> Ollama Cloud -> événements SSE
+```
 
-### Pages
+## Endpoints de production
 
-1. **`/` — Accueil = liste des comptes.** Cartes par slug préconfiguré
-   (`spadzze`, `aceofspadzze`…), avec un mini-indicateur (nb de games en cache,
-   dernière review). **Pas de création de compte depuis l'UI** — la liste est
-   fixée côté serveur (le propriétaire seul peut l'éditer).
-2. **`/c/{slug}` — Page compte.** Le cœur du site. Sections :
-   - **Header** : nb de games en cache + rang solo/duo courant (mis en cache au
-     dernier fetch, avec la date) — repère de fraîcheur pour savoir s'il faut
-     refetcher.
-   - **Fetch** : bouton « Mettre à jour les games » (job = pull Riot → silver →
-     gold + rang, déterministe). Champ N (défaut 20, configurable). Statut du job
-     en temps réel (« en cours… 12/20 » → « ✅ 18 games »).
-   - **Historique** : tableau succinct des dernières games (champion, rôle,
-     durée, KDA, win/loss), pagination légère.
-   - **Coaching** : sélecteurs (scope `all`/`adc`/`zeri`, issue `loss`/`win`/
-     `overall`, target challenger) + bouton « Générer le coaching » (job LLM
-     séparé). Affiche la review (3 forces / 3 erreurs / 2 habitudes / 1 focus,
-     preuves chiffrées). Historique des reviews précédentes.
-   - **Feedback** : annotation par-insight (y/n/skip + tag + note) sur la review
-     affichée. Taux de satisfaction visible.
-   - **Mon profil ML (SHAP local)** : graphique interactif — contributions par
-     feature pour *ce* compte, comparé au global. Survol/tri, pas un PNG figé.
-3. **`/readme` — README.** Page statique : comment fonctionnent les recos
-   coaching (asymétrie d'info, benchmark challenger, pourquoi positionnement >
-   stats brutes, que mesurent les features). Vulgarisation.
+- `GET /api/health` — état du Worker ;
+- `GET /api/accounts` — comptes préconfigurés et indicateurs ;
+- `GET /api/c/{slug}/games` — historique paginé ;
+- `GET /api/c/{slug}/rank` — rang Riot mis en cache ;
+- `GET /api/c/{slug}/predicted-rank` — estimation ML per-player, disponible à partir de
+  15 parties ADC ;
+- `GET /api/c/{slug}/reviews` — historique des coachings ;
+- `GET /api/c/{slug}/shap` — profil SHAP local ;
+- `POST /api/coach` — génération Ollama diffusée en SSE ;
+- `POST /api/feedback` — annotation des conseils.
 
-### Parcours type
+La mise à jour Riot n'est volontairement plus exposée dans l'interface publique : collecte,
+calcul ML et synchronisation se font depuis la machine locale. Les anciens endpoints
+`/api/fetch` et `/api/jobs/{id}` ne font pas partie du Worker.
 
-Accueil → clic compte → « Mettre à jour » (attendre fin du job) → régler
-sélecteurs → « Générer le coaching » → lire la review → annoter le feedback →
-consulter son profil SHAP.
+## État de la migration Fly.io
 
-### Décisions clés
+Le trafic de production est entièrement basculé sur Cloudflare. L'ancien domaine Fly ne
+sert plus le site et l'application Fly est inactive depuis la fin de la période d'essai.
+Sa suppression physique est bloquée par Fly tant qu'aucune carte bancaire n'est ajoutée ;
+elle est donc laissée en l'état pour éviter d'activer une facturation.
 
-- **Compte de coaching = un slug** (`spadzze`, `aceofspadzze`, smurfs…).
-- **Auth reportée** — URL publique acceptée pour l'instant (faible proba de
-  découverte). À revisiter si le site gagne en visibilité.
-- **Fetch = pull + silver + gold en un seul job** (déterministe, 1 clic) ;
-  **coaching LLM = job séparé** (coûteux/lent, relançable sans re-fetcher, p.ex.
-  pour A/B de modèles ou changer les sélecteurs).
-- **Coaching V1 = agrégé N games** (miroir du CLI actuel), pas par-game.
+L'historique local disponible a été fusionné dans KV (17 reviews et 5 feedbacks lors de la
+migration). Le volume Fly n'a pas été rapatrié davantage, par choix : son contenu n'était
+pas jugé important.
 
-### Embarqué en V1
+## Périmètre fonctionnel
 
-Fetch agrégé (pull+silver+gold, 1 job) · coaching LLM agrégé (job séparé) ·
-historique games · feedback par-insight · SHAP local interactif · README ·
-multi-compte préconfiguré.
+- `/` liste les comptes préconfigurés ;
+- `/c/{slug}` affiche historique, rang, estimation ML, coaching, feedback et SHAP ;
+- `/readme` explique les recommandations et leurs benchmarks challenger ;
+- l'authentification reste reportée : le site est publiquement accessible ;
+- le coaching reste agrégé sur N parties ; le compte-rendu par partie et la CV restent des
+  évolutions séparées.
 
-### Repoussé (V2+)
-
-Compte-rendu par-game · draft coaching live · UI d'ajout de compte · auth ·
-SHAP explorateur global (rang/scope filtrable).
-
-### Hors scope
-
-Computer vision (Phase 2 du projet, gated sur la démonstration de valeur du
-coach timeline).
-
-## Endpoints
-
-- `GET  /api/accounts` — liste des slugs préconfigurés (+ indicateur par compte)
-- `GET  /api/c/{slug}/games` — historique paginé, trié par ordre chronologique réel
-  (numéro de séquence du match_id — l'ordre d'append du fichier n'est pas fiable
-  après un merge multi-fetch)
-- `GET  /api/c/{slug}/rank` — rang solo/duo courant, mis en cache à chaque fetch
-  (pas de live à la volée) : repère de fraîcheur des données pour l'utilisateur
-- `GET  /api/c/{slug}/predicted-rank` — rang **estimé par le modèle ML** (ensemble
-  xgb+rf `high_elo`) sur les 20 dernières games ADC (BOTTOM) en cache, calibré par
-  `src/02_data_science/calibrate_rank.py`. `null` si < 3 games ADC en cache. Signal
-  faible sur la frontière Master|GM (AUC 0.589, cf. CLAUDE.md) — la confiance
-  (`proba`) est renvoyée explicitement, pas juste le label.
-- `POST /api/fetch` — mettre à jour les games + le rang d'un slug (pull Riot →
-  silver → gold, job async)
-- `GET  /api/jobs/{id}` — suivi des jobs longs (fetch + coaching)
-- `POST /api/coach` — générer le coaching (LLM, job async)
-- `GET  /api/c/{slug}/reviews` — historique des reviews d'un slug
-- `POST /api/feedback` — annoter les conseils (boucle d'éval)
-- `GET  /api/c/{slug}/shap` — SHAP local d'un slug (graphique interactif)
+La conception fonctionnelle détaillée est conservée dans
+`docs/superpowers/specs/2026-07-01-web-app-design.md`.
