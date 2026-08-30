@@ -1,0 +1,2426 @@
+{
+ "args": {
+  "player": "spadzze",
+  "scope": "adc",
+  "target": "challenger",
+  "outcome": "win"
+ },
+ "me": {
+  "scope": "adc",
+  "player": "spadzze",
+  "n_games": 32,
+  "winrate": 0.656,
+  "overall": {
+   "n_games": 32,
+   "deaths_total": 188,
+   "deaths_per_game": 5.88,
+   "lane": {
+    "gd10": -312,
+    "gd14": -92,
+    "gd20": 148,
+    "csd10": 0,
+    "csd14": -2,
+    "xpd10": -144,
+    "csm10": 8,
+    "csm14": 8,
+    "gpm10": 353,
+    "gpm14": 407,
+    "xppm10": 344
+   },
+   "positioning": {
+    "avg_dist_to_ally": 1706.8445,
+    "avg_map_depth": 641.3761,
+    "control_wards_placed": 0.0,
+    "frac_base": 0.0817,
+    "frac_enemy_half": 0.3739,
+    "frac_overextended": 0.0785,
+    "frac_own_lane_early": 0.6,
+    "frac_river_early": 0.3,
+    "frac_roam_mid": 0.6,
+    "gold_dead_time": 161.75,
+    "max_map_depth": 6674.0274,
+    "wards_killed": 3.5,
+    "wards_placed": 8.0,
+    "wards_placed_early": 4.0
+   },
+   "death_gold_state": {
+    "behind": 0.5319,
+    "ahead": 0.25,
+    "even": 0.2181
+   },
+   "by_zone": {
+    "BOT": 0.4947,
+    "MID": 0.2713,
+    "JUNGLE/RIVER": 0.2181,
+    "TOP": 0.016
+   },
+   "by_phase": {
+    "early": 0.4468,
+    "mid": 0.3723,
+    "late": 0.1809
+   },
+   "by_killer_role": {
+    "BOTTOM": 0.4309,
+    "JUNGLE": 0.2021,
+    "MIDDLE": 0.1543,
+    "UTILITY": 0.1223,
+    "TOP": 0.0904
+   },
+   "by_zone_phase": {
+    "BOT|early": 0.3617,
+    "MID|mid": 0.1489,
+    "BOT|mid": 0.1223,
+    "MID|late": 0.1117,
+    "JUNGLE/RIVER|mid": 0.0904,
+    "JUNGLE/RIVER|early": 0.0745,
+    "JUNGLE/RIVER|late": 0.0532,
+    "TOP|mid": 0.0106,
+    "BOT|late": 0.0106,
+    "MID|early": 0.0106,
+    "TOP|late": 0.0053
+   },
+   "raw_counts": {
+    "by_zone": {
+     "BOT": 93,
+     "MID": 51,
+     "TOP": 3,
+     "JUNGLE/RIVER": 41
+    },
+    "by_phase": {
+     "early": 84,
+     "mid": 70,
+     "late": 34
+    },
+    "by_killer_role": {
+     "BOTTOM": 81,
+     "TOP": 17,
+     "MIDDLE": 29,
+     "UTILITY": 23,
+     "JUNGLE": 38
+    },
+    "by_zone_phase": {
+     "BOT|early": 68,
+     "MID|mid": 28,
+     "MID|late": 21,
+     "TOP|late": 1,
+     "JUNGLE/RIVER|mid": 17,
+     "JUNGLE/RIVER|early": 14,
+     "BOT|mid": 23,
+     "JUNGLE/RIVER|late": 10,
+     "TOP|mid": 2,
+     "BOT|late": 2,
+     "MID|early": 2
+    }
+   }
+  },
+  "win": {
+   "n_games": 21,
+   "deaths_total": 109,
+   "deaths_per_game": 5.19,
+   "lane": {
+    "gd10": -429,
+    "gd14": -306,
+    "gd20": 500,
+    "csd10": 2,
+    "csd14": -3,
+    "xpd10": -3,
+    "csm10": 7.8,
+    "csm14": 7.571428571428571,
+    "gpm10": 356.9,
+    "gpm14": 410.0,
+    "xppm10": 345.4
+   },
+   "positioning": {
+    "avg_dist_to_ally": 1643.3941,
+    "avg_map_depth": 795.8215,
+    "control_wards_placed": 0,
+    "frac_base": 0.069,
+    "frac_enemy_half": 0.4167,
+    "frac_overextended": 0.1081,
+    "frac_own_lane_early": 0.6,
+    "frac_river_early": 0.3333,
+    "frac_roam_mid": 0.6,
+    "gold_dead_time": 138.5,
+    "max_map_depth": 7950.7086,
+    "wards_killed": 3,
+    "wards_placed": 8,
+    "wards_placed_early": 4
+   },
+   "death_gold_state": {
+    "behind": 0.5229,
+    "ahead": 0.2477,
+    "even": 0.2294
+   },
+   "by_zone": {
+    "BOT": 0.5046,
+    "MID": 0.2569,
+    "JUNGLE/RIVER": 0.2294,
+    "TOP": 0.0092
+   },
+   "by_phase": {
+    "early": 0.5046,
+    "mid": 0.367,
+    "late": 0.1284
+   },
+   "by_killer_role": {
+    "BOTTOM": 0.4679,
+    "JUNGLE": 0.1835,
+    "MIDDLE": 0.1743,
+    "UTILITY": 0.1193,
+    "TOP": 0.055
+   },
+   "by_zone_phase": {
+    "BOT|early": 0.4037,
+    "MID|mid": 0.1651,
+    "JUNGLE/RIVER|mid": 0.1009,
+    "BOT|mid": 0.1009,
+    "JUNGLE/RIVER|early": 0.0917,
+    "MID|late": 0.0826,
+    "JUNGLE/RIVER|late": 0.0367,
+    "TOP|late": 0.0092,
+    "MID|early": 0.0092
+   },
+   "raw_counts": {
+    "by_zone": {
+     "BOT": 55,
+     "MID": 28,
+     "TOP": 1,
+     "JUNGLE/RIVER": 25
+    },
+    "by_phase": {
+     "early": 55,
+     "mid": 40,
+     "late": 14
+    },
+    "by_killer_role": {
+     "BOTTOM": 51,
+     "TOP": 6,
+     "MIDDLE": 19,
+     "UTILITY": 13,
+     "JUNGLE": 20
+    },
+    "by_zone_phase": {
+     "BOT|early": 44,
+     "MID|mid": 18,
+     "MID|late": 9,
+     "TOP|late": 1,
+     "JUNGLE/RIVER|mid": 11,
+     "JUNGLE/RIVER|early": 10,
+     "BOT|mid": 11,
+     "JUNGLE/RIVER|late": 4,
+     "MID|early": 1
+    }
+   }
+  },
+  "loss": {
+   "n_games": 11,
+   "deaths_total": 79,
+   "deaths_per_game": 7.18,
+   "lane": {
+    "gd10": -181,
+    "gd14": 77,
+    "gd20": 141,
+    "csd10": -1,
+    "csd14": 0,
+    "xpd10": -155,
+    "csm10": 7.2,
+    "csm14": 7.5,
+    "gpm10": 338.3,
+    "gpm14": 402.64285714285717,
+    "xppm10": 333.9
+   },
+   "positioning": {
+    "avg_dist_to_ally": 1796.2799,
+    "avg_map_depth": 253.8305,
+    "control_wards_placed": 0,
+    "frac_base": 0.1143,
+    "frac_enemy_half": 0.234,
+    "frac_overextended": 0.0286,
+    "frac_own_lane_early": 0.6,
+    "frac_river_early": 0.2667,
+    "frac_roam_mid": 0.6,
+    "gold_dead_time": 249.5,
+    "max_map_depth": 2728.7251,
+    "wards_killed": 5,
+    "wards_placed": 9,
+    "wards_placed_early": 4
+   },
+   "death_gold_state": {
+    "behind": 0.5443,
+    "ahead": 0.2532,
+    "even": 0.2025
+   },
+   "by_zone": {
+    "BOT": 0.481,
+    "MID": 0.2911,
+    "JUNGLE/RIVER": 0.2025,
+    "TOP": 0.0253
+   },
+   "by_phase": {
+    "mid": 0.3797,
+    "early": 0.3671,
+    "late": 0.2532
+   },
+   "by_killer_role": {
+    "BOTTOM": 0.3797,
+    "JUNGLE": 0.2278,
+    "TOP": 0.1392,
+    "UTILITY": 0.1266,
+    "MIDDLE": 0.1266
+   },
+   "by_zone_phase": {
+    "BOT|early": 0.3038,
+    "BOT|mid": 0.1519,
+    "MID|late": 0.1519,
+    "MID|mid": 0.1266,
+    "JUNGLE/RIVER|mid": 0.0759,
+    "JUNGLE/RIVER|late": 0.0759,
+    "JUNGLE/RIVER|early": 0.0506,
+    "TOP|mid": 0.0253,
+    "BOT|late": 0.0253,
+    "MID|early": 0.0127
+   },
+   "raw_counts": {
+    "by_zone": {
+     "BOT": 38,
+     "JUNGLE/RIVER": 16,
+     "MID": 23,
+     "TOP": 2
+    },
+    "by_phase": {
+     "early": 29,
+     "mid": 30,
+     "late": 20
+    },
+    "by_killer_role": {
+     "JUNGLE": 18,
+     "BOTTOM": 30,
+     "UTILITY": 10,
+     "TOP": 11,
+     "MIDDLE": 10
+    },
+    "by_zone_phase": {
+     "BOT|early": 24,
+     "BOT|mid": 12,
+     "JUNGLE/RIVER|mid": 6,
+     "MID|mid": 10,
+     "JUNGLE/RIVER|late": 6,
+     "MID|late": 12,
+     "JUNGLE/RIVER|early": 4,
+     "TOP|mid": 2,
+     "BOT|late": 2,
+     "MID|early": 1
+    }
+   }
+  },
+  "by_lane_context": {
+   "lane_pattern": {
+    "scaling": {
+     "n_games": 5,
+     "deaths_total": 11,
+     "deaths_per_game": 2.2,
+     "lane": {
+      "gd10": 694,
+      "gd14": 1184,
+      "gd20": 2135,
+      "csd10": 11,
+      "csd14": 20,
+      "xpd10": 22,
+      "csm10": 9.4,
+      "csm14": 9.214285714285714,
+      "gpm10": 411.6,
+      "gpm14": 482.42857142857144,
+      "xppm10": 369.2
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1770.2949,
+      "avg_map_depth": 1119.829,
+      "control_wards_placed": 0,
+      "frac_base": 0.0606,
+      "frac_enemy_half": 0.48,
+      "frac_overextended": 0.129,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.6364,
+      "gold_dead_time": 48.0,
+      "max_map_depth": 8403.257,
+      "wards_killed": 5,
+      "wards_placed": 8,
+      "wards_placed_early": 4
+     },
+     "death_gold_state": {
+      "even": 0.5455,
+      "ahead": 0.4545
+     },
+     "by_zone": {
+      "BOT": 0.5455,
+      "MID": 0.1818,
+      "JUNGLE/RIVER": 0.1818,
+      "TOP": 0.0909
+     },
+     "by_phase": {
+      "early": 0.5455,
+      "mid": 0.2727,
+      "late": 0.1818
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.6364,
+      "MIDDLE": 0.1818,
+      "TOP": 0.0909,
+      "UTILITY": 0.0909
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.4545,
+      "MID|mid": 0.0909,
+      "MID|late": 0.0909,
+      "TOP|late": 0.0909,
+      "JUNGLE/RIVER|mid": 0.0909,
+      "JUNGLE/RIVER|early": 0.0909,
+      "BOT|mid": 0.0909
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 6,
+       "MID": 2,
+       "TOP": 1,
+       "JUNGLE/RIVER": 2
+      },
+      "by_phase": {
+       "early": 6,
+       "mid": 3,
+       "late": 2
+      },
+      "by_killer_role": {
+       "BOTTOM": 7,
+       "TOP": 1,
+       "MIDDLE": 2,
+       "UTILITY": 1
+      },
+      "by_zone_phase": {
+       "BOT|early": 5,
+       "MID|mid": 1,
+       "MID|late": 1,
+       "TOP|late": 1,
+       "JUNGLE/RIVER|mid": 1,
+       "JUNGLE/RIVER|early": 1,
+       "BOT|mid": 1
+      }
+     }
+    },
+    "all_in": {
+     "n_games": 15,
+     "deaths_total": 93,
+     "deaths_per_game": 6.2,
+     "lane": {
+      "gd10": -510,
+      "gd14": -423,
+      "gd20": -890,
+      "csd10": 1,
+      "csd14": -10,
+      "xpd10": -90,
+      "csm10": 7.8,
+      "csm14": 7.357142857142857,
+      "gpm10": 361.7,
+      "gpm14": 410.0,
+      "xppm10": 336.9
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1526.2404,
+      "avg_map_depth": 638.4559,
+      "control_wards_placed": 0,
+      "frac_base": 0.087,
+      "frac_enemy_half": 0.3478,
+      "frac_overextended": 0.08,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.3333,
+      "frac_roam_mid": 0.6,
+      "gold_dead_time": 167.5,
+      "max_map_depth": 6426.1864,
+      "wards_killed": 2,
+      "wards_placed": 8,
+      "wards_placed_early": 4
+     },
+     "death_gold_state": {
+      "behind": 0.5914,
+      "ahead": 0.2258,
+      "even": 0.1828
+     },
+     "by_zone": {
+      "BOT": 0.4624,
+      "MID": 0.3226,
+      "JUNGLE/RIVER": 0.2043,
+      "TOP": 0.0108
+     },
+     "by_phase": {
+      "early": 0.4516,
+      "mid": 0.3871,
+      "late": 0.1613
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.4839,
+      "JUNGLE": 0.2581,
+      "UTILITY": 0.0968,
+      "MIDDLE": 0.0968,
+      "TOP": 0.0645
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3763,
+      "MID|mid": 0.1935,
+      "MID|late": 0.1183,
+      "JUNGLE/RIVER|mid": 0.1075,
+      "BOT|mid": 0.0753,
+      "JUNGLE/RIVER|early": 0.0645,
+      "JUNGLE/RIVER|late": 0.0323,
+      "TOP|mid": 0.0108,
+      "MID|early": 0.0108,
+      "BOT|late": 0.0108
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 43,
+       "JUNGLE/RIVER": 19,
+       "MID": 30,
+       "TOP": 1
+      },
+      "by_phase": {
+       "early": 42,
+       "mid": 36,
+       "late": 15
+      },
+      "by_killer_role": {
+       "BOTTOM": 45,
+       "UTILITY": 9,
+       "JUNGLE": 24,
+       "MIDDLE": 9,
+       "TOP": 6
+      },
+      "by_zone_phase": {
+       "BOT|early": 35,
+       "JUNGLE/RIVER|mid": 10,
+       "MID|mid": 18,
+       "MID|late": 11,
+       "JUNGLE/RIVER|early": 6,
+       "BOT|mid": 7,
+       "TOP|mid": 1,
+       "JUNGLE/RIVER|late": 3,
+       "MID|early": 1,
+       "BOT|late": 1
+      }
+     }
+    },
+    "poke": {
+     "n_games": 12,
+     "deaths_total": 84,
+     "deaths_per_game": 7.0,
+     "lane": {
+      "gd10": -202,
+      "gd14": 58,
+      "gd20": -160,
+      "csd10": -2,
+      "csd14": -7,
+      "xpd10": -166,
+      "csm10": 7,
+      "csm14": 7,
+      "gpm10": 342,
+      "gpm14": 389,
+      "xppm10": 330
+     },
+     "positioning": {
+      "avg_dist_to_ally": 2102.2475,
+      "avg_map_depth": 440.8575,
+      "control_wards_placed": 0.0,
+      "frac_base": 0.1144,
+      "frac_enemy_half": 0.3099,
+      "frac_overextended": 0.069,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.5,
+      "gold_dead_time": 178.0,
+      "max_map_depth": 4399.6184,
+      "wards_killed": 3.5,
+      "wards_placed": 9.0,
+      "wards_placed_early": 4.0
+     },
+     "death_gold_state": {
+      "behind": 0.5357,
+      "ahead": 0.25,
+      "even": 0.2143
+     },
+     "by_zone": {
+      "BOT": 0.5238,
+      "JUNGLE/RIVER": 0.2381,
+      "MID": 0.2262,
+      "TOP": 0.0119
+     },
+     "by_phase": {
+      "early": 0.4286,
+      "mid": 0.369,
+      "late": 0.2024
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3452,
+      "MIDDLE": 0.2143,
+      "JUNGLE": 0.1667,
+      "UTILITY": 0.1548,
+      "TOP": 0.119
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3333,
+      "BOT|mid": 0.1786,
+      "MID|mid": 0.1071,
+      "MID|late": 0.1071,
+      "JUNGLE/RIVER|early": 0.0833,
+      "JUNGLE/RIVER|late": 0.0833,
+      "JUNGLE/RIVER|mid": 0.0714,
+      "TOP|mid": 0.0119,
+      "BOT|late": 0.0119,
+      "MID|early": 0.0119
+     },
+     "raw_counts": {
+      "by_zone": {
+       "JUNGLE/RIVER": 20,
+       "BOT": 44,
+       "MID": 19,
+       "TOP": 1
+      },
+      "by_phase": {
+       "early": 36,
+       "mid": 31,
+       "late": 17
+      },
+      "by_killer_role": {
+       "BOTTOM": 29,
+       "JUNGLE": 14,
+       "UTILITY": 13,
+       "TOP": 10,
+       "MIDDLE": 18
+      },
+      "by_zone_phase": {
+       "JUNGLE/RIVER|early": 7,
+       "BOT|early": 28,
+       "BOT|mid": 15,
+       "JUNGLE/RIVER|mid": 6,
+       "MID|mid": 9,
+       "JUNGLE/RIVER|late": 7,
+       "MID|late": 9,
+       "TOP|mid": 1,
+       "BOT|late": 1,
+       "MID|early": 1
+      }
+     }
+    }
+   },
+   "gank_exposure": {
+    "med": {
+     "n_games": 11,
+     "deaths_total": 71,
+     "deaths_per_game": 6.45,
+     "lane": {
+      "gd10": -510,
+      "gd14": 39,
+      "gd20": -160,
+      "csd10": 2,
+      "csd14": -3,
+      "xpd10": -161,
+      "csm10": 7.2,
+      "csm14": 7.357142857142857,
+      "gpm10": 345.1,
+      "gpm14": 404.35714285714283,
+      "xppm10": 345.4
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1770.2949,
+      "avg_map_depth": 620.0821,
+      "control_wards_placed": 0,
+      "frac_base": 0.0606,
+      "frac_enemy_half": 0.3143,
+      "frac_overextended": 0.0741,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.3333,
+      "frac_roam_mid": 0.6,
+      "gold_dead_time": 172.5,
+      "max_map_depth": 7314.3125,
+      "wards_killed": 5,
+      "wards_placed": 8,
+      "wards_placed_early": 4
+     },
+     "death_gold_state": {
+      "behind": 0.4225,
+      "ahead": 0.3239,
+      "even": 0.2535
+     },
+     "by_zone": {
+      "BOT": 0.507,
+      "MID": 0.2535,
+      "JUNGLE/RIVER": 0.2254,
+      "TOP": 0.0141
+     },
+     "by_phase": {
+      "early": 0.4366,
+      "mid": 0.3662,
+      "late": 0.1972
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3803,
+      "JUNGLE": 0.2113,
+      "UTILITY": 0.1549,
+      "MIDDLE": 0.1408,
+      "TOP": 0.1127
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3521,
+      "MID|mid": 0.1408,
+      "BOT|mid": 0.1408,
+      "MID|late": 0.0986,
+      "JUNGLE/RIVER|mid": 0.0845,
+      "JUNGLE/RIVER|early": 0.0704,
+      "JUNGLE/RIVER|late": 0.0704,
+      "TOP|late": 0.0141,
+      "BOT|late": 0.0141,
+      "MID|early": 0.0141
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 36,
+       "MID": 18,
+       "TOP": 1,
+       "JUNGLE/RIVER": 16
+      },
+      "by_phase": {
+       "early": 31,
+       "mid": 26,
+       "late": 14
+      },
+      "by_killer_role": {
+       "BOTTOM": 27,
+       "TOP": 8,
+       "MIDDLE": 10,
+       "JUNGLE": 15,
+       "UTILITY": 11
+      },
+      "by_zone_phase": {
+       "BOT|early": 25,
+       "MID|mid": 10,
+       "MID|late": 7,
+       "TOP|late": 1,
+       "JUNGLE/RIVER|early": 5,
+       "BOT|mid": 10,
+       "JUNGLE/RIVER|mid": 6,
+       "JUNGLE/RIVER|late": 5,
+       "BOT|late": 1,
+       "MID|early": 1
+      }
+     }
+    },
+    "low": {
+     "n_games": 12,
+     "deaths_total": 61,
+     "deaths_per_game": 5.08,
+     "lane": {
+      "gd10": -470,
+      "gd14": -244,
+      "gd20": 420,
+      "csd10": 4,
+      "csd14": 4,
+      "xpd10": -211,
+      "csm10": 8,
+      "csm14": 8,
+      "gpm10": 363,
+      "gpm14": 451,
+      "xppm10": 340
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1518.1868,
+      "avg_map_depth": 797.2714,
+      "control_wards_placed": 0.0,
+      "frac_base": 0.0729,
+      "frac_enemy_half": 0.4231,
+      "frac_overextended": 0.127,
+      "frac_own_lane_early": 0.5333,
+      "frac_river_early": 0.4,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 109.5,
+      "max_map_depth": 7004.5998,
+      "wards_killed": 2.0,
+      "wards_placed": 8.0,
+      "wards_placed_early": 5.0
+     },
+     "death_gold_state": {
+      "behind": 0.5738,
+      "even": 0.2131,
+      "ahead": 0.2131
+     },
+     "by_zone": {
+      "BOT": 0.5246,
+      "MID": 0.2787,
+      "JUNGLE/RIVER": 0.1803,
+      "TOP": 0.0164
+     },
+     "by_phase": {
+      "early": 0.541,
+      "mid": 0.377,
+      "late": 0.082
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.6066,
+      "JUNGLE": 0.1639,
+      "UTILITY": 0.082,
+      "MIDDLE": 0.082,
+      "TOP": 0.0656
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.4262,
+      "MID|mid": 0.1803,
+      "JUNGLE/RIVER|early": 0.0984,
+      "BOT|mid": 0.0984,
+      "JUNGLE/RIVER|mid": 0.082,
+      "MID|late": 0.082,
+      "TOP|mid": 0.0164,
+      "MID|early": 0.0164
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 32,
+       "JUNGLE/RIVER": 11,
+       "MID": 17,
+       "TOP": 1
+      },
+      "by_phase": {
+       "early": 33,
+       "mid": 23,
+       "late": 5
+      },
+      "by_killer_role": {
+       "BOTTOM": 37,
+       "UTILITY": 5,
+       "JUNGLE": 10,
+       "MIDDLE": 5,
+       "TOP": 4
+      },
+      "by_zone_phase": {
+       "BOT|early": 26,
+       "JUNGLE/RIVER|mid": 5,
+       "MID|mid": 11,
+       "MID|late": 5,
+       "JUNGLE/RIVER|early": 6,
+       "BOT|mid": 6,
+       "TOP|mid": 1,
+       "MID|early": 1
+      }
+     }
+    },
+    "high": {
+     "n_games": 9,
+     "deaths_total": 56,
+     "deaths_per_game": 6.22,
+     "lane": {
+      "gd10": -76,
+      "gd14": -37,
+      "gd20": 733,
+      "csd10": -3,
+      "csd14": -10,
+      "xpd10": -134,
+      "csm10": 7.8,
+      "csm14": 7.357142857142857,
+      "gpm10": 350.5,
+      "gpm14": 383.92857142857144,
+      "xppm10": 336.9
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1888.1145,
+      "avg_map_depth": 430.8513,
+      "control_wards_placed": 0,
+      "frac_base": 0.1034,
+      "frac_enemy_half": 0.3056,
+      "frac_overextended": 0.0638,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.6,
+      "gold_dead_time": 167.5,
+      "max_map_depth": 4062.3285,
+      "wards_killed": 4,
+      "wards_placed": 9,
+      "wards_placed_early": 4
+     },
+     "death_gold_state": {
+      "behind": 0.625,
+      "ahead": 0.1964,
+      "even": 0.1786
+     },
+     "by_zone": {
+      "BOT": 0.4464,
+      "MID": 0.2857,
+      "JUNGLE/RIVER": 0.25,
+      "TOP": 0.0179
+     },
+     "by_phase": {
+      "mid": 0.375,
+      "early": 0.3571,
+      "late": 0.2679
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3036,
+      "MIDDLE": 0.25,
+      "JUNGLE": 0.2321,
+      "UTILITY": 0.125,
+      "TOP": 0.0893
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3036,
+      "MID|late": 0.1607,
+      "BOT|mid": 0.125,
+      "MID|mid": 0.125,
+      "JUNGLE/RIVER|mid": 0.1071,
+      "JUNGLE/RIVER|late": 0.0893,
+      "JUNGLE/RIVER|early": 0.0536,
+      "TOP|mid": 0.0179,
+      "BOT|late": 0.0179
+     },
+     "raw_counts": {
+      "by_zone": {
+       "JUNGLE/RIVER": 14,
+       "BOT": 25,
+       "MID": 16,
+       "TOP": 1
+      },
+      "by_phase": {
+       "early": 20,
+       "mid": 21,
+       "late": 15
+      },
+      "by_killer_role": {
+       "BOTTOM": 17,
+       "MIDDLE": 14,
+       "UTILITY": 7,
+       "JUNGLE": 13,
+       "TOP": 5
+      },
+      "by_zone_phase": {
+       "JUNGLE/RIVER|early": 3,
+       "BOT|early": 17,
+       "BOT|mid": 7,
+       "MID|mid": 7,
+       "JUNGLE/RIVER|mid": 6,
+       "MID|late": 9,
+       "JUNGLE/RIVER|late": 5,
+       "TOP|mid": 1,
+       "BOT|late": 1
+      }
+     }
+    }
+   }
+  }
+ },
+ "ref": {
+  "scope": "adc",
+  "rank": "challenger",
+  "patch": "16.13",
+  "n_games": 25942,
+  "winrate": 0.501,
+  "overall": {
+   "n_games": 25942,
+   "deaths_total": 154925,
+   "deaths_per_game": 5.97,
+   "lane": {
+    "gd10": 2,
+    "gd14": 3,
+    "gd20": 8,
+    "csd10": 0,
+    "csd14": 0,
+    "xpd10": 1,
+    "csm10": 8,
+    "csm14": 8,
+    "gpm10": 384,
+    "gpm14": 422,
+    "xppm10": 360
+   },
+   "positioning": {
+    "avg_dist_to_ally": 1953.6508,
+    "avg_map_depth": 398.5414,
+    "control_wards_placed": 0.0,
+    "frac_base": 0.1111,
+    "frac_enemy_half": 0.2941,
+    "frac_overextended": 0.0588,
+    "frac_own_lane_early": 0.6,
+    "frac_river_early": 0.2667,
+    "frac_roam_mid": 0.7,
+    "gold_dead_time": 165.5,
+    "max_map_depth": 3553.5651,
+    "wards_killed": 2.0,
+    "wards_placed": 8.0,
+    "wards_placed_early": 4.0
+   },
+   "death_gold_state": {
+    "behind": 0.4815,
+    "ahead": 0.3302,
+    "even": 0.1883
+   },
+   "by_zone": {
+    "BOT": 0.3737,
+    "MID": 0.333,
+    "JUNGLE/RIVER": 0.2573,
+    "TOP": 0.0359
+   },
+   "by_phase": {
+    "early": 0.4514,
+    "mid": 0.3728,
+    "late": 0.1757
+   },
+   "by_killer_role": {
+    "BOTTOM": 0.3627,
+    "JUNGLE": 0.2294,
+    "MIDDLE": 0.1851,
+    "UTILITY": 0.1168,
+    "TOP": 0.1036,
+    "?": 0.0025
+   },
+   "by_zone_phase": {
+    "BOT|early": 0.3051,
+    "MID|mid": 0.2042,
+    "JUNGLE/RIVER|early": 0.1209,
+    "MID|late": 0.1056,
+    "JUNGLE/RIVER|mid": 0.0928,
+    "BOT|mid": 0.0534,
+    "JUNGLE/RIVER|late": 0.0436,
+    "MID|early": 0.0232,
+    "TOP|mid": 0.0224,
+    "BOT|late": 0.0152,
+    "TOP|late": 0.0114,
+    "TOP|early": 0.0022
+   },
+   "raw_counts": {
+    "by_zone": {
+     "BOT": 57901,
+     "MID": 51592,
+     "JUNGLE/RIVER": 39865,
+     "TOP": 5567
+    },
+    "by_phase": {
+     "early": 69938,
+     "mid": 57760,
+     "late": 27227
+    },
+    "by_killer_role": {
+     "TOP": 16046,
+     "UTILITY": 18090,
+     "MIDDLE": 28675,
+     "BOTTOM": 56189,
+     "JUNGLE": 35537,
+     "?": 388
+    },
+    "by_zone_phase": {
+     "BOT|early": 47270,
+     "MID|mid": 31638,
+     "JUNGLE/RIVER|late": 6754,
+     "MID|early": 3598,
+     "JUNGLE/RIVER|early": 18736,
+     "JUNGLE/RIVER|mid": 14375,
+     "BOT|mid": 8277,
+     "MID|late": 16356,
+     "TOP|late": 1763,
+     "BOT|late": 2354,
+     "TOP|mid": 3470,
+     "TOP|early": 334
+    }
+   }
+  },
+  "win": {
+   "n_games": 12999,
+   "deaths_total": 62134,
+   "deaths_per_game": 4.78,
+   "lane": {
+    "gd10": 252,
+    "gd14": 553,
+    "gd20": 912,
+    "csd10": 3,
+    "csd14": 6,
+    "xpd10": 148,
+    "csm10": 8,
+    "csm14": 8.142857142857142,
+    "gpm10": 398,
+    "gpm14": 441.92857142857144,
+    "xppm10": 367
+   },
+   "positioning": {
+    "avg_dist_to_ally": 1942.6795,
+    "avg_map_depth": 798.4561,
+    "control_wards_placed": 0,
+    "frac_base": 0.0909,
+    "frac_enemy_half": 0.3947,
+    "frac_overextended": 0.125,
+    "frac_own_lane_early": 0.6,
+    "frac_river_early": 0.2667,
+    "frac_roam_mid": 0.7,
+    "gold_dead_time": 123.5,
+    "max_map_depth": 7327.7476,
+    "wards_killed": 3,
+    "wards_placed": 8,
+    "wards_placed_early": 5
+   },
+   "death_gold_state": {
+    "ahead": 0.4443,
+    "behind": 0.3498,
+    "even": 0.2059
+   },
+   "by_zone": {
+    "BOT": 0.3893,
+    "MID": 0.3131,
+    "JUNGLE/RIVER": 0.2661,
+    "TOP": 0.0315
+   },
+   "by_phase": {
+    "early": 0.4864,
+    "mid": 0.3639,
+    "late": 0.1497
+   },
+   "by_killer_role": {
+    "BOTTOM": 0.3582,
+    "JUNGLE": 0.2283,
+    "MIDDLE": 0.181,
+    "UTILITY": 0.1295,
+    "TOP": 0.0995,
+    "?": 0.0035
+   },
+   "by_zone_phase": {
+    "BOT|early": 0.3268,
+    "MID|mid": 0.2017,
+    "JUNGLE/RIVER|early": 0.1336,
+    "JUNGLE/RIVER|mid": 0.0928,
+    "MID|late": 0.0876,
+    "BOT|mid": 0.0498,
+    "JUNGLE/RIVER|late": 0.0397,
+    "MID|early": 0.0237,
+    "TOP|mid": 0.0196,
+    "BOT|late": 0.0127,
+    "TOP|late": 0.0096,
+    "TOP|early": 0.0023
+   },
+   "raw_counts": {
+    "by_zone": {
+     "BOT": 24189,
+     "MID": 19454,
+     "JUNGLE/RIVER": 16534,
+     "TOP": 1957
+    },
+    "by_phase": {
+     "early": 30222,
+     "mid": 22612,
+     "late": 9300
+    },
+    "by_killer_role": {
+     "TOP": 6180,
+     "UTILITY": 8049,
+     "MIDDLE": 11249,
+     "BOTTOM": 22255,
+     "JUNGLE": 14185,
+     "?": 216
+    },
+    "by_zone_phase": {
+     "BOT|early": 20304,
+     "MID|mid": 12534,
+     "JUNGLE/RIVER|late": 2465,
+     "JUNGLE/RIVER|mid": 5769,
+     "JUNGLE/RIVER|early": 8300,
+     "TOP|late": 597,
+     "MID|late": 5446,
+     "MID|early": 1474,
+     "BOT|mid": 3093,
+     "TOP|mid": 1216,
+     "TOP|early": 144,
+     "BOT|late": 792
+    }
+   }
+  },
+  "loss": {
+   "n_games": 12943,
+   "deaths_total": 92791,
+   "deaths_per_game": 7.17,
+   "lane": {
+    "gd10": -250,
+    "gd14": -543,
+    "gd20": -902,
+    "csd10": -3,
+    "csd14": -6,
+    "xpd10": -147,
+    "csm10": 8,
+    "csm14": 7.642857142857143,
+    "gpm10": 372,
+    "gpm14": 403.42857142857144,
+    "xppm10": 352
+   },
+   "positioning": {
+    "avg_dist_to_ally": 1962.6946,
+    "avg_map_depth": 159.099,
+    "control_wards_placed": 0,
+    "frac_base": 0.129,
+    "frac_enemy_half": 0.2,
+    "frac_overextended": 0.0,
+    "frac_own_lane_early": 0.6,
+    "frac_river_early": 0.2667,
+    "frac_roam_mid": 0.7,
+    "gold_dead_time": 206.0,
+    "max_map_depth": 1586.0405,
+    "wards_killed": 2,
+    "wards_placed": 8,
+    "wards_placed_early": 4
+   },
+   "death_gold_state": {
+    "behind": 0.5697,
+    "ahead": 0.2538,
+    "even": 0.1766
+   },
+   "by_zone": {
+    "BOT": 0.3633,
+    "MID": 0.3463,
+    "JUNGLE/RIVER": 0.2514,
+    "TOP": 0.0389
+   },
+   "by_phase": {
+    "early": 0.428,
+    "mid": 0.3788,
+    "late": 0.1932
+   },
+   "by_killer_role": {
+    "BOTTOM": 0.3657,
+    "JUNGLE": 0.2301,
+    "MIDDLE": 0.1878,
+    "UTILITY": 0.1082,
+    "TOP": 0.1063,
+    "?": 0.0019
+   },
+   "by_zone_phase": {
+    "BOT|early": 0.2906,
+    "MID|mid": 0.2059,
+    "MID|late": 0.1176,
+    "JUNGLE/RIVER|early": 0.1125,
+    "JUNGLE/RIVER|mid": 0.0927,
+    "BOT|mid": 0.0559,
+    "JUNGLE/RIVER|late": 0.0462,
+    "TOP|mid": 0.0243,
+    "MID|early": 0.0229,
+    "BOT|late": 0.0168,
+    "TOP|late": 0.0126,
+    "TOP|early": 0.002
+   },
+   "raw_counts": {
+    "by_zone": {
+     "BOT": 33712,
+     "MID": 32138,
+     "JUNGLE/RIVER": 23331,
+     "TOP": 3610
+    },
+    "by_phase": {
+     "early": 39716,
+     "mid": 35148,
+     "late": 17927
+    },
+    "by_killer_role": {
+     "BOTTOM": 33934,
+     "MIDDLE": 17426,
+     "UTILITY": 10041,
+     "JUNGLE": 21352,
+     "TOP": 9866,
+     "?": 172
+    },
+    "by_zone_phase": {
+     "BOT|early": 26966,
+     "MID|early": 2124,
+     "JUNGLE/RIVER|early": 10436,
+     "JUNGLE/RIVER|mid": 8606,
+     "MID|mid": 19104,
+     "BOT|mid": 5184,
+     "MID|late": 10910,
+     "JUNGLE/RIVER|late": 4289,
+     "TOP|late": 1166,
+     "BOT|late": 1562,
+     "TOP|mid": 2254,
+     "TOP|early": 190
+    }
+   }
+  },
+  "by_lane_context": {
+   "lane_pattern": {
+    "all_in": {
+     "n_games": 12362,
+     "deaths_total": 75739,
+     "deaths_per_game": 6.13,
+     "lane": {
+      "gd10": -72,
+      "gd14": -129,
+      "gd20": -215,
+      "csd10": 0,
+      "csd14": -1,
+      "xpd10": -28,
+      "csm10": 8,
+      "csm14": 8,
+      "gpm10": 384,
+      "gpm14": 422,
+      "xppm10": 357
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1939.4916,
+      "avg_map_depth": 389.4218,
+      "control_wards_placed": 0.0,
+      "frac_base": 0.1111,
+      "frac_enemy_half": 0.2927,
+      "frac_overextended": 0.0588,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 168.0,
+      "max_map_depth": 3483.9151,
+      "wards_killed": 2.0,
+      "wards_placed": 8.0,
+      "wards_placed_early": 4.0
+     },
+     "death_gold_state": {
+      "behind": 0.5079,
+      "ahead": 0.3066,
+      "even": 0.1855
+     },
+     "by_zone": {
+      "BOT": 0.3805,
+      "MID": 0.3275,
+      "JUNGLE/RIVER": 0.2573,
+      "TOP": 0.0347
+     },
+     "by_phase": {
+      "early": 0.4629,
+      "mid": 0.3672,
+      "late": 0.1698
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3809,
+      "JUNGLE": 0.2248,
+      "MIDDLE": 0.1816,
+      "UTILITY": 0.1099,
+      "TOP": 0.1001,
+      "?": 0.0027
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3129,
+      "MID|mid": 0.2022,
+      "JUNGLE/RIVER|early": 0.1238,
+      "MID|late": 0.1014,
+      "JUNGLE/RIVER|mid": 0.091,
+      "BOT|mid": 0.0523,
+      "JUNGLE/RIVER|late": 0.0425,
+      "MID|early": 0.0239,
+      "TOP|mid": 0.0217,
+      "BOT|late": 0.0153,
+      "TOP|late": 0.0107,
+      "TOP|early": 0.0023
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 28820,
+       "MID": 24801,
+       "JUNGLE/RIVER": 19488,
+       "TOP": 2630
+      },
+      "by_phase": {
+       "early": 35061,
+       "mid": 27815,
+       "late": 12863
+      },
+      "by_killer_role": {
+       "TOP": 7582,
+       "UTILITY": 8321,
+       "MIDDLE": 13754,
+       "BOTTOM": 28849,
+       "JUNGLE": 17026,
+       "?": 207
+      },
+      "by_zone_phase": {
+       "BOT|early": 23700,
+       "MID|mid": 15314,
+       "JUNGLE/RIVER|late": 3217,
+       "MID|late": 7677,
+       "TOP|late": 813,
+       "JUNGLE/RIVER|early": 9378,
+       "MID|early": 1810,
+       "JUNGLE/RIVER|mid": 6893,
+       "BOT|late": 1156,
+       "BOT|mid": 3964,
+       "TOP|mid": 1644,
+       "TOP|early": 173
+      }
+     }
+    },
+    "poke": {
+     "n_games": 9174,
+     "deaths_total": 53651,
+     "deaths_per_game": 5.85,
+     "lane": {
+      "gd10": 53,
+      "gd14": 112,
+      "gd20": 228,
+      "csd10": 0,
+      "csd14": 0,
+      "xpd10": 5,
+      "csm10": 7.7,
+      "csm14": 8,
+      "gpm10": 381.8,
+      "gpm14": 421,
+      "xppm10": 362.0
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1980.0512,
+      "avg_map_depth": 402.6531,
+      "control_wards_placed": 0.0,
+      "frac_base": 0.1111,
+      "frac_enemy_half": 0.2941,
+      "frac_overextended": 0.0588,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 165.5,
+      "max_map_depth": 3585.7385,
+      "wards_killed": 2.0,
+      "wards_placed": 8.0,
+      "wards_placed_early": 4.0
+     },
+     "death_gold_state": {
+      "behind": 0.4508,
+      "ahead": 0.3565,
+      "even": 0.1927
+     },
+     "by_zone": {
+      "BOT": 0.3657,
+      "MID": 0.3389,
+      "JUNGLE/RIVER": 0.2587,
+      "TOP": 0.0367
+     },
+     "by_phase": {
+      "early": 0.4374,
+      "mid": 0.3778,
+      "late": 0.1849
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3285,
+      "JUNGLE": 0.2372,
+      "MIDDLE": 0.1926,
+      "UTILITY": 0.1307,
+      "TOP": 0.1087,
+      "?": 0.0022
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.2951,
+      "MID|mid": 0.2057,
+      "JUNGLE/RIVER|early": 0.1184,
+      "MID|late": 0.1114,
+      "JUNGLE/RIVER|mid": 0.0947,
+      "BOT|mid": 0.055,
+      "JUNGLE/RIVER|late": 0.0456,
+      "TOP|mid": 0.0223,
+      "MID|early": 0.0218,
+      "BOT|late": 0.0155,
+      "TOP|late": 0.0124,
+      "TOP|early": 0.002
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 19619,
+       "MID": 18183,
+       "JUNGLE/RIVER": 13879,
+       "TOP": 1970
+      },
+      "by_phase": {
+       "early": 23465,
+       "mid": 20267,
+       "late": 9919
+      },
+      "by_killer_role": {
+       "BOTTOM": 17627,
+       "MIDDLE": 10334,
+       "UTILITY": 7014,
+       "JUNGLE": 12726,
+       "TOP": 5832,
+       "?": 118
+      },
+      "by_zone_phase": {
+       "BOT|early": 15834,
+       "MID|early": 1171,
+       "JUNGLE/RIVER|early": 6351,
+       "JUNGLE/RIVER|mid": 5082,
+       "MID|mid": 11037,
+       "BOT|mid": 2952,
+       "MID|late": 5975,
+       "JUNGLE/RIVER|late": 2446,
+       "BOT|late": 833,
+       "TOP|mid": 1196,
+       "TOP|early": 109,
+       "TOP|late": 665
+      }
+     }
+    },
+    "scaling": {
+     "n_games": 4007,
+     "deaths_total": 23098,
+     "deaths_per_game": 5.76,
+     "lane": {
+      "gd10": 78,
+      "gd14": 124,
+      "gd20": 107,
+      "csd10": 1,
+      "csd14": 2,
+      "xpd10": 91,
+      "csm10": 8,
+      "csm14": 8,
+      "gpm10": 388,
+      "gpm14": 428,
+      "xppm10": 362
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1931.8078,
+      "avg_map_depth": 420.9,
+      "control_wards_placed": 0,
+      "frac_base": 0.1111,
+      "frac_enemy_half": 0.3077,
+      "frac_overextended": 0.0625,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 158.0,
+      "max_map_depth": 3720.0888,
+      "wards_killed": 2,
+      "wards_placed": 8,
+      "wards_placed_early": 4
+     },
+     "death_gold_state": {
+      "behind": 0.4715,
+      "ahead": 0.3404,
+      "even": 0.1881
+     },
+     "by_zone": {
+      "BOT": 0.3714,
+      "MID": 0.3364,
+      "JUNGLE/RIVER": 0.2544,
+      "TOP": 0.0378
+     },
+     "by_phase": {
+      "early": 0.4481,
+      "mid": 0.3783,
+      "late": 0.1736
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3856,
+      "JUNGLE": 0.2287,
+      "MIDDLE": 0.1798,
+      "TOP": 0.103,
+      "UTILITY": 0.1006,
+      "?": 0.0024
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3041,
+      "MID|mid": 0.2062,
+      "JUNGLE/RIVER|early": 0.1179,
+      "MID|late": 0.106,
+      "JUNGLE/RIVER|mid": 0.0943,
+      "BOT|mid": 0.0533,
+      "JUNGLE/RIVER|late": 0.0422,
+      "TOP|mid": 0.0245,
+      "MID|early": 0.0242,
+      "BOT|late": 0.014,
+      "TOP|late": 0.0114,
+      "TOP|early": 0.0019
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 8578,
+       "MID": 7770,
+       "JUNGLE/RIVER": 5877,
+       "TOP": 873
+      },
+      "by_phase": {
+       "early": 10350,
+       "mid": 8738,
+       "late": 4010
+      },
+      "by_killer_role": {
+       "JUNGLE": 5283,
+       "MIDDLE": 4152,
+       "TOP": 2378,
+       "UTILITY": 2324,
+       "BOTTOM": 8906,
+       "?": 55
+      },
+      "by_zone_phase": {
+       "BOT|early": 7024,
+       "MID|early": 559,
+       "JUNGLE/RIVER|mid": 2178,
+       "MID|mid": 4763,
+       "JUNGLE/RIVER|early": 2724,
+       "TOP|late": 264,
+       "JUNGLE/RIVER|late": 975,
+       "BOT|mid": 1231,
+       "MID|late": 2448,
+       "TOP|mid": 566,
+       "BOT|late": 323,
+       "TOP|early": 43
+      }
+     }
+    },
+    "unknown": {
+     "n_games": 399,
+     "deaths_total": 2437,
+     "deaths_per_game": 6.11,
+     "lane": {
+      "gd10": 218,
+      "gd14": 143,
+      "gd20": 114,
+      "csd10": 3,
+      "csd14": 4,
+      "xpd10": -87,
+      "csm10": 7.8,
+      "csm14": 8,
+      "gpm10": 383.6,
+      "gpm14": 418,
+      "xppm10": 370.9
+     },
+     "positioning": {
+      "avg_dist_to_ally": 2074.9579,
+      "avg_map_depth": 369.4905,
+      "control_wards_placed": 0,
+      "frac_base": 0.1111,
+      "frac_enemy_half": 0.2955,
+      "frac_overextended": 0.0417,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 177.0,
+      "max_map_depth": 3267.5404,
+      "wards_killed": 2,
+      "wards_placed": 8,
+      "wards_placed_early": 5
+     },
+     "death_gold_state": {
+      "behind": 0.4313,
+      "ahead": 0.3857,
+      "even": 0.183
+     },
+     "by_zone": {
+      "BOT": 0.3627,
+      "MID": 0.3439,
+      "JUNGLE/RIVER": 0.2548,
+      "TOP": 0.0386
+     },
+     "by_phase": {
+      "early": 0.4358,
+      "mid": 0.3857,
+      "late": 0.1785
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3311,
+      "JUNGLE": 0.206,
+      "MIDDLE": 0.1785,
+      "UTILITY": 0.1769,
+      "TOP": 0.1042,
+      "?": 0.0033
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.2922,
+      "MID|mid": 0.215,
+      "JUNGLE/RIVER|early": 0.1161,
+      "MID|late": 0.105,
+      "JUNGLE/RIVER|mid": 0.0911,
+      "BOT|mid": 0.0533,
+      "JUNGLE/RIVER|late": 0.0476,
+      "TOP|mid": 0.0263,
+      "MID|early": 0.0238,
+      "BOT|late": 0.0172,
+      "TOP|late": 0.0086,
+      "TOP|early": 0.0037
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 884,
+       "MID": 838,
+       "JUNGLE/RIVER": 621,
+       "TOP": 94
+      },
+      "by_phase": {
+       "early": 1062,
+       "mid": 940,
+       "late": 435
+      },
+      "by_killer_role": {
+       "BOTTOM": 807,
+       "MIDDLE": 435,
+       "UTILITY": 431,
+       "JUNGLE": 502,
+       "TOP": 254,
+       "?": 8
+      },
+      "by_zone_phase": {
+       "BOT|early": 712,
+       "MID|mid": 524,
+       "JUNGLE/RIVER|mid": 222,
+       "TOP|late": 21,
+       "JUNGLE/RIVER|early": 283,
+       "MID|early": 58,
+       "BOT|mid": 130,
+       "MID|late": 256,
+       "JUNGLE/RIVER|late": 116,
+       "TOP|mid": 64,
+       "BOT|late": 42,
+       "TOP|early": 9
+      }
+     }
+    }
+   },
+   "gank_exposure": {
+    "high": {
+     "n_games": 4279,
+     "deaths_total": 26546,
+     "deaths_per_game": 6.2,
+     "lane": {
+      "gd10": -30,
+      "gd14": -80,
+      "gd20": -124,
+      "csd10": -1,
+      "csd14": -1,
+      "xpd10": -26,
+      "csm10": 8,
+      "csm14": 7.785714285714286,
+      "gpm10": 382,
+      "gpm14": 420.07142857142856,
+      "xppm10": 357
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1939.8754,
+      "avg_map_depth": 379.3052,
+      "control_wards_placed": 0,
+      "frac_base": 0.1111,
+      "frac_enemy_half": 0.2857,
+      "frac_overextended": 0.0571,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 170.5,
+      "max_map_depth": 3501.5928,
+      "wards_killed": 2,
+      "wards_placed": 8,
+      "wards_placed_early": 4
+     },
+     "death_gold_state": {
+      "behind": 0.492,
+      "ahead": 0.3229,
+      "even": 0.1851
+     },
+     "by_zone": {
+      "BOT": 0.3736,
+      "MID": 0.335,
+      "JUNGLE/RIVER": 0.2552,
+      "TOP": 0.0361
+     },
+     "by_phase": {
+      "early": 0.4575,
+      "mid": 0.3715,
+      "late": 0.1709
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3569,
+      "MIDDLE": 0.2135,
+      "JUNGLE": 0.2132,
+      "UTILITY": 0.1135,
+      "TOP": 0.1006,
+      "?": 0.0023
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3056,
+      "MID|mid": 0.2064,
+      "JUNGLE/RIVER|early": 0.1249,
+      "MID|late": 0.1037,
+      "JUNGLE/RIVER|mid": 0.088,
+      "BOT|mid": 0.0532,
+      "JUNGLE/RIVER|late": 0.0424,
+      "MID|early": 0.0249,
+      "TOP|mid": 0.0239,
+      "BOT|late": 0.0148,
+      "TOP|late": 0.01,
+      "TOP|early": 0.0022
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 9918,
+       "MID": 8894,
+       "JUNGLE/RIVER": 6775,
+       "TOP": 959
+      },
+      "by_phase": {
+       "early": 12146,
+       "mid": 9863,
+       "late": 4537
+      },
+      "by_killer_role": {
+       "TOP": 2670,
+       "UTILITY": 3014,
+       "MIDDLE": 5667,
+       "JUNGLE": 5660,
+       "BOTTOM": 9473,
+       "?": 62
+      },
+      "by_zone_phase": {
+       "BOT|early": 8112,
+       "MID|mid": 5480,
+       "JUNGLE/RIVER|late": 1125,
+       "JUNGLE/RIVER|early": 3315,
+       "JUNGLE/RIVER|mid": 2335,
+       "MID|late": 2754,
+       "TOP|late": 265,
+       "MID|early": 660,
+       "BOT|mid": 1413,
+       "TOP|mid": 635,
+       "TOP|early": 59,
+       "BOT|late": 393
+      }
+     }
+    },
+    "med": {
+     "n_games": 11686,
+     "deaths_total": 70146,
+     "deaths_per_game": 6.0,
+     "lane": {
+      "gd10": -19,
+      "gd14": -50,
+      "gd20": -70,
+      "csd10": 0,
+      "csd14": 0,
+      "xpd10": -12,
+      "csm10": 7.7,
+      "csm14": 8,
+      "gpm10": 381.9,
+      "gpm14": 420,
+      "xppm10": 359.5
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1959.5966,
+      "avg_map_depth": 390.3047,
+      "control_wards_placed": 0.0,
+      "frac_base": 0.1111,
+      "frac_enemy_half": 0.2941,
+      "frac_overextended": 0.0588,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 165.5,
+      "max_map_depth": 3484.9758,
+      "wards_killed": 2.0,
+      "wards_placed": 8.0,
+      "wards_placed_early": 4.0
+     },
+     "death_gold_state": {
+      "behind": 0.4917,
+      "ahead": 0.3195,
+      "even": 0.1888
+     },
+     "by_zone": {
+      "BOT": 0.3748,
+      "MID": 0.3325,
+      "JUNGLE/RIVER": 0.2577,
+      "TOP": 0.035
+     },
+     "by_phase": {
+      "early": 0.4514,
+      "mid": 0.3735,
+      "late": 0.1751
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3626,
+      "JUNGLE": 0.2256,
+      "MIDDLE": 0.1903,
+      "UTILITY": 0.1167,
+      "TOP": 0.1024,
+      "?": 0.0024
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3062,
+      "MID|mid": 0.2039,
+      "JUNGLE/RIVER|early": 0.1204,
+      "MID|late": 0.1058,
+      "JUNGLE/RIVER|mid": 0.0938,
+      "BOT|mid": 0.0537,
+      "JUNGLE/RIVER|late": 0.0435,
+      "MID|early": 0.0228,
+      "TOP|mid": 0.0221,
+      "BOT|late": 0.0149,
+      "TOP|late": 0.011,
+      "TOP|early": 0.002
+     },
+     "raw_counts": {
+      "by_zone": {
+       "BOT": 26294,
+       "MID": 23322,
+       "JUNGLE/RIVER": 18074,
+       "TOP": 2456
+      },
+      "by_phase": {
+       "early": 31663,
+       "mid": 26197,
+       "late": 12286
+      },
+      "by_killer_role": {
+       "BOTTOM": 25433,
+       "MIDDLE": 13347,
+       "UTILITY": 8187,
+       "JUNGLE": 15825,
+       "TOP": 7185,
+       "?": 169
+      },
+      "by_zone_phase": {
+       "BOT|early": 21477,
+       "MID|early": 1602,
+       "JUNGLE/RIVER|early": 8446,
+       "JUNGLE/RIVER|mid": 6580,
+       "MID|mid": 14301,
+       "BOT|mid": 3769,
+       "JUNGLE/RIVER|late": 3048,
+       "MID|late": 7419,
+       "BOT|late": 1048,
+       "TOP|mid": 1547,
+       "TOP|late": 771,
+       "TOP|early": 138
+      }
+     }
+    },
+    "low": {
+     "n_games": 9832,
+     "deaths_total": 57393,
+     "deaths_per_game": 5.84,
+     "lane": {
+      "gd10": 44,
+      "gd14": 112,
+      "gd20": 164,
+      "csd10": 1,
+      "csd14": 1,
+      "xpd10": 32,
+      "csm10": 7.8,
+      "csm14": 7.928571428571429,
+      "gpm10": 386.6,
+      "gpm14": 426.35714285714283,
+      "xppm10": 361.2
+     },
+     "positioning": {
+      "avg_dist_to_ally": 1951.9125,
+      "avg_map_depth": 418.9265,
+      "control_wards_placed": 0.0,
+      "frac_base": 0.1111,
+      "frac_enemy_half": 0.303,
+      "frac_overextended": 0.0606,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 164.0,
+      "max_map_depth": 3652.9136,
+      "wards_killed": 2.0,
+      "wards_placed": 8.0,
+      "wards_placed_early": 4.0
+     },
+     "death_gold_state": {
+      "behind": 0.4636,
+      "ahead": 0.3472,
+      "even": 0.1892
+     },
+     "by_zone": {
+      "BOT": 0.3722,
+      "MID": 0.3329,
+      "JUNGLE/RIVER": 0.2581,
+      "TOP": 0.0368
+     },
+     "by_phase": {
+      "early": 0.4482,
+      "mid": 0.3725,
+      "late": 0.1793
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3653,
+      "JUNGLE": 0.241,
+      "MIDDLE": 0.1661,
+      "UTILITY": 0.1185,
+      "TOP": 0.1064,
+      "?": 0.0027
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3035,
+      "MID|mid": 0.2034,
+      "JUNGLE/RIVER|early": 0.1195,
+      "MID|late": 0.1065,
+      "JUNGLE/RIVER|mid": 0.0941,
+      "BOT|mid": 0.053,
+      "JUNGLE/RIVER|late": 0.0446,
+      "MID|early": 0.023,
+      "TOP|mid": 0.022,
+      "BOT|late": 0.0157,
+      "TOP|late": 0.0125,
+      "TOP|early": 0.0023
+     },
+     "raw_counts": {
+      "by_zone": {
+       "JUNGLE/RIVER": 14814,
+       "BOT": 21362,
+       "MID": 19105,
+       "TOP": 2112
+      },
+      "by_phase": {
+       "early": 25724,
+       "mid": 21379,
+       "late": 10290
+      },
+      "by_killer_role": {
+       "BOTTOM": 20965,
+       "JUNGLE": 13831,
+       "MIDDLE": 9534,
+       "UTILITY": 6800,
+       "TOP": 6108,
+       "?": 155
+      },
+      "by_zone_phase": {
+       "JUNGLE/RIVER|early": 6856,
+       "BOT|early": 17417,
+       "MID|mid": 11672,
+       "JUNGLE/RIVER|mid": 5401,
+       "TOP|late": 716,
+       "MID|early": 1318,
+       "JUNGLE/RIVER|late": 2557,
+       "MID|late": 6115,
+       "BOT|late": 902,
+       "BOT|mid": 3043,
+       "TOP|mid": 1263,
+       "TOP|early": 133
+      }
+     }
+    },
+    "unknown": {
+     "n_games": 145,
+     "deaths_total": 840,
+     "deaths_per_game": 5.79,
+     "lane": {
+      "gd10": 2,
+      "gd14": -48,
+      "gd20": -82,
+      "csd10": 1,
+      "csd14": 0,
+      "xpd10": -86,
+      "csm10": 8,
+      "csm14": 8,
+      "gpm10": 384,
+      "gpm14": 419,
+      "xppm10": 355
+     },
+     "positioning": {
+      "avg_dist_to_ally": 2008.9569,
+      "avg_map_depth": 371.5222,
+      "control_wards_placed": 0,
+      "frac_base": 0.1071,
+      "frac_enemy_half": 0.2941,
+      "frac_overextended": 0.0588,
+      "frac_own_lane_early": 0.6,
+      "frac_river_early": 0.2667,
+      "frac_roam_mid": 0.7,
+      "gold_dead_time": 152.0,
+      "max_map_depth": 3210.9719,
+      "wards_killed": 2,
+      "wards_placed": 8,
+      "wards_placed_early": 4
+     },
+     "death_gold_state": {
+      "behind": 0.5238,
+      "ahead": 0.2845,
+      "even": 0.1917
+     },
+     "by_zone": {
+      "BOT": 0.3893,
+      "MID": 0.3226,
+      "JUNGLE/RIVER": 0.2405,
+      "TOP": 0.0476
+     },
+     "by_phase": {
+      "early": 0.4821,
+      "mid": 0.3821,
+      "late": 0.1357
+     },
+     "by_killer_role": {
+      "BOTTOM": 0.3786,
+      "JUNGLE": 0.2631,
+      "MIDDLE": 0.1512,
+      "UTILITY": 0.106,
+      "TOP": 0.0988,
+      "?": 0.0024
+     },
+     "by_zone_phase": {
+      "BOT|early": 0.3143,
+      "MID|mid": 0.2202,
+      "JUNGLE/RIVER|early": 0.1417,
+      "MID|late": 0.081,
+      "JUNGLE/RIVER|mid": 0.0702,
+      "BOT|mid": 0.0619,
+      "TOP|mid": 0.0298,
+      "JUNGLE/RIVER|late": 0.0286,
+      "MID|early": 0.0214,
+      "TOP|late": 0.0131,
+      "BOT|late": 0.0131,
+      "TOP|early": 0.0048
+     },
+     "raw_counts": {
+      "by_zone": {
+       "JUNGLE/RIVER": 202,
+       "BOT": 327,
+       "MID": 271,
+       "TOP": 40
+      },
+      "by_phase": {
+       "early": 405,
+       "mid": 321,
+       "late": 114
+      },
+      "by_killer_role": {
+       "BOTTOM": 318,
+       "UTILITY": 89,
+       "JUNGLE": 221,
+       "MIDDLE": 127,
+       "TOP": 83,
+       "?": 2
+      },
+      "by_zone_phase": {
+       "JUNGLE/RIVER|early": 119,
+       "BOT|early": 264,
+       "BOT|mid": 52,
+       "JUNGLE/RIVER|late": 24,
+       "MID|mid": 185,
+       "MID|late": 68,
+       "JUNGLE/RIVER|mid": 59,
+       "MID|early": 18,
+       "TOP|mid": 25,
+       "TOP|late": 11,
+       "BOT|late": 11,
+       "TOP|early": 4
+      }
+     }
+    }
+   }
+  }
+ },
+ "expected": {
+  "meta": {
+   "player": "spadzze",
+   "scope": "adc",
+   "target": "challenger",
+   "outcome_focus": "win",
+   "patch": "?",
+   "n_games_me": 32,
+   "n_games_ref": 25942,
+   "winrate_me": 0.656,
+   "low_sample": false,
+   "deaths_per_game": {
+    "overall": {
+     "you": 5.88,
+     "ref": 5.97
+    },
+    "win": {
+     "you": 5.19,
+     "ref": 4.78
+    },
+    "loss": {
+     "you": 7.18,
+     "ref": 7.17
+    }
+   }
+  },
+  "signals": [
+   {
+    "group": "lane",
+    "key": "gd10",
+    "label": "gold diff @10",
+    "you": -429,
+    "ref": 252,
+    "delta": -681,
+    "unit": "g",
+    "notable": true
+   },
+   {
+    "group": "lane",
+    "key": "gd14",
+    "label": "gold diff @14",
+    "you": -306,
+    "ref": 553,
+    "delta": -859,
+    "unit": "g",
+    "notable": true
+   },
+   {
+    "group": "lane",
+    "key": "gd20",
+    "label": "gold diff @20",
+    "you": 500,
+    "ref": 912,
+    "delta": -412,
+    "unit": "g",
+    "notable": true
+   },
+   {
+    "group": "lane",
+    "key": "csd10",
+    "label": "cs diff @10",
+    "you": 2,
+    "ref": 3,
+    "delta": -1,
+    "unit": "cs",
+    "notable": false
+   },
+   {
+    "group": "lane",
+    "key": "csd14",
+    "label": "cs diff @14",
+    "you": -3,
+    "ref": 6,
+    "delta": -9,
+    "unit": "cs",
+    "notable": true
+   },
+   {
+    "group": "positioning",
+    "key": "avg_dist_to_ally",
+    "label": "isolement (allié)",
+    "you": 1643.3941,
+    "ref": 1942.6795,
+    "delta": -299.2854,
+    "unit": "u",
+    "notable": true
+   },
+   {
+    "group": "positioning",
+    "key": "avg_map_depth",
+    "label": "profondeur moy.",
+    "you": 795.8215,
+    "ref": 798.4561,
+    "delta": -2.6346,
+    "unit": "u",
+    "notable": false,
+    "descriptive_only": true
+   },
+   {
+    "group": "positioning",
+    "key": "control_wards_placed",
+    "label": "control wards",
+    "you": 0,
+    "ref": 0,
+    "delta": 0,
+    "unit": "ward",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "frac_base",
+    "label": "% en base",
+    "you": 0.069,
+    "ref": 0.0909,
+    "delta": -0.0219,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "frac_enemy_half",
+    "label": "% moitié ennemie",
+    "you": 0.4167,
+    "ref": 0.3947,
+    "delta": 0.022,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "frac_overextended",
+    "label": "% over-extended",
+    "you": 0.1081,
+    "ref": 0.125,
+    "delta": -0.0169,
+    "unit": "pct",
+    "notable": false,
+    "descriptive_only": true
+   },
+   {
+    "group": "positioning",
+    "key": "frac_own_lane_early",
+    "label": "% lane (early)",
+    "you": 0.6,
+    "ref": 0.6,
+    "delta": 0.0,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "frac_river_early",
+    "label": "% river (early)",
+    "you": 0.3333,
+    "ref": 0.2667,
+    "delta": 0.0666,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "frac_roam_mid",
+    "label": "% roam (mid)",
+    "you": 0.6,
+    "ref": 0.7,
+    "delta": -0.1,
+    "unit": "pct",
+    "notable": true
+   },
+   {
+    "group": "positioning",
+    "key": "gold_dead_time",
+    "label": "temps mort (s)",
+    "you": 138.5,
+    "ref": 123.5,
+    "delta": 15.0,
+    "unit": "s",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "max_map_depth",
+    "label": "profondeur max",
+    "you": 7950.7086,
+    "ref": 7327.7476,
+    "delta": 622.961,
+    "unit": "u",
+    "notable": false,
+    "descriptive_only": true
+   },
+   {
+    "group": "positioning",
+    "key": "wards_killed",
+    "label": "wards détruites",
+    "you": 3,
+    "ref": 3,
+    "delta": 0,
+    "unit": "ward",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "wards_placed",
+    "label": "wards posées",
+    "you": 8,
+    "ref": 8,
+    "delta": 0,
+    "unit": "ward",
+    "notable": false
+   },
+   {
+    "group": "positioning",
+    "key": "wards_placed_early",
+    "label": "wards early",
+    "you": 4,
+    "ref": 5,
+    "delta": -1,
+    "unit": "ward",
+    "notable": true
+   },
+   {
+    "group": "deaths_zone_phase",
+    "key": "BOT|early",
+    "label": "morts BOT|early",
+    "you": 0.4037,
+    "ref": 0.3268,
+    "delta": 0.0769,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "deaths_zone_phase",
+    "key": "BOT|mid",
+    "label": "morts BOT|mid",
+    "you": 0.1009,
+    "ref": 0.0498,
+    "delta": 0.0511,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "deaths_zone_phase",
+    "key": "JUNGLE/RIVER|mid",
+    "label": "morts JUNGLE/RIVER|mid",
+    "you": 0.1009,
+    "ref": 0.0928,
+    "delta": 0.0081,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "deaths_zone_phase",
+    "key": "TOP|late",
+    "label": "morts TOP|late",
+    "you": 0.0092,
+    "ref": 0.0096,
+    "delta": -0.0004,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "deaths_zone_phase",
+    "key": "TOP|early",
+    "label": "morts TOP|early",
+    "you": 0.0,
+    "ref": 0.0023,
+    "delta": -0.0023,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "death_gold_state",
+    "key": "ahead",
+    "label": "morts en avance",
+    "you": 0.2477,
+    "ref": 0.4443,
+    "delta": -0.1966,
+    "unit": "pct",
+    "notable": true
+   },
+   {
+    "group": "death_gold_state",
+    "key": "even",
+    "label": "morts à égalité",
+    "you": 0.2294,
+    "ref": 0.2059,
+    "delta": 0.0235,
+    "unit": "pct",
+    "notable": false
+   },
+   {
+    "group": "death_gold_state",
+    "key": "behind",
+    "label": "morts en retard",
+    "you": 0.5229,
+    "ref": 0.3498,
+    "delta": 0.1731,
+    "unit": "pct",
+    "notable": true
+   }
+  ],
+  "context": {
+   "lane_pattern": {
+    "bucket": "all_in",
+    "n_me": 15,
+    "n_ref": 12362,
+    "gd10_me": -510,
+    "gd10_ref": -72,
+    "fallback": false,
+    "reason": null
+   },
+   "gank_exposure": {
+    "bucket": "low",
+    "n_me": 12,
+    "n_ref": 9832,
+    "gd10_me": -470,
+    "gd10_ref": 44,
+    "fallback": false,
+    "reason": null
+   }
+  }
+ }
+}
