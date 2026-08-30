@@ -29,3 +29,8 @@ frames/
 
 # Scratch state for subagent-driven-development (task briefs, review packages, ledger)
 .superpowers/
+
+# Cloudflare Worker local state
+web/cf/node_modules/
+web/cf/.dev.vars
+web/cf/.wrangler/

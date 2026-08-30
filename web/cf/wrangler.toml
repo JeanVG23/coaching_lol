@@ -1,0 +1,8 @@
+name = "coaching-lol"
+main = "src/index.ts"
+compatibility_date = "2026-08-30"
+
+[assets]
+directory = "../frontend"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
