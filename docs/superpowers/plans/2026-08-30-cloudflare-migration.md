@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Migrer le site coaching_lol de Fly.io vers un Worker Cloudflare unique (TS + KV), servira `coaching-lol.jean.vg`, avec le ML précalculé localement et poussé par un script de sync.
+**Goal:** Migrer le site coaching_lol de Fly.io vers un Worker Cloudflare unique (TS + KV), servira `coaching-lol.jeanvg.fr`, avec le ML précalculé localement et poussé par un script de sync.
 
 **Architecture:** Un Worker TypeScript sert les assets statiques (SPA) ET l'API `/api/*`, lit/écrit Workers KV (binding `DATA`). Le local Python reste le cerveau : fetch Riot, extraction silver/gold, entraînement, et un nouveau `sync_cloudflare.py` qui pousse données + prédictions ML précalculées dans KV via l'API REST Cloudflare. Le coaching passe par SSE (payload → Ollama → review → persiste KV).
 
@@ -29,11 +29,11 @@
 
 **Files:** aucun (opérationnel, 0 code).
 
-**Interfaces:** aucune. Produit : `https://coaching-lol.jean.vg` répond (servi par Fly) — précondition implicite des tâches P2+ (le domaine reste vivant pendant la migration).
+**Interfaces:** aucune. Produit : `https://coaching-lol.jeanvg.fr` répond (servi par Fly) — précondition implicite des tâches P2+ (le domaine reste vivant pendant la migration).
 
 - [ ] **Step 1: CNAME dans le dashboard Cloudflare**
 
-Dashboard Cloudflare → zone `jean.vg` → DNS → Records → Add record :
+Dashboard Cloudflare → zone `jeanvg.fr` → DNS → Records → Add record :
 
 - Type : `CNAME`
 - Name : `coaching-lol`
@@ -50,13 +50,13 @@ Dans le prompt Claude Code, l'utilisateur tape :
 
 - [ ] **Step 3: Certificat Fly pour le sous-domaine**
 
-Run: `cd /Users/jeanvangysel/code/website/coaching_lol && fly certs add coaching-lol.jean.vg`
-Expected: `Certificate added` puis (après ~1-2 min, `fly certs check coaching-lol.jean.vg`) `Certificate available`. Si "DNS problem" : vérifier que le CNAME est bien **DNS only** et attendre la propagation (TTL auto ~5 min).
+Run: `cd /Users/jeanvangysel/code/website/coaching_lol && fly certs add coaching-lol.jeanvg.fr`
+Expected: `Certificate added` puis (après ~1-2 min, `fly certs check coaching-lol.jeanvg.fr`) `Certificate available`. Si "DNS problem" : vérifier que le CNAME est bien **DNS only** et attendre la propagation (TTL auto ~5 min).
 
 - [ ] **Step 4: Vérification bout-en-bout**
 
-Run: `curl -sS https://coaching-lol.jean.vg/api/health`
-Expected: `{"status":"ok",...}` (le JSON health servi par FastAPI sur Fly, via le domaine). Vérifier aussi `curl -sSI https://coaching-lol.jean.vg/` → `200` et une redirection HTTP→HTTPS sur un appel `http://`.
+Run: `curl -sS https://coaching-lol.jeanvg.fr/api/health`
+Expected: `{"status":"ok",...}` (le JSON health servi par FastAPI sur Fly, via le domaine). Vérifier aussi `curl -sSI https://coaching-lol.jeanvg.fr/` → `200` et une redirection HTTP→HTTPS sur un appel `http://`.
 
 ---
 
@@ -2318,30 +2318,30 @@ curl -sS $BASE/api/c/spadzze/reviews | head -c 400   # la review générée est 
 
 Vérifier dans le dashboard (Workers > coaching-lol > Logs) : pas d'erreur CPU limit exceeded (marge spec §11 — le coaching = attente réseau, CPU quasi nul).
 
-- [ ] **Step 4: Basculer l'usage personnel sur l'URL workers.dev** (le domaine jean.vg reste sur Fly jusqu'au Task 14) — optionnel, informative.
+- [ ] **Step 4: Basculer l'usage personnel sur l'URL workers.dev** (le domaine jeanvg.fr reste sur Fly jusqu'au Task 14) — optionnel, informative.
 
 ---
 
 ## Phase P4 — Bascule domaine + rapatriement + décommission
 
-### Task 14: Custom Domain `coaching-lol.jean.vg`
+### Task 14: Custom Domain `coaching-lol.jeanvg.fr`
 
-**Files:** aucun (dashboard). Produit : `https://coaching-lol.jean.vg` servi par le Worker Cloudflare.
+**Files:** aucun (dashboard). Produit : `https://coaching-lol.jeanvg.fr` servi par le Worker Cloudflare.
 
 - [ ] **Step 1: Supprimer le CNAME interim**
 
-Dashboard CF → zone `jean.vg` → DNS → supprimer l'enregistrement `CNAME coaching-lol → coaching-lol.fly.dev` (sinon le Custom Domain entre en conflit « record already exists »).
+Dashboard CF → zone `jeanvg.fr` → DNS → supprimer l'enregistrement `CNAME coaching-lol → coaching-lol.fly.dev` (sinon le Custom Domain entre en conflit « record already exists »).
 
 - [ ] **Step 2: Attacher le Custom Domain**
 
-Dashboard CF → Workers & Pages → `coaching-lol` → Settings → Domains & Routes → Add → Custom Domain → `coaching-lol.jean.vg` → Add. CF crée l'enregistrement (proxied) et émet le certificat (~2 min, «Initializing» → «Active»).
+Dashboard CF → Workers & Pages → `coaching-lol` → Settings → Domains & Routes → Add → Custom Domain → `coaching-lol.jeanvg.fr` → Add. CF crée l'enregistrement (proxied) et émet le certificat (~2 min, «Initializing» → «Active»).
 
 - [ ] **Step 3: Vérification**
 
 ```bash
-curl -sS https://coaching-lol.jean.vg/api/health
-curl -sS https://coaching-lol.jean.vg/api/accounts
-curl -sSN -X POST https://coaching-lol.jean.vg/api/coach -H 'Content-Type: application/json' -d '{"slug":"spadzze"}'
+curl -sS https://coaching-lol.jeanvg.fr/api/health
+curl -sS https://coaching-lol.jeanvg.fr/api/accounts
+curl -sSN -X POST https://coaching-lol.jeanvg.fr/api/coach -H 'Content-Type: application/json' -d '{"slug":"spadzze"}'
 ```
 Expected: idem Task 13, sur le domaine. Vérifier le certificat (`curl -vI` → émis par Cloudflare, HTTP/2, pas d'avertissement). Le site Fly devient inutilisé mais reste up (sécurité pendant le Task 15).
 
@@ -2434,8 +2434,8 @@ Expected: `spadzze/reviews: local=N fly=M kv=K -> fusion=L` avec L = union dédu
 - [ ] **Step 3: Vérification**
 
 ```bash
-curl -sS https://coaching-lol.jean.vg/api/c/spadzze/reviews | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
-curl -sS https://coaching-lol.jean.vg/api/c/spadzze/feedback | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
+curl -sS https://coaching-lol.jeanvg.fr/api/c/spadzze/reviews | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
+curl -sS https://coaching-lol.jeanvg.fr/api/c/spadzze/feedback | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
 ```
 Expected: les compteurs = les fusions affichées ; l'onglet Coaching du site affiche l'historique complet (y compris reviews générées via Fly + via CF).
 
@@ -2455,7 +2455,7 @@ Expected: les compteurs = les fusions affichées ; l'onglet Coaching du site aff
 - [ ] **Step 1: Vérification finale AVANT destruction**
 
 Checklist (toute case qui échoue = NE PAS détruire) :
-- [ ] `https://coaching-lol.jean.vg/api/health` → ok
+- [ ] `https://coaching-lol.jeanvg.fr/api/health` → ok
 - [ ] reviews + feedback complets (compteurs du Task 15)
 - [ ] un coaching SSE généré depuis le domaine (Task 14/15 l'ont fait — sinon le générer maintenant)
 - [ ] `poetry run python3 src/collection/sync_cloudflare.py --dry-run` liste les clés sans erreur (le run réel a été fait)
@@ -2485,7 +2485,7 @@ le cerveau : fetch Riot, extraction silver/gold, ML. Le Worker ne parle jamais �
 - Tests : `cd web/cf && npm test` (vitest, KV émulé) ; parité payload :
   `GOLDEN_REGEN=1 poetry run pytest tests/test_payload_parity.py` puis `npm test`.
 - Local : `cd web/cf && npx wrangler dev` (lit `.dev.vars` pour OLLAMA_API_KEY).
-- Domaine : `coaching-lol.jean.vg` (Custom Domain sur le Worker, zone CF jean.vg).
+- Domaine : `coaching-lol.jeanvg.fr` (Custom Domain sur le Worker, zone CF jeanvg.fr).
 - Layout KV : `silver:{slug}:games|rank`, `gold:{slug}:{scope}`, `ref:{rank}:{scope}`,
   `pred:{slug}`, `shap:{slug}:drivers`, `coaching:{slug}:reviews|feedback` (clés coaching
   appartenant au Worker — le sync ne les écrase pas, amorce `--seed-reviews` au premier run).
@@ -2502,7 +2502,7 @@ Dans l'arborescence `src/`→`web/` de la section Architecture : mettre à jour 
 ```markdown
 - **Migration Cloudflare** ✅ — 2026-08-30. Le site est un Worker TS unique (web/cf/) :
   assets + API sur Workers KV, coaching en SSE, ML précalculé au sync local
-  (sync_cloudflare.py, aucune clé Riot côté Worker). Domaine coaching-lol.jean.vg.
+  (sync_cloudflare.py, aucune clé Riot côté Worker). Domaine coaching-lol.jeanvg.fr.
   Fly.io décommissionné. Parité payload garantie par golden test Python/TS.
 ```
 

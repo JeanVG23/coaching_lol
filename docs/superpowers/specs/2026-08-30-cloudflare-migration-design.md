@@ -2,12 +2,12 @@
 
 > Date : 2026-08-30. Statut : design approuvé en brainstorming (approche 1 « précompute »).
 > Contexte : pivot du 2026-08-30 — abandon de l'objectif parallèle « cours AOS », priorité
-> au site web. Objectif : rattacher le site au domaine **jean.vg** (sous-domaine
-> **coaching-lol.jean.vg**) et **quitter Fly.io** pour tout ramener sur Cloudflare.
+> au site web. Objectif : rattacher le site au domaine **jeanvg.fr** (sous-domaine
+> **coaching-lol.jeanvg.fr**) et **quitter Fly.io** pour tout ramener sur Cloudflare.
 
 ## 1. Contexte et motivation
 
-- **Un seul fournisseur.** jean.vg est acheté chez OVH, mais DNS + mails sont déjà gérés
+- **Un seul fournisseur.** jeanvg.fr est acheté chez OVH, mais DNS + mails sont déjà gérés
   sur Cloudflare (zone active). Fly.io est aujourd'hui le seul autre fournisseur de la
   stack : volume mono-machine, push sftp manuel du référentiel gold après chaque déploiement
   (cf. `web/README.md`), second dashboard. Le motif déclaré : **simplifier la stack**, quitte
@@ -24,7 +24,7 @@
 | Question | Décision |
 |---|---|
 | Registrar / zone | OVH ; DNS + mails déjà sur Cloudflare → aucune étape nameservers |
-| Sous-domaine | `coaching-lol.jean.vg` (aligné sur le nom de l'app) |
+| Sous-domaine | `coaching-lol.jeanvg.fr` (aligné sur le nom de l'app) |
 | Fly.io | À quitter. **Interim** : le domaine pointe vers Fly pendant la construction (30 min, réversible), bascule + décommission à la parité |
 | Plan Cloudflare | Free uniquement — architecture conçue pour tenir dedans |
 | Périmètre V1 | Lecture + génération coaching **sur CF** ; fetch Riot = commande **locale** (la mise à jour des games ne passe plus par le site) |
@@ -48,7 +48,7 @@
 ## 3. Architecture cible
 
 ```
-[local Python — inchangé, le cerveau]         [Cloudflare — zone jean.vg, la vitrine]
+[local Python — inchangé, le cerveau]         [Cloudflare — zone jeanvg.fr, la vitrine]
   collection Riot (build_referential,           ┌──────────────────────────────────┐
   aggregate_games, densify_*)                   │ Worker TS "coaching-lol"         │
   training ML (train_*, calibrate_*)            │  • assets statiques (SPA)        │
@@ -56,7 +56,7 @@
   ml_rank.py (précalcul rang/LP)                │  • KV binding "DATA"             │
         │                                       │  • SSE coach → Ollama Cloud      │
         │ sync_cloudflare.py                    └───────────────┬──────────────────┘
-        │ (API REST CF, pousse données                 coaching-lol.jean.vg
+        │ (API REST CF, pousse données                 coaching-lol.jeanvg.fr
         │  + prédictions précalculées)                 (Custom Domain à la bascule)
         └────────────────────────────────────────────►
 ```
@@ -159,12 +159,12 @@ amélioration nette vs Fly aujourd'hui. `RIOT_API_ID` et le token CF restent dan
 
 ## 7. Domaine : interim puis bascule
 
-1. **Interim (dès P1)** : dans le dashboard CF (zone jean.vg), CNAME `coaching-lol` →
+1. **Interim (dès P1)** : dans le dashboard CF (zone jeanvg.fr), CNAME `coaching-lol` →
    `coaching-lol.fly.dev`, **DNS only** (nuage gris). Puis `fly certs add
-   coaching-lol.jean.vg` (Let's Encrypt côté Fly ; `force_https` déjà actif gère la
+   coaching-lol.jeanvg.fr` (Let's Encrypt côté Fly ; `force_https` déjà actif gère la
    redirection). Le domaine répond pendant toute la construction.
 2. **Bascule (P4)** : supprimer le CNAME, ajouter **Custom Domain**
-   `coaching-lol.jean.vg` au Worker (cert géré par CF, ~2 min, sans interruption longue).
+   `coaching-lol.jeanvg.fr` au Worker (cert géré par CF, ~2 min, sans interruption longue).
 3. **Décommission** : **rapatrier d'abord le volume Fly** (reviews/feedback générés
    côté web — à ne pas perdre : `fly ssh sftp pull` ou équivalent, merge dans le local
    puis re-sync KV), puis `fly apps destroy coaching-lol`.
@@ -192,7 +192,7 @@ amélioration nette vs Fly aujourd'hui. `RIOT_API_ID` et le token CF restent dan
 | Phase | Contenu | État |
 |---|---|---|
 | P0 | Cleanup worktree + pivot AOS (commits, merge master, branches obsolètes) | ✅ 2026-08-30 |
-| P1 | Interim : CNAME CF + `fly certs add` + vérif `https://coaching-lol.jean.vg/api/health` | à faire |
+| P1 | Interim : CNAME CF + `fly certs add` + vérif `https://coaching-lol.jeanvg.fr/api/health` | à faire |
 | P2 | Worker TS squelette + assets + readers KV + `sync_cloudflare.py` → parité LECTURE sur `*.workers.dev` | à faire |
 | P3 | Coach SSE + feedback écriture KV + ajustements frontend | à faire |
 | P4 | Bascule Custom Domain + rapatriement volume Fly + décommission + doc README | à faire |
