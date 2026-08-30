@@ -15,7 +15,7 @@ import riotlib as rl
 
 DATASET = rl.DATA / "04_dataset" / "adc_dataset.parquet"
 MODEL_DIR = rl.DATA / "05_model"
-OUT = rl.DATA / "06_shap"
+OUT = rl.DATA / "06_shap" / "high_elo"
 
 def main():
     FEATURES = json.loads((MODEL_DIR / "features.json").read_text())

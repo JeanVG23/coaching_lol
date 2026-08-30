@@ -199,6 +199,7 @@ def main(target: str = "dia_chall") -> int:
     sv_ensemble_vals = np.mean(sv_trees, axis=0)
     sv_ensemble = shap.Explanation(values=sv_ensemble_vals, data=Xref.values,
                                    feature_names=FEATURES)
+    np.save(OUT / "sv_ensemble.npy", sv_ensemble_vals)
 
     print("\n  📈 Cross-check SHAP-arbres vs EBM (validation de la primaire) :")
     cross = []
@@ -232,6 +233,11 @@ def main(target: str = "dia_chall") -> int:
             print(f"    {f:<20} {v:+.3f}  {'→ ' + neg if v < 0 else '→ ' + pos}")
         (OUT / "spadzze_ebm_drivers.json").write_text(json.dumps(
             [{"feature": f, "mean_ebm_contrib": round(float(v), 4)} for f, v in drivers], indent=2))
+        
+        # Save tree SHAP for Spadzze for plot_custom_shap.py
+        spad_sv_trees = [tree_shap_values(models[n], spad[FEATURES]) for n in ("xgb", "rf")]
+        spadzze_sv_ensemble_vals = np.mean(spad_sv_trees, axis=0)
+        np.save(OUT / "spadzze_sv_ensemble.npy", spadzze_sv_ensemble_vals)
 
     # ============================================================ diagnostics LOWESS
     print("\n  🔍 Auto-diagnostic (LOWESS) sur contributions EBM :")
