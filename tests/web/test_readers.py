@@ -88,9 +88,28 @@ def test_read_rank_returns_cached_data():
     assert r["fetched_at"] == "2026-06-30T12:00:00"
 
 
-def test_account_summaries():
+def test_account_summaries(monkeypatch, tmp_path):
+    # account_summaries uses settings.load_accounts(); accounts.json n'est pas
+    # versionné, on pointe donc sur un fichier temporaire aligné sur les fixtures.
+    cfg = tmp_path / "accounts.json"
+    cfg.write_text(json.dumps([
+        {"slug": "spadzze", "riot_id": "Spadzze#euw", "region": "euw1"},
+    ]))
+    monkeypatch.setattr(settings, "ACCOUNTS_FILE", cfg)
     s = readers.account_summaries(data_root=FIX)
-    # account_summaries uses settings.load_accounts() — patch it to the fixture set
     by_slug = {a["slug"]: a for a in s}
     assert by_slug["spadzze"]["games_count"] == 3
     assert by_slug["spadzze"]["last_review_ts"] is not None
+
+
+def test_load_accounts_falls_back_to_example(monkeypatch, tmp_path):
+    # accounts.json n'est pas versionné : un clone frais doit démarrer sur l'exemple.
+    example = tmp_path / "accounts.example.json"
+    example.write_text(json.dumps([
+        {"slug": "demo", "riot_id": "Faker#KR1", "region": "kr"},
+    ]))
+    monkeypatch.setattr(settings, "ACCOUNTS_FILE", tmp_path / "accounts.json")
+    monkeypatch.setattr(settings, "ACCOUNTS_EXAMPLE_FILE", example)
+    assert settings.load_accounts() == [
+        {"slug": "demo", "riot_id": "Faker#KR1", "region": "kr"},
+    ]

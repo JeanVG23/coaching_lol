@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Config locale des comptes suivis (copier accounts.example.json)
+web/backend/accounts.json
+
 # Python
 __pycache__/
 *.py[cod]

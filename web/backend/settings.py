@@ -10,6 +10,7 @@ import riotlib as rl
 
 HERE = Path(__file__).resolve().parent
 ACCOUNTS_FILE = HERE / "accounts.json"
+ACCOUNTS_EXAMPLE_FILE = HERE / "accounts.example.json"
 JOBS_FILE = rl.DATA / "08_jobs" / "jobs.jsonl"
 
 _PUUID_CACHE: dict[str, str] = {}
@@ -32,7 +33,10 @@ def ollama_model() -> str:
 
 
 def load_accounts() -> list[dict]:
-    return json.loads(ACCOUNTS_FILE.read_text())
+    # accounts.json n'est pas versionné (comptes suivis = données perso) :
+    # on retombe sur l'exemple pour qu'un clone frais démarre quand même.
+    path = ACCOUNTS_FILE if ACCOUNTS_FILE.exists() else ACCOUNTS_EXAMPLE_FILE
+    return json.loads(path.read_text())
 
 
 def account_for(slug: str) -> dict | None:

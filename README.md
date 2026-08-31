@@ -218,7 +218,7 @@ npm run --prefix web/cf typecheck
 
 - **Pas de données brutes versionnées** : Les fichiers volumineux de timeline (`data/01_raw/`, `data/02_silver/`, etc.) ainsi que les fichiers d'environnement `.env` sont strictement exclus par `.gitignore`.
 - **Fixtures de test anonymisées** : Les jeux de données présents dans `tests/web/fixtures/` sont des fixtures synthétiques minimales conçues pour valider les endpoints de l'API et les parsers sans dépendre de données réelles.
-- **Gestion des comptes** : Le fichier `web/backend/accounts.example.json` fournit un gabarit standard pour configurer des comptes à suivre sans exposer d'identifiants privés.
+- **Gestion des comptes** : `web/backend/accounts.json` n'est pas versionné — les comptes suivis sont des données personnelles. Copiez `web/backend/accounts.example.json` pour créer le vôtre ; à défaut, l'application démarre sur l'exemple.
 
 ---
 
