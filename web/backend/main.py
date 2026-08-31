@@ -1,5 +1,5 @@
-"""coaching_lol — backend FastAPI. Un seul process Fly.io sert l'API (/api/*)
-et le frontend statique."""
+"""coaching_lol — backend FastAPI de développement et de référence locale.
+Sert l'API (/api/*) et le frontend statique."""
 from __future__ import annotations
 
 import sys

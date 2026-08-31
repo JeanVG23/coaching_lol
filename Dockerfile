@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir poetry==2.3.2 \
     && poetry install --only main --no-root --no-interaction --no-ansi
 
 # Code de l'app + modules existants (src/). data/ est exclu (cf. .dockerignore)
-# — la donnée vivra sur un volume persistant Fly, pas dans l'image.
+# — la donnée vit sur un volume persistant monté en local/conteneur, pas dans l'image.
 COPY . .
 
 ENV PYTHONUNBUFFERED=1

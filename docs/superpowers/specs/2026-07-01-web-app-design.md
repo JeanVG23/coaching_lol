@@ -1,10 +1,11 @@
-# Web App V1 — Interface Fly.io (FastAPI + front statique)
+# Web App V1 — Interface Web & API
 
-> Spec de l'interface web de coaching_lol. Rend le pipeline local utilisable depuis
+> Spec initiale de l'interface web de coaching_lol. Rend le pipeline local utilisable depuis
 > le navigateur : gérer plusieurs comptes de coaching, fetcher les games, générer le
 > coaching, annoter le feedback, consulter son profil ML.
 >
-> Date : 2026-07-01. État : design validé, en attente de plan d'implémentation.
+> Date : 2026-07-01.
+> ⚠️ **Mise à jour (2026-08-31)** : L'infrastructure de production a été migrée avec succès sur un **Cloudflare Worker TypeScript + KV** autonome sur `https://coaching-lol.jeanvg.fr`. Voir la spec [2026-08-30-cloudflare-migration-design.md](2026-08-30-cloudflare-migration-design.md) et [web/README.md](../../web/README.md). L'implémentation FastAPI reste conservée sous `web/backend/` comme référence locale.
 
 ## Contexte et décision
 

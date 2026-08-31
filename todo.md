@@ -46,27 +46,18 @@
 - [ ] **Benchmark Zeri** densifié (sampling champion ciblé) si la slice `zeri` reste trop fine pour des conseils fiables.
 - [ ] **Vérifier l'équilibrage des classes (ML)** : nous avons probablement beaucoup plus de games en Diamond et Challenger qu'en Master et GM, ce qui pourrait déséquilibrer l'entraînement et les prédictions.
 
-## 🌐 Dev web — interface Fly.io (FastAPI + front statique)
+## 🌐 Dev web & Production — Cloudflare Worker + KV + SPA Alpine.js ✅
 
-> Infrastructure scaffolding en place (`web/`, `Dockerfile`, `fly.toml`) et déployable.
-> Voir `web/README.md` et spec à venir `docs/superpowers/specs/2026-07-01-web-app-design.md`.
+> Infrastructure de production déployée sur **Cloudflare Worker** (`web/cf/`) + Cloudflare KV (`DATA`) + SPA Alpine.js (`web/frontend/`) sur `https://coaching-lol.jeanvg.fr`.
+> Migration complète depuis Fly.io effectuée le 2026-08-31 (voir `docs/superpowers/specs/2026-08-30-cloudflare-migration-design.md` et `web/README.md`).
+> Le backend FastAPI (`web/backend/`) reste disponible comme référence locale.
 
-- [x] **Infra scaffolding** — FastAPI (API `/api/*` + sert front statique) sur Fly.io.
-  Smoke test local validé (`/api/health`, `/`, `/static`).
-- [ ] **1. Cadrage fonctionnel V1** — périmètre : ce qu'on embarque maintenant vs plus tard.
-  Décision prise : un compte de coaching = un **slug** (`spadzze`, `aceofspadzze`, smurfs…).
-  Auth **reportée** (URL publique acceptée pour l'instant, faible proba de découverte).
-- [ ] **2. Modèle de données + persistance** — entités (compte/slug, game, review, feedback),
-  SQLite vs JSONL, mapping des dossiers `data/` actuels vers un schéma requêtable.
-- [ ] **3. Stack front** — choix du framework d'interactivité (vanilla / HTMX / Alpine /
-  Svelte/React) + Tailwind (styling). Décision avant les vues.
-- [ ] **4. Architecture async** — jobs longs (fetch N games + coaching = minutes) :
-  background task + polling, ou SSE, ou file. Shape l'UX (« en cours… »).
-- [ ] **5. UX / vues** — wireframes + parcours utilisateur.
-- [ ] **6. Infra Fly réelle** — volume persistant pour `data/` (exclu de l'image via
-  `.dockerignore`) + secrets (`fly secrets set RIOT_API_ID OLLAMA_API_KEY`).
-- [ ] **7. Code** — endpoints (`/api/accounts`, `/api/fetch`, `/api/coach`, `/api/feedback`)
-  + vues frontend.
+- [x] **Cadrage fonctionnel V1** — un compte = un slug (`spadzze`...), endpoints `/api/accounts`, `/api/c/{slug}/games`, `/api/c/{slug}/rank`, `/api/c/{slug}/predicted-rank`, `/api/c/{slug}/reviews`, `/api/c/{slug}/shap`.
+- [x] **Streaming SSE** — streaming temps réel du coaching Ollama via SSE (`POST /api/coach`).
+- [x] **Stockage KV & Découplage** — KV stocke les données exposées, le calcul lourd ML et les appels Riot restent locaux et sont synchronisés via `src/collection/refresh_cloudflare.py` / `sync_cloudflare.py`.
+- [x] **Frontend SPA** — Interface Alpine.js, Chart.js et CSS custom (`web/frontend/`).
+- [x] **Boucle de feedback** — `POST /api/feedback` avec rate-limiting par IP.
+- [x] **Migration Cloudflare Worker** — Worker TypeScript autonome servant API + assets statiques sur domaine personnalisé `https://coaching-lol.jeanvg.fr`.
 
 ## 🟦 Phase 2 — CV / Live Client (gated)
 
