@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NEG_TAGS, reviewJsonSchema, validateReview } from "../src/schema";
+import { NEG_TAGS, reviewJsonSchema, validateGameReview, validateReview } from "../src/schema";
 
 const INSIGHT = (point: string, evidence: string) => ({ point, evidence });
 
@@ -56,6 +56,28 @@ describe("validateReview", () => {
     expect(validateReview(null)).toBeNull();
     expect(validateReview("review")).toBeNull();
     expect(validateReview([])).toBeNull();
+  });
+});
+
+describe("validateGameReview", () => {
+  const validGameReview = () => ({
+    strengths: [{ point: "bon timing", evidence: "12:30 : objectif sécurisé", cause: "priorité de voie" }],
+    mistakes: [{ point: "recall tardif", evidence: "15:10 : 1 400 or en poche", cause: "wave mal préparée" }],
+    next_focus: "Prépare ton recall avant la prochaine wave.",
+    confidence: 0.8,
+  });
+
+  it("accepte le format d'analyse individuelle sans habitudes", () => {
+    const review = validateGameReview(validGameReview());
+    expect(review?.strengths).toHaveLength(1);
+    expect(review?.mistakes).toHaveLength(1);
+  });
+
+  it("exige une cause sur chaque insight", () => {
+    expect(validateGameReview({
+      ...validGameReview(),
+      strengths: [{ point: "bon timing", evidence: "12:30" }],
+    })).toBeNull();
   });
 });
 

@@ -138,10 +138,12 @@ navigateur -> POST /api/coach -> Worker -> Ollama Cloud -> événements SSE
 - `GET /api/c/{slug}/rank` — rang Riot mis en cache ;
 - `GET /api/c/{slug}/predicted-rank` — estimation ML per-player, disponible à partir de
   15 parties ADC ;
-- `GET /api/c/{slug}/reviews` — historique des coachings ;
+- `GET /api/c/{slug}/reviews` — historique des coachings ; `?kind=aggregate|game` renvoie une
+  page légère, et `GET /api/c/{slug}/reviews/{ts}` charge le détail d'une partie ;
 - `GET /api/c/{slug}/shap` — profil SHAP local ;
 - `POST /api/coach` — génération Ollama diffusée en SSE ;
-- `POST /api/feedback` — annotation des conseils.
+- `POST /api/feedback` — annotation des conseils, limitée à 30 envois par heure et par IP ; les
+  requêtes de navigateur provenant d'une autre origine sont refusées.
 
 La mise à jour Riot n'est volontairement plus exposée dans l'interface publique : collecte,
 calcul ML et synchronisation se font depuis la machine locale. Les anciens endpoints
@@ -149,10 +151,8 @@ calcul ML et synchronisation se font depuis la machine locale. Les anciens endpo
 
 ## État de la migration Fly.io
 
-Le trafic de production est entièrement basculé sur Cloudflare. L'ancien domaine Fly ne
-sert plus le site et l'application Fly est inactive depuis la fin de la période d'essai.
-Sa suppression physique est bloquée par Fly tant qu'aucune carte bancaire n'est ajoutée ;
-elle est donc laissée en l'état pour éviter d'activer une facturation.
+Le trafic de production est entièrement basculé sur Cloudflare. L'ancien service Fly a été
+supprimé ; il ne sert plus le site et n'occasionne plus de facturation.
 
 L'historique local disponible a été fusionné dans KV (17 reviews et 5 feedbacks lors de la
 migration). Le volume Fly n'a pas été rapatrié davantage, par choix : son contenu n'était

@@ -1,12 +1,40 @@
 import { accountFor } from "./accounts";
 import { KEYS, readJsonl } from "./readers";
-import { NEG_TAGS, validateReview } from "./schema";
+import { NEG_TAGS, validateGameReview, validateReview, type Review } from "./schema";
 import type { Env } from "./index";
 
 interface ResponseItem {
   useful: boolean;
   tag: string | null;
   note: string | null;
+}
+
+const MAX_FEEDBACK_PER_HOUR = 30;
+
+function foreignOrigin(request: Request): boolean {
+  const origin = request.headers.get("Origin");
+  return origin !== null && origin !== new URL(request.url).origin;
+}
+
+async function rateKey(request: Request): Promise<string> {
+  const ip = request.headers.get("CF-Connecting-IP") ?? "anonymous";
+  const bytes = new TextEncoder().encode(ip);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const fingerprint = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 20);
+  const hour = Math.floor(Date.now() / 3_600_000);
+  return `rate:feedback:${hour}:${fingerprint}`;
+}
+
+async function feedbackRateLimited(request: Request, env: Env): Promise<boolean> {
+  const key = await rateKey(request);
+  const count = Number(await env.DATA.get(key) ?? "0");
+  if (Number.isFinite(count) && count >= MAX_FEEDBACK_PER_HOUR) return true;
+  await env.DATA.put(key, String((Number.isFinite(count) ? count : 0) + 1), {
+    expirationTtl: 7_200,
+  });
+  return false;
 }
 
 function badKey(key: string): Response {
@@ -17,6 +45,9 @@ function badKey(key: string): Response {
 }
 
 export async function apiFeedback(request: Request, env: Env): Promise<Response> {
+  if (foreignOrigin(request)) {
+    return Response.json({ detail: "origine non autorisée" }, { status: 403 });
+  }
   const body = await request.json().catch(() => null) as {
     slug?: unknown;
     ts?: unknown;
@@ -32,7 +63,7 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
     return Response.json({ detail: "compte inconnu" }, { status: 404 });
   }
 
-  const reviews = await readJsonl<{ ts: string; model: string; review: unknown }>(
+  const reviews = await readJsonl<{ ts: string; model: string; kind?: string; review: unknown }>(
     env.DATA,
     KEYS.reviews(slug),
   );
@@ -40,15 +71,29 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
   if (!found) {
     return Response.json({ detail: "review introuvable" }, { status: 404 });
   }
-  const review = validateReview(found.review);
+  const review = found.kind === "game"
+    ? validateGameReview(found.review)
+    : validateReview(found.review);
   if (!review) {
     return Response.json({ detail: "review stockée non conforme" }, { status: 500 });
   }
+
+  const sections: [string, unknown[]][] = [
+    ["strength", review.strengths],
+    ["mistake", review.mistakes],
+  ];
+  if (found.kind !== "game") sections.push(["habit", (review as Review).habits]);
+  sections.push(["focus", [review.next_focus]]);
+  const allowedSections = new Map(sections);
 
   const responses = new Map<string, ResponseItem>();
   for (const [key, raw] of Object.entries(body.responses as Record<string, unknown>)) {
     const match = /^([a-z]+),(\d+)$/.exec(key);
     if (!match) return badKey(key);
+    const kind = match[1];
+    const index = Number(match[2]);
+    const section = allowedSections.get(kind);
+    if (!section || index >= section.length) return badKey(key);
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
       return Response.json(
         { detail: `réponse invalide pour '${key}' : objet requis` },
@@ -77,11 +122,18 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
         { status: 422 },
       );
     }
-    responses.set(`${match[1]},${Number(match[2])}`, {
+    responses.set(`${kind},${index}`, {
       useful: value.useful,
       tag,
       note,
     });
+  }
+
+  if (await feedbackRateLimited(request, env)) {
+    return Response.json(
+      { detail: "trop de votes en peu de temps ; réessaie dans une heure" },
+      { status: 429 },
+    );
   }
 
   const items: Array<{
@@ -91,19 +143,12 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
     tag: string | null;
     note: string | null;
   }> = [];
-  const sections: [string, unknown[]][] = [
-    ["strength", review.strengths],
-    ["mistake", review.mistakes],
-    ["habit", review.habits],
-  ];
   for (const [kind, section] of sections) {
     section.forEach((_, index) => {
       const response = responses.get(`${kind},${index}`);
       if (response) items.push({ kind, index, ...response });
     });
   }
-  const focus = responses.get("focus,0");
-  if (focus) items.push({ kind: "focus", index: 0, ...focus });
   if (items.some((item) => !item.useful && item.tag === null)) {
     return Response.json(
       { detail: "feedback invalide (tag requis si useful=False)" },

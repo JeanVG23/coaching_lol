@@ -832,6 +832,12 @@ button, select, textarea { font:inherit; }
 
 .game-review-option:hover { color:var(--text); background:rgba(148,163,184,.08); }
 .game-review-option.selected { color:var(--text); background:rgba(230,185,106,.11); border-color:rgba(230,185,106,.28); }
+.game-load-more {
+  padding:9px; color:var(--gold); background:transparent; border:1px dashed var(--border);
+  border-radius:8px; cursor:pointer; font:600 12px/1.3 inherit;
+}
+.game-load-more:hover { color:var(--text); border-color:var(--gold); }
+.game-load-more:disabled { opacity:.55; cursor:default; }
 .game-option-icon, .game-detail-icon { flex:0 0 auto; object-fit:cover; background:var(--panel); }
 .game-option-icon { width:34px; height:34px; border-radius:8px; }
 .game-option-copy { display:flex; min-width:0; flex:1; flex-direction:column; }
@@ -846,6 +852,7 @@ button, select, textarea { font:inherit; }
   border:1px solid var(--border-soft);
   border-radius:12px;
 }
+.game-detail-state { min-height:220px; margin:0; background:rgba(9,12,18,.28); border:1px solid var(--border-soft); border-radius:12px; }
 
 .game-detail-header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
 .game-detail-title { display:flex; min-width:0; align-items:center; gap:12px; }
@@ -939,6 +946,7 @@ button, select, textarea { font:inherit; }
 .fb-note-input { background:rgba(9,12,18,.65); border-color:var(--border); border-radius:8px; }
 .fb-note-save { min-height:34px; color:var(--text-dim); background:var(--panel-2); border-color:var(--border); border-radius:8px; }
 .fb-note-save:hover { color:var(--text); border-color:var(--gold); }
+.feedback-error { margin:12px 0 0; color:var(--loss); font-size:12px; }
 .confidence { padding-top:12px; border-top:1px solid var(--border-soft); }
 
 .reviews-history { padding:4px 14px; background:rgba(18,24,36,.5); border:1px solid var(--border-soft); border-radius:10px; }

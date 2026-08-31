@@ -13,6 +13,17 @@ export interface Review {
   confidence: number;
 }
 
+export interface GameInsight extends Insight {
+  cause: string;
+}
+
+export interface GameReview {
+  strengths: GameInsight[];
+  mistakes: GameInsight[];
+  next_focus: string;
+  confidence: number;
+}
+
 export const NEG_TAGS = [
   "asymetrie",
   "stat-inventee",
@@ -35,6 +46,18 @@ function isStringArray(value: unknown, length: number): value is string[] {
     && value.every((item) => typeof item === "string");
 }
 
+function isConfidence(value: unknown): value is number {
+  return typeof value === "number"
+    && Number.isFinite(value)
+    && value >= 0
+    && value <= 1;
+}
+
+function isGameInsight(value: unknown): value is GameInsight {
+  return isInsight(value)
+    && typeof (value as GameInsight).cause === "string";
+}
+
 export function validateReview(raw: unknown): Review | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const value = raw as Record<string, unknown>;
@@ -45,14 +68,30 @@ export function validateReview(raw: unknown): Review | null {
   if (!value.strengths.every(isInsight) || !value.mistakes.every(isInsight)) return null;
   if (!isStringArray(value.habits, 2)) return null;
   if (typeof value.next_focus !== "string") return null;
-  if (typeof value.confidence !== "number"
-      || !Number.isFinite(value.confidence)
-      || value.confidence < 0
-      || value.confidence > 1) return null;
+  if (!isConfidence(value.confidence)) return null;
   return {
     strengths: value.strengths,
     mistakes: value.mistakes,
     habits: value.habits,
+    next_focus: value.next_focus,
+    confidence: value.confidence,
+  };
+}
+
+/** Miroir de GameReview : aucune habitude n'est inférée sur une seule partie. */
+export function validateGameReview(raw: unknown): GameReview | null {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const value = raw as Record<string, unknown>;
+  if (!Array.isArray(value.strengths) || value.strengths.length > 2) return null;
+  if (!Array.isArray(value.mistakes)
+      || value.mistakes.length < 1
+      || value.mistakes.length > 3) return null;
+  if (!value.strengths.every(isGameInsight) || !value.mistakes.every(isGameInsight)) return null;
+  if (typeof value.next_focus !== "string" || value.next_focus.trim() === "") return null;
+  if (!isConfidence(value.confidence)) return null;
+  return {
+    strengths: value.strengths,
+    mistakes: value.mistakes,
     next_focus: value.next_focus,
     confidence: value.confidence,
   };

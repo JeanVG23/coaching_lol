@@ -38,6 +38,21 @@ async function makeEnv(): Promise<Env> {
   } as unknown as Env;
 }
 
+async function makeGameEnv(): Promise<Env> {
+  const env = await makeEnv();
+  await env.DATA.put(KEYS.reviews("spadzze"), [
+    JSON.stringify({
+      ts: "T-game", kind: "game", model: "kimi-k2.6", payload: {},
+      review: {
+        strengths: [{ point: "s", evidence: "12:30 : bon move", cause: "vision" }],
+        mistakes: [{ point: "m", evidence: "15:10 : mauvais recall", cause: "wave" }],
+        next_focus: "Prépare ton recall.", confidence: 0.7,
+      },
+    }),
+  ].join("\n"));
+  return env;
+}
+
 const post = (env: Env, body: unknown) => apiFeedback(new Request("http://x/api/feedback", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -115,5 +130,41 @@ describe("apiFeedback", () => {
   it("422 si le body ne respecte pas la surface FastAPI", async () => {
     const env = await makeEnv();
     expect((await post(env, { slug: "spadzze", ts: "T1" })).status).toBe(422);
+  });
+
+  it("accepte aussi le feedback d'une analyse de partie", async () => {
+    const env = await makeGameEnv();
+    const response = await post(env, {
+      slug: "spadzze", ts: "T-game", responses: {
+        "strength,0": { useful: true },
+        "mistake,0": { useful: false, tag: "trop-vague" },
+        "focus,0": { useful: true, note: "à refaire" },
+      },
+    });
+    expect(response.status).toBe(200);
+    const lines = await readJsonl(env.DATA, KEYS.feedback("spadzze"));
+    expect((lines[0] as any).items).toEqual([
+      { kind: "strength", index: 0, useful: true, tag: null, note: null },
+      { kind: "mistake", index: 0, useful: false, tag: "trop-vague", note: null },
+      { kind: "focus", index: 0, useful: true, tag: null, note: "à refaire" },
+    ]);
+  });
+
+  it("refuse une requête navigateur venant d'une autre origine", async () => {
+    const env = await makeEnv();
+    const response = await apiFeedback(new Request("http://x/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Origin: "https://evil.example" },
+      body: JSON.stringify({ slug: "spadzze", ts: "T1", responses: {} }),
+    }), env);
+    expect(response.status).toBe(403);
+  });
+
+  it("limite les votes répétés depuis une même IP", async () => {
+    const env = await makeEnv();
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      expect((await post(env, { slug: "spadzze", ts: "T1", responses: {} })).status).toBe(200);
+    }
+    expect((await post(env, { slug: "spadzze", ts: "T1", responses: {} })).status).toBe(429);
   });
 });

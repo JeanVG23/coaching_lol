@@ -33,9 +33,14 @@ async function seed(): Promise<{ env: Env; kv: MemoryKV }> {
     predicted_rank: "master", proba: 0.61, n_games_used: 30, predicted_lp: 412,
   }));
   await kv.put(KEYS.shap("spadzze"), JSON.stringify([{ feature: "gd10", sv: 0.3 }]));
-  await kv.put(KEYS.reviews("spadzze"), JSON.stringify({
-    ts: "2026-08-30T11:00:00", model: "kimi-k2.6", review: {},
-  }));
+  await kv.put(KEYS.reviews("spadzze"), [
+    JSON.stringify({ ts: "2026-08-30T11:00:00", model: "kimi-k2.6", review: {} }),
+    JSON.stringify({
+      ts: "2026-08-30T12:00:00", kind: "game", model: "kimi-k2.6", match_id: "EUW1_30",
+      payload: { meta: { champion: "Jinx", win: false } },
+      review: { strengths: [], mistakes: [{ point: "m", evidence: "12:30", cause: "c" }], next_focus: "focus", confidence: 0.7 },
+    }),
+  ].join("\n"));
   await kv.put(KEYS.feedback("spadzze"), JSON.stringify({
     ts: "2026-08-30T11:00:00", items: [],
   }));
@@ -108,13 +113,36 @@ describe("GET /api/c/{slug}/reviews|feedback|shap", () => {
   it("listes jsonl + shap structuré", async () => {
     const { env } = await seed();
     expect(await (await handle(new Request("http://x/api/c/spadzze/reviews"), env)).json())
-      .toHaveLength(1);
+      .toHaveLength(2);
     expect(await (await handle(new Request("http://x/api/c/spadzze/feedback"), env)).json())
       .toHaveLength(1);
     expect(await (await handle(new Request("http://x/api/c/spadzze/shap"), env)).json())
       .toEqual({ available: true, drivers: [{ feature: "gd10", sv: 0.3 }] });
     expect(await (await handle(new Request("http://x/api/c/inconnu/shap"), env)).json())
       .toEqual({ available: false, drivers: [] });
+  });
+
+  it("sépare la liste légère des analyses de parties et leur détail", async () => {
+    const { env } = await seed();
+    const page = await handle(new Request("http://x/api/c/spadzze/reviews?kind=game&page=1&size=1"), env);
+    expect(page.status).toBe(200);
+    const data = await page.json() as { items: Array<Record<string, unknown>>; page: number; size: number; total: number };
+    expect(data).toMatchObject({ page: 1, size: 1, total: 1 });
+    expect(data.items[0]).toMatchObject({
+      ts: "2026-08-30T12:00:00", kind: "game", match_id: "EUW1_30",
+      summary: { strengths_count: 0, mistakes_count: 1, next_focus: "focus", confidence: 0.7 },
+    });
+    expect(data.items[0]).not.toHaveProperty("payload");
+
+    const detail = await handle(new Request("http://x/api/c/spadzze/reviews/2026-08-30T12%3A00%3A00"), env);
+    expect(detail.status).toBe(200);
+    expect(await detail.json()).toMatchObject({ kind: "game", payload: { meta: { champion: "Jinx" } } });
+  });
+
+  it("valide les paramètres de pagination des reviews", async () => {
+    const { env } = await seed();
+    expect((await handle(new Request("http://x/api/c/spadzze/reviews?kind=game&page=0"), env)).status).toBe(422);
+    expect((await handle(new Request("http://x/api/c/spadzze/reviews?kind=autre"), env)).status).toBe(422);
   });
 });
 

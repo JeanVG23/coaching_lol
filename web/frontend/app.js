@@ -55,6 +55,15 @@ function isGameReview(record) {
     && typeof review?.next_focus === "string";
 }
 
+function coachErrorMessage(error) {
+  const raw = typeof error === "string" ? error : String(error || "");
+  if (/\b429\b/.test(raw)) {
+    return "Le modèle est temporairement limité. Attends quelques minutes avant de relancer le coaching.";
+  }
+  if (/OLLAMA_API_KEY/.test(raw)) return "Le service de coaching n’est pas configuré correctement.";
+  return raw || "Le coaching n’a pas pu être généré. Réessaie dans un instant.";
+}
+
 function app() {
   return {
     path: location.pathname,
@@ -101,9 +110,11 @@ function accountPage(slug) {
     predictedRank: null, predictedRankLoading: true,
     // coaching
     scope: "adc", outcome: "loss", target: "challenger",
-    reviews: [], review: null, gameReviews: [], selectedGameReview: null,
+    reviews: [], review: null, aggregateReviewsTotal: 0,
+    gameReviews: [], selectedGameReview: null, gameReviewsPage: 1, gameReviewsLoading: false,
+    gameReviewLoading: false, gameReviewError: null,
     coachingView: "overall", gameReviewsCount: 0, reviewsLoading: true,
-    fbMap: {}, fbBusy: {}, noteDraft: {},
+    fbMap: {}, fbBusy: {}, noteDraft: {}, feedbackError: null,
     coachOpen: false,
     // shap (F5)
     shap: null, shapLoading: false, shapSort: "abs", chart: null,
@@ -156,7 +167,10 @@ function accountPage(slug) {
       if (t === "shap" && this.shap === null) { this.loadShap(); }
     },
 
-    setCoachingView(view) { this.coachingView = view; },
+    async setCoachingView(view) {
+      this.coachingView = view;
+      await this.loadFeedback(this.activeFeedbackReview());
+    },
 
     async loadShap() {
       this.shapLoading = true;
@@ -216,15 +230,30 @@ function accountPage(slug) {
     async loadReviews() {
       this.reviewsLoading = true;
       try {
-        const list = await api(`/api/c/${this.slug}/reviews`);
-        this.gameReviews = list.filter(isGameReview).reverse();
-        this.gameReviewsCount = this.gameReviews.length;
-        this.selectedGameReview = this.gameReviews.length ? this.gameReviews[0] : null;
-        this.reviews = list.filter(isAggregateReview);
-        this.review = this.reviews.length ? this.reviews[this.reviews.length - 1] : null;
-        if (this.review) this.loadFeedback();
+        const [aggregatePage, gamePage] = await Promise.all([
+          api(`/api/c/${this.slug}/reviews?kind=aggregate&page=1&size=20`),
+          api(`/api/c/${this.slug}/reviews?kind=game&page=1&size=20`),
+        ]);
+        this.reviews = aggregatePage.items || [];
+        this.aggregateReviewsTotal = aggregatePage.total || 0;
+        this.review = this.reviews.length ? this.reviews[0] : null;
+        this.gameReviews = gamePage.items || [];
+        this.gameReviewsPage = gamePage.page || 1;
+        this.gameReviewsCount = gamePage.total || 0;
+        if (this.gameReviews.length) await this.selectGameReview(this.gameReviews[0], false);
+        if (this.review) await this.loadFeedback(this.review);
       } catch (e) { /* keep reviews empty */ }
       finally { this.reviewsLoading = false; }
+    },
+
+    async loadMoreGameReviews() {
+      if (this.gameReviewsLoading || this.gameReviews.length >= this.gameReviewsCount) return;
+      this.gameReviewsLoading = true;
+      try {
+        const next = await api(`/api/c/${this.slug}/reviews?kind=game&page=${this.gameReviewsPage + 1}&size=20`);
+        this.gameReviews = [...this.gameReviews, ...(next.items || [])];
+        this.gameReviewsPage = next.page || this.gameReviewsPage;
+      } finally { this.gameReviewsLoading = false; }
     },
 
     async genCoach() {
@@ -270,21 +299,26 @@ function accountPage(slug) {
               this.job = {
                 type: "coach",
                 status: "error",
-                error: data.error || "erreur inconnue",
+                error: coachErrorMessage(data.error),
               };
             }
           }
         }
       } catch (e) {
-        this.job = { type: "coach", status: "error", error: String(e) };
+        this.job = { type: "coach", status: "error", error: coachErrorMessage(e) };
       }
     },
 
-    async loadFeedback() {
-      if (!this.review) return;
+    activeFeedbackReview() {
+      return this.coachingView === "games" ? this.selectedGameReview : this.review;
+    },
+
+    async loadFeedback(review = this.activeFeedbackReview()) {
+      this.fbMap = {}; this.noteDraft = {}; this.feedbackError = null; this.coachOpen = false;
+      if (!review) return;
       try {
         const list = await api(`/api/c/${this.slug}/feedback`);
-        const mine = list.find(f => f.ts === this.review.ts);
+        const mine = list.find(f => f.ts === review.ts);
         const m = {}, notes = {};
         if (mine) for (const it of (mine.items || [])) {
           const key = `${it.kind},${it.index}`;
@@ -327,7 +361,8 @@ function accountPage(slug) {
     },
 
     async submitFb(kind, index, { useful, tag = null, note = null }) {
-      if (!this.review) return;
+      const review = this.activeFeedbackReview();
+      if (!review) return;
       const key = this.fbKey(kind, index);
       const entry = tag ? { useful, tag, note } : { useful, note };
       // Le backend persist_feedback écrase toute la ligne pour ce ts
@@ -344,17 +379,30 @@ function accountPage(slug) {
       try {
         await api("/api/feedback", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug: this.slug, ts: this.review.ts, responses }),
+          body: JSON.stringify({ slug: this.slug, ts: review.ts, responses }),
         });
         this.fbMap = newMap;
-      } catch (e) { /* 422 si tag manquant — déjà géré par UI (tag imposé) */ }
+      } catch (e) {
+        this.feedbackError = /\b429\b/.test(String(e))
+          ? "Trop de votes en peu de temps. Réessaie dans une heure."
+          : "Le vote n’a pas été enregistré. Réessaie dans un instant.";
+      }
       finally { this.fbBusy = { ...this.fbBusy, [key]: false }; }
     },
 
     meta() { return this.review?.payload?.meta || null; },
 
-    selectGameReview(review) { this.selectedGameReview = review; },
-    gameMeta(review) { return review?.payload?.meta || {}; },
+    async selectGameReview(review, loadFeedback = true) {
+      if (!review?.ts) return;
+      this.gameReviewLoading = true; this.gameReviewError = null;
+      try {
+        this.selectedGameReview = await api(`/api/c/${this.slug}/reviews/${encodeURIComponent(review.ts)}`);
+        if (loadFeedback && this.coachingView === "games") await this.loadFeedback(this.selectedGameReview);
+      } catch (e) {
+        this.gameReviewError = "Impossible de charger cette analyse. Réessaie dans un instant.";
+      } finally { this.gameReviewLoading = false; }
+    },
+    gameMeta(review) { return review?.payload?.meta || review?.meta || {}; },
     gameChampion(review) { return this.gameMeta(review).champion || "Partie analysée"; },
     gameOpponent(review) { return this.gameMeta(review).opponent || null; },
     gameResult(review) {

@@ -1,7 +1,7 @@
 /** Lectures KV — portage de web/backend/readers.py (mêmes sémantiques). */
 export interface KVLike {
   get(key: string): Promise<string | null>;
-  put(key: string, value: string): Promise<void>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
 }
 
 export const KEYS = {

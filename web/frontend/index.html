@@ -360,7 +360,7 @@
           <template x-if="reviews.length > 1">
             <details class="reviews-history">
               <summary class="muted">Reviews précédentes (<span x-text="reviews.length - 1"></span>)</summary>
-              <template x-for="(rv, idx) in reviews.slice(0, -1)" :key="rv.ts">
+              <template x-for="(rv, idx) in reviews.slice(1)" :key="rv.ts">
                 <div class="hist-row faint">
                   <span x-text="formatDate(rv.ts)"></span> · <span x-text="rv.model"></span> ·
                   <span x-text="rv.scope + '/' + rv.outcome_focus"></span>
@@ -368,6 +368,7 @@
               </template>
             </details>
           </template>
+          <p class="feedback-error" x-show="feedbackError" x-text="feedbackError"></p>
         </div>
       </template>
       </div>
@@ -387,13 +388,13 @@
             <div class="state empty-state"><strong>Aucune analyse de partie disponible.</strong><span>Les prochaines analyses individuelles apparaîtront ici.</span></div>
           </template>
 
-          <template x-if="!reviewsLoading && selectedGameReview">
+          <template x-if="!reviewsLoading && gameReviews.length > 0">
             <div class="game-review-layout">
               <nav class="game-review-list" aria-label="Analyses de parties disponibles">
                 <template x-for="item in gameReviews" :key="item.ts">
                   <button type="button" class="game-review-option"
-                          :class="selectedGameReview.ts === item.ts ? 'selected' : ''"
-                          :aria-current="selectedGameReview.ts === item.ts ? 'true' : 'false'"
+                          :class="selectedGameReview?.ts === item.ts ? 'selected' : ''"
+                          :aria-current="selectedGameReview?.ts === item.ts ? 'true' : 'false'"
                           @click="selectGameReview(item)">
                     <img class="game-option-icon" :src="gameIcon(item)" :alt="gameChampion(item)"
                          @error="$event.target.style.display = 'none'" loading="lazy">
@@ -404,8 +405,16 @@
                     <span class="game-option-arrow" aria-hidden="true">→</span>
                   </button>
                 </template>
+                <button type="button" class="game-load-more" @click="loadMoreGameReviews()"
+                        x-show="gameReviews.length < gameReviewsCount"
+                        :disabled="gameReviewsLoading"
+                        x-text="gameReviewsLoading ? 'Chargement…' : 'Afficher plus de parties'"></button>
               </nav>
 
+              <div class="state game-detail-state" x-show="gameReviewLoading">Chargement de l’analyse…</div>
+              <div class="state err game-detail-state" x-show="gameReviewError" x-text="gameReviewError"></div>
+
+              <template x-if="!gameReviewLoading && selectedGameReview">
               <article class="game-review-detail">
                 <header class="game-detail-header">
                   <div class="game-detail-title">
@@ -430,6 +439,20 @@
                 <section class="game-focus-card">
                   <span class="game-focus-label">Focus pour ta prochaine partie</span>
                   <p x-text="selectedGameReview.review.next_focus"></p>
+                  <div class="fb-row" x-data="{ k: 'focus', i: 0 }">
+                    <span class="feedback-question">Utile ?</span>
+                    <button type="button" class="fb-btn" title="Cette recommandation est utile" aria-label="Cette recommandation est utile" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                    <button type="button" class="fb-btn" title="Cette recommandation n'est pas utile" aria-label="Cette recommandation n'est pas utile" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                    <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
+                      <template x-for="t in NEG_TAGS" :key="t"><button type="button" class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button></template>
+                    </div>
+                    <template x-if="fbState(k,i)">
+                      <div class="fb-note">
+                        <textarea class="fb-note-input" rows="2" placeholder="Note (optionnel)…" :value="noteValue(k,i)" @input="noteDraft[k+','+i] = $event.target.value"></textarea>
+                        <button class="fb-note-save" @click="saveNote(k,i)" :disabled="fbBusy[k+','+i]">Enregistrer</button>
+                      </div>
+                    </template>
+                  </div>
                 </section>
 
                 <div class="game-insight-grid">
@@ -446,6 +469,20 @@
                           <span x-text="item.cause"></span>
                         </details>
                         <span class="evidence-chip kind-strength" x-text="item.evidence"></span>
+                        <div class="fb-row" x-data="{ k: 'strength', i: index }">
+                          <span class="feedback-question">Utile ?</span>
+                          <button type="button" class="fb-btn" title="Cette recommandation est utile" aria-label="Cette recommandation est utile" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                          <button type="button" class="fb-btn" title="Cette recommandation n'est pas utile" aria-label="Cette recommandation n'est pas utile" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                          <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
+                            <template x-for="t in NEG_TAGS" :key="t"><button type="button" class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button></template>
+                          </div>
+                          <template x-if="fbState(k,i)">
+                            <div class="fb-note">
+                              <textarea class="fb-note-input" rows="2" placeholder="Note (optionnel)…" :value="noteValue(k,i)" @input="noteDraft[k+','+i] = $event.target.value"></textarea>
+                              <button class="fb-note-save" @click="saveNote(k,i)" :disabled="fbBusy[k+','+i]">Enregistrer</button>
+                            </div>
+                          </template>
+                        </div>
                       </article>
                     </template>
                   </section>
@@ -460,11 +497,27 @@
                           <span x-text="item.cause"></span>
                         </details>
                         <span class="evidence-chip kind-mistake" x-text="item.evidence"></span>
+                        <div class="fb-row" x-data="{ k: 'mistake', i: index }">
+                          <span class="feedback-question">Utile ?</span>
+                          <button type="button" class="fb-btn" title="Cette recommandation est utile" aria-label="Cette recommandation est utile" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                          <button type="button" class="fb-btn" title="Cette recommandation n'est pas utile" aria-label="Cette recommandation n'est pas utile" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                          <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
+                            <template x-for="t in NEG_TAGS" :key="t"><button type="button" class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button></template>
+                          </div>
+                          <template x-if="fbState(k,i)">
+                            <div class="fb-note">
+                              <textarea class="fb-note-input" rows="2" placeholder="Note (optionnel)…" :value="noteValue(k,i)" @input="noteDraft[k+','+i] = $event.target.value"></textarea>
+                              <button class="fb-note-save" @click="saveNote(k,i)" :disabled="fbBusy[k+','+i]">Enregistrer</button>
+                            </div>
+                          </template>
+                        </div>
                       </article>
                     </template>
                   </section>
                 </div>
               </article>
+              </template>
+              <p class="feedback-error" x-show="feedbackError" x-text="feedbackError"></p>
             </div>
           </template>
         </section>
