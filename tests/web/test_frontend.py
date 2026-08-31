@@ -81,7 +81,7 @@ def test_account_page_history_wired():
     assert "/api/c/" in js and "/games" in js
     assert "/api/fetch" not in js
     assert "/api/jobs/" not in js
-    assert "sync_cloudflare.py" in body
+    assert "refresh_cloudflare.py" in body
     assert 'class="game-row"' in body or "game-row" in body
     assert "job-banner" in body
 
@@ -92,6 +92,14 @@ def test_account_header_rank_wired():
     assert "/api/c/" in js and "/rank" in js
     assert "loadRank" in js
     assert "rank-badge" in body or "rankLabel" in body
+
+
+def test_dashboard_uses_accessible_tabs_and_refresh_help():
+    body = _client().get("/c/spadzze").text
+    assert 'role="tablist"' in body
+    assert 'type="button" class="tab"' in body
+    assert 'class="sync-help"' in body
+    assert "Mettre à jour mes données" in body
 
 
 def test_history_tab_predicted_rank_wired():

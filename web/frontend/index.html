@@ -3,16 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>coaching_lol</title>
+  <title>Coach LoL — analyse de parties</title>
   <link rel="stylesheet" href="/style.css">
   <script defer src="/vendor/alpine.min.js"></script>
 </head>
 <body x-data="app()" x-init="init()" x-cloak>
   <nav class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="/" @click.prevent="go('/')">coaching_lol</a>
+      <a class="brand" href="/" @click.prevent="go('/')" aria-label="Retour aux comptes">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>Coach LoL</span>
+      </a>
       <div class="switcher" @click.outside="closeSwitcher()">
-        <button class="switcher-btn" @click="toggleSwitcher()">
+        <button class="switcher-btn" type="button" @click="toggleSwitcher()"
+                :aria-expanded="switcherOpen.toString()" aria-label="Choisir un compte">
           <span x-text="route.name === 'account' ? route.slug : 'comptes'"></span>
           <span class="faint">▾</span>
         </button>
@@ -25,15 +29,18 @@
         </div>
       </div>
       <div class="spacer"></div>
-      <a class="nav" href="/readme" @click.prevent="go('/readme')">README</a>
+      <a class="nav" href="/readme" @click.prevent="go('/readme')">À propos</a>
     </div>
   </nav>
 
   <main class="container">
     <template x-if="route.name === 'home'">
       <div x-data="homePage()" x-init="init()">
-        <h1 style="font-size:28px;margin-bottom:4px">Comptes de coaching</h1>
-        <p class="muted" style="margin:0 0 22px">Sélectionnez un compte pour voir son historique, son coaching et son profil ML.</p>
+        <section class="page-intro home-intro">
+          <p class="eyebrow">ANALYSE DE PARTIES</p>
+          <h1>Ton coaching, fondé sur tes parties.</h1>
+          <p>Choisis un compte pour retrouver ses parties, ses axes de progression et son profil de jeu.</p>
+        </section>
 
         <template x-if="accountsLoading">
           <div class="state">Chargement des comptes…</div>
@@ -48,11 +55,17 @@
             <template x-for="a in accounts" :key="a.slug">
               <a class="account-card" :href="'/c/' + a.slug"
                  @click.prevent="go('/c/' + a.slug)">
-                <div class="ac-slug" x-text="a.slug"></div>
-                <div class="ac-riot faint" x-text="a.riot_id"></div>
+                <div class="ac-heading">
+                  <span class="ac-avatar" aria-hidden="true" x-text="a.slug.slice(0, 1).toUpperCase()"></span>
+                  <div>
+                    <div class="ac-slug" x-text="a.slug"></div>
+                    <div class="ac-riot" x-text="a.riot_id"></div>
+                  </div>
+                  <span class="ac-arrow" aria-hidden="true">→</span>
+                </div>
                 <div class="ac-stats row">
-                  <span class="num"><span x-text="a.games_count"></span> games</span>
-                  <span class="faint" x-text="a.last_review_ts ? ('· review ' + a.last_review_ts.slice(0,10)) : '· pas de review'"></span>
+                  <span class="num"><span x-text="a.games_count"></span> parties analysées</span>
+                  <span class="faint" x-text="a.last_review_ts ? ('· coaching le ' + formatDate(a.last_review_ts)) : '· pas encore de coaching'"></span>
                 </div>
               </a>
             </template>
@@ -62,23 +75,34 @@
     </template>
     <template x-if="route.name === 'account'">
       <div x-data="accountPage(route.slug)" x-init="init()">
-  <!-- header de profil -->
-  <div class="prof-header">
-    <h1 style="font-size:28px" x-text="slug"></h1>
-    <div class="row faint" style="margin-top:4px;font-size:13px">
-      <span class="num"><span x-text="total"></span> games en cache</span>
-      <span class="rank-badge" x-show="!rankLoading" x-text="'· ' + rankLabel()"></span>
-      <span class="faint" x-show="rank && rank.fetched_at"
-            x-text="'(rang au dernier fetch : ' + (rank && rank.fetched_at ? rank.fetched_at.slice(0,10) : '') + ')'"></span>
+  <section class="profile-hero">
+    <div class="profile-main">
+      <p class="eyebrow">TABLEAU DE BORD</p>
+      <h1 x-text="slug"></h1>
+      <p class="profile-description">Tes dernières parties et les leviers les plus utiles pour progresser.</p>
     </div>
-  </div>
+    <div class="profile-stats" aria-label="Résumé du compte">
+      <div class="profile-stat">
+        <span class="stat-label">Parties analysées</span>
+        <strong class="stat-value num" x-text="total"></strong>
+      </div>
+      <div class="profile-stat">
+        <span class="stat-label">Rang actuel</span>
+        <strong class="stat-value rank-badge" x-text="rankLoading ? '…' : rankLabel()"></strong>
+        <span class="stat-note" x-show="rank && rank.fetched_at" x-text="'Mis à jour le ' + formatDate(rank.fetched_at)"></span>
+      </div>
+      <div class="profile-stat">
+        <span class="stat-label">Estimation ML</span>
+        <strong class="stat-value" x-text="predictedRank && predictedRank.predicted_rank ? rankTierLabel(predictedRank.predicted_rank) : '—'"></strong>
+        <span class="stat-note" x-show="predictedRank && predictedRank.proba" x-text="'Confiance ' + Math.round(predictedRank.proba * 100) + '%'"></span>
+      </div>
+    </div>
+  </section>
 
-  <!-- mise a jour des games : sync locale (le fetch Riot ne passe plus par le web) -->
-  <div class="action-bar row wrap">
-    <span class="faint" style="font-size:13px">Mise à jour des games (sync locale) :
-      <code>poetry run python3 src/collection/sync_cloudflare.py</code></span>
-    <div class="spacer"></div>
-  </div>
+  <details class="sync-help">
+    <summary>Mettre à jour mes données</summary>
+    <p>Depuis ton terminal, lance <code>poetry run python src/collection/refresh_cloudflare.py</code>. Les nouvelles parties sont ensuite publiées automatiquement sur ce site.</p>
+  </details>
 
   <!-- bandeau job (sticky sous le header) -->
   <template x-if="job">
@@ -93,28 +117,34 @@
   </template>
 
   <!-- onglets -->
-  <div class="tabs">
-    <div class="tab" :class="tab === 'history' ? 'active' : ''" @click="setTab('history')">Historique</div>
-    <div class="tab" :class="tab === 'coaching' ? 'active' : ''" @click="setTab('coaching')">Coaching</div>
-    <div class="tab" :class="tab === 'shap' ? 'active' : ''" @click="setTab('shap')">Profil ML</div>
+  <div class="tabs" role="tablist" aria-label="Sections du compte">
+    <button type="button" class="tab" :class="tab === 'history' ? 'active' : ''" @click="setTab('history')" :aria-selected="(tab === 'history').toString()">Parties</button>
+    <button type="button" class="tab" :class="tab === 'coaching' ? 'active' : ''" @click="setTab('coaching')" :aria-selected="(tab === 'coaching').toString()">Coaching</button>
+    <button type="button" class="tab" :class="tab === 'shap' ? 'active' : ''" @click="setTab('shap')" :aria-selected="(tab === 'shap').toString()">Profil ML</button>
   </div>
 
   <!-- onglet Historique -->
   <template x-if="tab === 'history'">
     <div>
       <template x-if="predictedRank && predictedRank.predicted_rank">
-        <div class="meta-strip row wrap">
-          <span>🤖 Rang ML estimé (<span x-text="predictedRank.n_games_used"></span> dernières games ADC) :</span>
-          <span class="badge" x-text="rankTierLabel(predictedRank.predicted_rank)"></span>
-          <span class="faint" x-show="predictedRank.predicted_lp != null"
-                x-text="'· ~' + predictedRank.predicted_lp + ' LP estimés'"></span>
-          <span class="faint" x-text="'confiance ' + Math.round(predictedRank.proba * 100) + '%'"></span>
+        <div class="ml-callout">
+          <span class="callout-icon" aria-hidden="true">✦</span>
+          <div>
+            <strong>Estimation du modèle : <span x-text="rankTierLabel(predictedRank.predicted_rank)"></span></strong>
+            <p><span x-text="predictedRank.n_games_used"></span> dernières parties ADC · <span x-show="predictedRank.predicted_lp != null" x-text="'environ ' + predictedRank.predicted_lp + ' LP' "></span><span x-show="predictedRank.predicted_lp != null"> · </span>confiance <span x-text="Math.round(predictedRank.proba * 100)"></span>%</p>
+          </div>
         </div>
       </template>
+      <div class="section-heading">
+        <div>
+          <h2>Parties récentes</h2>
+          <p>Les <span x-text="games.length"></span> dernières parties affichées sur <span x-text="total"></span>.</p>
+        </div>
+      </div>
       <template x-if="gamesLoading"><div class="state">Chargement…</div></template>
       <template x-if="gamesError"><div class="state err" x-text="gamesError"></div></template>
       <template x-if="!gamesLoading && !gamesError && games.length === 0">
-        <div class="state">Aucune game en cache. Lance le sync local.</div>
+        <div class="state empty-state"><strong>Aucune partie disponible.</strong><span>Lance la mise à jour locale, puis reviens ici.</span></div>
       </template>
       <template x-if="!gamesLoading && games.length > 0">
         <div>
@@ -131,8 +161,8 @@
                   <span class="faint" x-text="roleLabel(g.role)"></span>
                 </div>
               </div>
-              <div class="gr-kda num" x-text="kda(g)"></div>
-              <div class="gr-patch faint" x-text="g.patch"></div>
+              <div class="gr-kda num"><span class="gr-label">KDA</span><span x-text="kda(g)"></span></div>
+              <div class="gr-patch faint"><span class="gr-label">Patch</span><span x-text="g.patch"></span></div>
             </div>
           </template>
           <div class="row" style="justify-content:space-between;margin-top:16px">
@@ -150,41 +180,50 @@
     <div>
       <!-- sélecteurs + générer -->
       <div class="action-bar row wrap">
-        <span class="muted" style="font-size:13px">Coaching :</span>
-        <select class="select" x-model="scope">
-          <option value="all">scope : all</option>
-          <option value="adc">scope : adc</option>
-          <option value="zeri">scope : zeri</option>
-        </select>
-        <select class="select" x-model="outcome">
-          <option value="loss">issue : loss</option>
-          <option value="win">issue : win</option>
-          <option value="overall">issue : overall</option>
-        </select>
-        <select class="select" x-model="target">
-          <option value="challenger">target : challenger</option>
-        </select>
+        <div class="coaching-intro">
+          <span class="coaching-kicker">Nouvelle analyse</span>
+          <p>Choisis les parties à comparer, puis génère un coaching ciblé.</p>
+        </div>
+        <label class="field-label">Parties
+          <select class="select" x-model="scope">
+            <option value="all">Toutes les parties</option>
+            <option value="adc">Parties ADC</option>
+            <option value="zeri">Parties avec Zeri</option>
+          </select>
+        </label>
+        <label class="field-label">Résultat
+          <select class="select" x-model="outcome">
+            <option value="loss">Défaites</option>
+            <option value="win">Victoires</option>
+            <option value="overall">Toutes les issues</option>
+          </select>
+        </label>
+        <label class="field-label">Référence
+          <select class="select" x-model="target">
+            <option value="challenger">Challenger</option>
+          </select>
+        </label>
         <button class="btn btn-primary" @click="genCoach()"
-                :disabled="job && job.status === 'running'">Générer le coaching</button>
+                :disabled="job && job.status === 'running'">Générer l’analyse</button>
       </div>
 
       <template x-if="reviewsLoading"><div class="state">Chargement des reviews…</div></template>
       <template x-if="!reviewsLoading && !review">
-        <div class="state">Aucune review. Règle les sélecteurs et génère le coaching.</div>
+        <div class="state empty-state"><strong>Ton analyse apparaîtra ici.</strong><span>Choisis les parties à comparer puis génère le coaching.</span></div>
       </template>
 
       <template x-if="!reviewsLoading && review">
         <div>
           <!-- bandeau meta -->
           <div class="meta-strip row wrap">
-            <span class="num" x-text="meta()?.n_games_me + ' games (perso)'"></span>
-            <span class="faint" x-text="'vs ' + (meta()?.n_games_ref || 0) + ' (réf)'"></span>
-            <span class="num" x-text="'WR ' + ((meta()?.winrate_me || 0) * 100).toFixed(0) + '%'"></span>
+            <span class="num" x-text="meta()?.n_games_me + ' parties analysées'"></span>
+            <span class="faint" x-text="'comparées à ' + (meta()?.n_games_ref || 0) + ' références'"></span>
+            <span class="num" x-text="'Taux de victoire : ' + ((meta()?.winrate_me || 0) * 100).toFixed(0) + '%'"></span>
             <template x-if="meta()?.low_sample">
-              <span class="badge badge-loss">low sample</span>
+              <span class="badge badge-loss">échantillon limité</span>
             </template>
             <span class="faint" x-text="review.model"></span>
-            <span class="faint" x-text="review.ts"></span>
+            <span class="faint" x-text="formatDate(review.ts)"></span>
           </div>
 
           <!-- 4 cartes -->
@@ -197,11 +236,12 @@
                   <p class="cause-line" x-show="it.cause" x-text="'Pourquoi : ' + (it.cause || '')"></p>
                   <span class="evidence-chip kind-strength" x-text="it.evidence"></span>
                   <div class="fb-row" x-data="{ k: 'strength', i }">
-                    <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
-                    <button class="fb-btn" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                    <span class="feedback-question">Utile ?</span>
+                    <button type="button" class="fb-btn" title="Cette recommandation est utile" aria-label="Cette recommandation est utile" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                    <button type="button" class="fb-btn" title="Cette recommandation n'est pas utile" aria-label="Cette recommandation n'est pas utile" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
                     <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
                       <template x-for="t in NEG_TAGS" :key="t">
-                        <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
+                        <button type="button" class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
                       </template>
                     </div>
                     <template x-if="fbState(k,i)">
@@ -225,11 +265,12 @@
                   <p class="cause-line" x-show="it.cause" x-text="'Pourquoi : ' + (it.cause || '')"></p>
                   <span class="evidence-chip kind-mistake" x-text="it.evidence"></span>
                   <div class="fb-row" x-data="{ k: 'mistake', i }">
-                    <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
-                    <button class="fb-btn" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                    <span class="feedback-question">Utile ?</span>
+                    <button type="button" class="fb-btn" title="Cette recommandation est utile" aria-label="Cette recommandation est utile" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                    <button type="button" class="fb-btn" title="Cette recommandation n'est pas utile" aria-label="Cette recommandation n'est pas utile" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
                     <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
                       <template x-for="t in NEG_TAGS" :key="t">
-                        <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
+                        <button type="button" class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
                       </template>
                     </div>
                     <template x-if="fbState(k,i)">
@@ -251,11 +292,12 @@
                 <div class="insight-card">
                   <p x-text="h"></p>
                   <div class="fb-row" x-data="{ k: 'habit', i }">
-                    <button class="fb-btn" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
-                    <button class="fb-btn" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
+                    <span class="feedback-question">Utile ?</span>
+                    <button type="button" class="fb-btn" title="Cette recommandation est utile" aria-label="Cette recommandation est utile" :class="fbState(k,i)?.useful === true ? 'on-win' : ''" @click="setFb(k,i,true)" :disabled="fbBusy[k+','+i]">✓</button>
+                    <button type="button" class="fb-btn" title="Cette recommandation n'est pas utile" aria-label="Cette recommandation n'est pas utile" :class="fbState(k,i)?.useful === false ? 'on-loss' : ''" @click="setFb(k,i,false)" :disabled="fbBusy[k+','+i]">✗</button>
                     <div class="tag-menu" x-show="coachOpen === k+','+i" x-transition>
                       <template x-for="t in NEG_TAGS" :key="t">
-                        <button class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
+                        <button type="button" class="tag-opt" @click="pickTag(k,i,t)" x-text="t"></button>
                       </template>
                     </div>
                     <template x-if="fbState(k,i)">
@@ -276,11 +318,12 @@
               <div class="insight-card">
                 <p x-text="review.review.next_focus"></p>
                 <div class="fb-row" x-data="{ k: 'focus', i: 0 }">
-                  <button class="fb-btn" :class="fbState('focus',0)?.useful === true ? 'on-win' : ''" @click="setFb('focus',0,true)" :disabled="fbBusy['focus,0']">✓</button>
-                  <button class="fb-btn" :class="fbState('focus',0)?.useful === false ? 'on-loss' : ''" @click="setFb('focus',0,false)" :disabled="fbBusy['focus,0']">✗</button>
+                  <span class="feedback-question">Utile ?</span>
+                  <button type="button" class="fb-btn" title="Cette recommandation est utile" aria-label="Cette recommandation est utile" :class="fbState('focus',0)?.useful === true ? 'on-win' : ''" @click="setFb('focus',0,true)" :disabled="fbBusy['focus,0']">✓</button>
+                  <button type="button" class="fb-btn" title="Cette recommandation n'est pas utile" aria-label="Cette recommandation n'est pas utile" :class="fbState('focus',0)?.useful === false ? 'on-loss' : ''" @click="setFb('focus',0,false)" :disabled="fbBusy['focus,0']">✗</button>
                   <div class="tag-menu" x-show="coachOpen === 'focus,0'" x-transition>
                     <template x-for="t in NEG_TAGS" :key="t">
-                      <button class="tag-opt" @click="pickTag('focus',0,t)" x-text="t"></button>
+                      <button type="button" class="tag-opt" @click="pickTag('focus',0,t)" x-text="t"></button>
                     </template>
                   </div>
                   <template x-if="fbState('focus',0)">
@@ -293,7 +336,7 @@
                   </template>
                 </div>
               </div>
-              <div class="confidence faint" x-text="'confiance : ' + (review.review.confidence * 100).toFixed(0) + '%'"></div>
+              <div class="confidence faint" x-text="'Niveau de confiance : ' + (review.review.confidence * 100).toFixed(0) + '%'"></div>
             </div>
           </div>
 
@@ -303,7 +346,7 @@
               <summary class="muted">Reviews précédentes (<span x-text="reviews.length - 1"></span>)</summary>
               <template x-for="(rv, idx) in reviews.slice(0, -1)" :key="rv.ts">
                 <div class="hist-row faint">
-                  <span x-text="rv.ts"></span> · <span x-text="rv.model"></span> ·
+                  <span x-text="formatDate(rv.ts)"></span> · <span x-text="rv.model"></span> ·
                   <span x-text="rv.scope + '/' + rv.outcome_focus"></span>
                 </div>
               </template>
@@ -326,13 +369,13 @@
       <template x-if="!shapLoading && shap && shap.available">
         <div>
           <div class="row" style="margin-bottom:12px">
-            <h2>Profil ML — contributions SHAP</h2>
+            <h2>Ce qui influence ton profil ML</h2>
             <div class="spacer"></div>
             <button class="btn" @click="toggleSort()"
-                    x-text="shapSort === 'abs' ? 'tri : |valeur|' : 'tri : valeur'"></button>
+                    x-text="shapSort === 'abs' ? 'Trier par impact' : 'Trier par valeur'"></button>
           </div>
           <p class="muted" style="font-size:13px;margin:0 0 14px">
-            Contribution moyenne de chaque feature au classement High-Elo vs Low-Elo.
+            Contribution moyenne de chaque indicateur à l'estimation de rang.
             <span style="color:var(--gold)">or</span> = pousse vers High-Elo,
             <span style="color:var(--loss)">rouge</span> = pousse vers Low-Elo.
           </p>
@@ -350,13 +393,13 @@
   <h1 style="font-size:28px;margin-bottom:6px">Comment fonctionne le coaching</h1>
   <p class="muted" style="margin:0 0 20px">Le projet de bout en bout : de la récupération des données à la boucle de feedback. Les recos sont benchmarkées, vérifiables, et respectent ce que tu savais vraiment.</p>
 
-  <div class="tabs">
-    <div class="tab" :class="tab === 'overview' ? 'active' : ''" @click="setTab('overview')">Vue d'ensemble</div>
-    <div class="tab" :class="tab === 'data' ? 'active' : ''" @click="setTab('data')">Données &amp; API Riot</div>
-    <div class="tab" :class="tab === 'features' ? 'active' : ''" @click="setTab('features')">Features</div>
-    <div class="tab" :class="tab === 'ml' ? 'active' : ''" @click="setTab('ml')">Data Science &amp; ML</div>
-    <div class="tab" :class="tab === 'coaching' ? 'active' : ''" @click="setTab('coaching')">Coaching IA</div>
-    <div class="tab" :class="tab === 'feedback' ? 'active' : ''" @click="setTab('feedback')">Feedback</div>
+  <div class="tabs" role="tablist" aria-label="Sections de présentation">
+    <button type="button" class="tab" :class="tab === 'overview' ? 'active' : ''" @click="setTab('overview')" :aria-selected="(tab === 'overview').toString()">Vue d'ensemble</button>
+    <button type="button" class="tab" :class="tab === 'data' ? 'active' : ''" @click="setTab('data')" :aria-selected="(tab === 'data').toString()">Données &amp; API Riot</button>
+    <button type="button" class="tab" :class="tab === 'features' ? 'active' : ''" @click="setTab('features')" :aria-selected="(tab === 'features').toString()">Features</button>
+    <button type="button" class="tab" :class="tab === 'ml' ? 'active' : ''" @click="setTab('ml')" :aria-selected="(tab === 'ml').toString()">Data Science &amp; ML</button>
+    <button type="button" class="tab" :class="tab === 'coaching' ? 'active' : ''" @click="setTab('coaching')" :aria-selected="(tab === 'coaching').toString()">Coaching IA</button>
+    <button type="button" class="tab" :class="tab === 'feedback' ? 'active' : ''" @click="setTab('feedback')" :aria-selected="(tab === 'feedback').toString()">Feedback</button>
   </div>
 
   <!-- onglet Vue d'ensemble -->

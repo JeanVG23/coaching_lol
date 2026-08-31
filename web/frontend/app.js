@@ -12,9 +12,20 @@ async function api(path, opts) {
 }
 
 function fmtKDA(k, d, a) {
-  const ka = k + a;
-  const ratio = d === 0 ? "Perfect" : (ka / d).toFixed(2);
-  return `${k}/${d}/${a} · ${ratio}`;
+  const count = (value) => Array.isArray(value) ? value.length : Number(value || 0);
+  const kills = count(k), deaths = count(d), assists = count(a);
+  const ka = kills + assists;
+  const ratio = deaths === 0 ? "Perfect" : (ka / deaths).toFixed(2);
+  return `${kills}/${deaths}/${assists} · ${ratio}`;
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric", month: "short", year: "numeric",
+  }).format(date);
 }
 
 function routeOf(path) {
@@ -47,6 +58,7 @@ function app() {
     switcherOpen: false,
     toggleSwitcher() { this.switcherOpen = !this.switcherOpen; },
     closeSwitcher() { this.switcherOpen = false; },
+    formatDate,
   };
 }
 
@@ -83,7 +95,7 @@ function accountPage(slug) {
       try {
         const d = await api(`/api/c/${this.slug}/games?page=${this.page}&size=${this.size}`);
         this.games = d.items; this.total = d.total;
-      } catch (e) { this.gamesError = String(e); }
+      } catch (e) { this.gamesError = "Impossible de charger les parties. Réessaie dans un instant."; }
       finally { this.gamesLoading = false; }
     },
 
@@ -95,7 +107,7 @@ function accountPage(slug) {
     },
 
     rankLabel() {
-      if (!this.rank || !this.rank.tier) return "Rang inconnu — lance le sync local";
+      if (!this.rank || !this.rank.tier) return "Non renseigné";
       const tier = this.rank.tier.charAt(0) + this.rank.tier.slice(1).toLowerCase();
       return `${tier} ${this.rank.division} · ${this.rank.league_points} LP`;
     },
@@ -316,7 +328,7 @@ function accountPage(slug) {
 
     meta() { return this.review?.payload?.meta || null; },
 
-    kda(g) { return fmtKDA(g.kills.length, g.deaths.length, g.assists.length); },
+    kda(g) { return fmtKDA(g.kills, g.deaths, g.assists); },
     champIcon(g) { return DDRAGON(g.patch, g.champion); },
     iconFallback(e, champ) { e.target.style.display = "none"; e.target.nextElementSibling.style.display = ""; },
     roleLabel(r) {
