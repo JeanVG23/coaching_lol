@@ -178,34 +178,37 @@
   <!-- onglet coaching (tâche F4) -->
   <template x-if="tab === 'coaching'">
     <div>
-      <!-- sélecteurs + générer -->
-      <div class="action-bar row wrap">
+      <section class="coach-builder" aria-labelledby="coach-builder-title">
         <div class="coaching-intro">
-          <span class="coaching-kicker">Nouvelle analyse</span>
-          <p>Choisis les parties à comparer, puis génère un coaching ciblé.</p>
+          <span class="coaching-kicker">NOUVELLE ANALYSE</span>
+          <h2 id="coach-builder-title">Sur quoi veux-tu progresser ?</h2>
+          <p>Choisis un ensemble de parties et un résultat. L’analyse est comparée aux joueurs Challenger.</p>
         </div>
-        <label class="field-label">Parties
-          <select class="select" x-model="scope">
-            <option value="all">Toutes les parties</option>
-            <option value="adc">Parties ADC</option>
-            <option value="zeri">Parties avec Zeri</option>
-          </select>
-        </label>
-        <label class="field-label">Résultat
-          <select class="select" x-model="outcome">
-            <option value="loss">Défaites</option>
-            <option value="win">Victoires</option>
-            <option value="overall">Toutes les issues</option>
-          </select>
-        </label>
-        <label class="field-label">Référence
-          <select class="select" x-model="target">
-            <option value="challenger">Challenger</option>
-          </select>
-        </label>
-        <button class="btn btn-primary" @click="genCoach()"
-                :disabled="job && job.status === 'running'">Générer l’analyse</button>
-      </div>
+        <div class="coach-options">
+          <div class="choice-group" role="group" aria-label="Parties à analyser">
+            <span class="choice-label">Parties</span>
+            <div class="segmented-choice">
+              <button type="button" :class="scope === 'adc' ? 'selected' : ''" :aria-pressed="(scope === 'adc').toString()" @click="scope = 'adc'">ADC</button>
+              <button type="button" :class="scope === 'all' ? 'selected' : ''" :aria-pressed="(scope === 'all').toString()" @click="scope = 'all'">Toutes</button>
+              <button type="button" :class="scope === 'zeri' ? 'selected' : ''" :aria-pressed="(scope === 'zeri').toString()" @click="scope = 'zeri'">Zeri</button>
+            </div>
+          </div>
+          <div class="choice-group" role="group" aria-label="Résultat à analyser">
+            <span class="choice-label">Résultat</span>
+            <div class="segmented-choice">
+              <button type="button" :class="outcome === 'loss' ? 'selected loss-choice' : ''" :aria-pressed="(outcome === 'loss').toString()" @click="outcome = 'loss'">Défaites</button>
+              <button type="button" :class="outcome === 'win' ? 'selected win-choice' : ''" :aria-pressed="(outcome === 'win').toString()" @click="outcome = 'win'">Victoires</button>
+              <button type="button" :class="outcome === 'overall' ? 'selected' : ''" :aria-pressed="(outcome === 'overall').toString()" @click="outcome = 'overall'">Global</button>
+            </div>
+          </div>
+          <div class="coach-reference" aria-label="Référence : joueurs Challenger">
+            <span class="reference-icon" aria-hidden="true">✦</span>
+            <div><span>Référence</span><strong>Joueurs Challenger</strong></div>
+          </div>
+          <button class="btn btn-primary coach-generate" @click="genCoach()"
+                  :disabled="job && job.status === 'running'">Générer le coaching <span aria-hidden="true">→</span></button>
+        </div>
+      </section>
 
       <template x-if="reviewsLoading"><div class="state">Chargement des reviews…</div></template>
       <template x-if="!reviewsLoading && !review">

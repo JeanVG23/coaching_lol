@@ -639,6 +639,103 @@ button, select, textarea { font:inherit; }
 .select { min-height:36px; min-width:137px; color:var(--text); background:rgba(9,12,18,.55); border-color:var(--border); border-radius:8px; font-size:13px; text-transform:none; letter-spacing:normal; }
 .select:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(230,185,106,.12); }
 
+/* Composer un coaching sans une rangée de menus déroulants. */
+.coach-builder {
+  padding:22px;
+  margin-bottom:22px;
+  background:
+    linear-gradient(120deg, rgba(230, 185, 106, .1), transparent 42%),
+    linear-gradient(145deg, rgba(25, 33, 49, .96), rgba(18, 24, 36, .96));
+  border:1px solid var(--border-soft);
+  border-radius:16px;
+  box-shadow:0 12px 30px rgba(0,0,0,.12);
+}
+
+.coach-builder .coaching-intro { margin:0 0 18px; }
+.coach-builder .coaching-kicker { display:block; margin-bottom:5px; font-size:10px; letter-spacing:.12em; }
+.coach-builder .coaching-intro h2 { color:var(--text); font-size:19px; letter-spacing:-.025em; }
+.coach-builder .coaching-intro p { max-width:630px; margin:5px 0 0; color:var(--text-dim); font-size:13px; }
+
+.coach-options {
+  display:grid;
+  grid-template-columns:minmax(205px, 1.1fr) minmax(245px, 1.25fr) minmax(150px, .75fr) auto;
+  gap:10px;
+  align-items:stretch;
+}
+
+.choice-group, .coach-reference {
+  min-width:0;
+  padding:10px 11px;
+  background:rgba(9,12,18,.4);
+  border:1px solid var(--border-soft);
+  border-radius:10px;
+}
+
+.choice-label {
+  display:block;
+  margin:0 0 6px;
+  color:var(--text-faint);
+  font-size:10px;
+  font-weight:750;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.segmented-choice {
+  display:grid;
+  grid-auto-columns:1fr;
+  grid-auto-flow:column;
+  gap:3px;
+  padding:3px;
+  background:rgba(18,24,36,.75);
+  border-radius:8px;
+}
+
+.segmented-choice button {
+  min-width:0;
+  min-height:30px;
+  padding:5px 7px;
+  overflow:hidden;
+  color:var(--text-faint);
+  background:transparent;
+  border:1px solid transparent;
+  border-radius:6px;
+  cursor:pointer;
+  font-family:inherit;
+  font-size:12px;
+  font-weight:650;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  transition:background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.segmented-choice button:hover { color:var(--text); background:rgba(148,163,184,.1); }
+.segmented-choice button.selected { color:#211706; background:var(--gold); border-color:var(--gold); }
+.segmented-choice button.selected.loss-choice { color:#fff0f0; background:rgba(255,112,112,.64); border-color:rgba(255,112,112,.62); }
+.segmented-choice button.selected.win-choice { color:#061c0d; background:rgba(83,210,117,.85); border-color:rgba(83,210,117,.68); }
+
+.coach-reference {
+  display:flex;
+  gap:9px;
+  align-items:center;
+}
+
+.reference-icon {
+  display:grid;
+  width:28px;
+  height:28px;
+  flex:0 0 auto;
+  place-items:center;
+  color:var(--gold);
+  background:var(--gold-soft);
+  border-radius:8px;
+}
+
+.coach-reference span:not(.reference-icon) { display:block; color:var(--text-faint); font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.coach-reference strong { display:block; margin-top:2px; color:var(--text); font-size:12px; line-height:1.2; }
+.coach-generate { align-self:stretch; min-height:62px; padding:10px 16px; white-space:nowrap; }
+.coach-generate span { margin-left:5px; font-size:16px; }
+
 .meta-strip {
   gap:11px;
   padding:12px 14px;
@@ -655,6 +752,18 @@ button, select, textarea { font:inherit; }
 .insight-col:nth-child(1) h3 { color:var(--win); }
 .insight-col:nth-child(2) h3 { color:var(--loss); }
 .insight-col:nth-child(4) h3 { color:var(--gold); }
+.insight-col:nth-child(4) {
+  grid-column:1 / -1;
+  order:-1;
+  min-height:auto;
+  background:
+    linear-gradient(110deg, rgba(230,185,106,.14), rgba(18,24,36,.96) 58%),
+    var(--panel);
+  border-color:rgba(230,185,106,.3);
+}
+.insight-col:nth-child(4) .insight-card { padding:0; border:0; }
+.insight-col:nth-child(4) .insight-card > p { max-width:800px; font-size:16px; font-weight:600; line-height:1.5; }
+.insight-col:nth-child(4) .confidence { display:inline-block; padding:0; margin-top:12px; border:0; }
 .insight-card { padding:15px 0; border-color:var(--border-soft); }
 .insight-card p { color:var(--text); font-size:14px; line-height:1.55; }
 .cause-line { color:var(--text-dim) !important; font-style:normal; }
@@ -725,7 +834,12 @@ button, select, textarea { font:inherit; }
   .field-label { flex:1 1 calc(50% - 8px); }
   .select { width:100%; min-width:0; }
   .action-bar .btn-primary { width:100%; }
+  .coach-builder { padding:18px; border-radius:14px; }
+  .coach-options { grid-template-columns:1fr; }
+  .coach-reference { min-height:54px; }
+  .coach-generate { min-height:44px; }
   .insight-grid { grid-template-columns:1fr; }
+  .insight-col:nth-child(4) .insight-card > p { font-size:15px; }
   .shap-wrap { height:440px; padding:10px; }
   .readme-table { min-width:620px; }
 }

@@ -118,6 +118,9 @@ def test_coaching_tab_wired():
     assert "/api/feedback" in js
     assert "NEG_TAGS" in js
     assert "insight-card" in body or "evidence-chip" in body
+    assert 'class="coach-builder"' in body
+    assert 'class="segmented-choice"' in body
+    assert "Joueurs Challenger" in body
 
 
 def test_feedback_note_textarea_wired():
