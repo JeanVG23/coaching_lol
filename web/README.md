@@ -44,8 +44,27 @@ poetry run uvicorn main:app --app-dir web/backend --reload
 
 ## Synchroniser les données locales vers KV
 
-Le script fusionne les données locales avec celles déjà présentes dans KV ; il ne supprime
-pas l'historique distant.
+La commande habituelle rafraîchit les parties et le rang depuis Riot, reconstruit les
+agrégats locaux, puis publie le compte dans KV :
+
+```bash
+poetry run python src/collection/refresh_cloudflare.py
+```
+
+Elle traite tous les comptes configurés (un seul actuellement). Pour limiter la collecte
+ou republier également les référentiels statiques :
+
+```bash
+poetry run python src/collection/refresh_cloudflare.py --slug spadzze -n 20
+poetry run python src/collection/refresh_cloudflare.py --with-ref
+```
+
+Elle vérifie d'abord `CF_API_TOKEN`, `CF_ACCOUNT_ID` et `CF_NAMESPACE_ID` : sans ces
+variables dans `.env`, elle s'arrête avant tout appel à Riot.
+
+Le script de synchronisation seul reste utile pour republier les fichiers locaux sans
+interroger Riot. Il fusionne les données locales avec celles déjà présentes dans KV et ne
+supprime pas l'historique distant.
 
 ```bash
 poetry run python src/collection/sync_cloudflare.py --dry-run
@@ -54,7 +73,8 @@ poetry run python src/collection/sync_cloudflare.py
 
 Variables requises dans `.env` ou dans l'environnement :
 
-- `CF_API_TOKEN` — jeton limité à l'écriture KV ;
+- `CF_API_TOKEN` — jeton Cloudflare avec `Account / Workers KV Storage / Edit` et
+  `Account / Account Settings / Read` pour ce compte ;
 - `CF_ACCOUNT_ID` — identifiant du compte Cloudflare ;
 - `CF_NAMESPACE_ID` — namespace lié au binding `DATA`.
 
