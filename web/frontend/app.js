@@ -36,6 +36,17 @@ function routeOf(path) {
   return { name: "home" };
 }
 
+// Une analyse d'une partie ne permet pas d'inférer des habitudes. Elle possède
+// donc un format volontairement différent et ne doit pas remplacer le coaching
+// global dans cet onglet.
+function isAggregateReview(record) {
+  const review = record?.review;
+  return record?.kind !== "game"
+    && Array.isArray(review?.strengths)
+    && Array.isArray(review?.mistakes)
+    && Array.isArray(review?.habits);
+}
+
 function app() {
   return {
     path: location.pathname,
@@ -82,7 +93,7 @@ function accountPage(slug) {
     predictedRank: null, predictedRankLoading: true,
     // coaching
     scope: "adc", outcome: "loss", target: "challenger",
-    reviews: [], review: null, reviewsLoading: true,
+    reviews: [], review: null, gameReviewsCount: 0, reviewsLoading: true,
     fbMap: {}, fbBusy: {}, noteDraft: {},
     coachOpen: false,
     // shap (F5)
@@ -195,8 +206,9 @@ function accountPage(slug) {
       this.reviewsLoading = true;
       try {
         const list = await api(`/api/c/${this.slug}/reviews`);
-        this.reviews = list;
-        this.review = list.length ? list[list.length - 1] : null;
+        this.gameReviewsCount = list.filter((item) => item?.kind === "game").length;
+        this.reviews = list.filter(isAggregateReview);
+        this.review = this.reviews.length ? this.reviews[this.reviews.length - 1] : null;
         if (this.review) this.loadFeedback();
       } catch (e) { /* keep reviews empty */ }
       finally { this.reviewsLoading = false; }

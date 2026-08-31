@@ -212,7 +212,10 @@
 
       <template x-if="reviewsLoading"><div class="state">Chargement des reviews…</div></template>
       <template x-if="!reviewsLoading && !review">
-        <div class="state empty-state"><strong>Ton analyse apparaîtra ici.</strong><span>Choisis les parties à comparer puis génère le coaching.</span></div>
+        <div class="state empty-state">
+          <strong x-text="gameReviewsCount ? 'Aucun coaching global disponible.' : 'Ton analyse apparaîtra ici.'"></strong>
+          <span x-text="gameReviewsCount ? 'Les analyses d’une seule partie sont conservées séparément : elles ne permettent pas de déduire des habitudes.' : 'Choisis les parties à comparer puis génère le coaching.'"></span>
+        </div>
       </template>
 
       <template x-if="!reviewsLoading && review">

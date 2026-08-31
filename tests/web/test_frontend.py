@@ -117,6 +117,8 @@ def test_coaching_tab_wired():
     assert "/api/c/" in js and "/reviews" in js
     assert "/api/feedback" in js
     assert "NEG_TAGS" in js
+    assert "isAggregateReview" in js
+    assert "gameReviewsCount" in js
     assert "insight-card" in body or "evidence-chip" in body
     assert 'class="coach-builder"' in body
     assert 'class="segmented-choice"' in body
