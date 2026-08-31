@@ -118,11 +118,15 @@ def test_coaching_tab_wired():
     assert "/api/feedback" in js
     assert "NEG_TAGS" in js
     assert "isAggregateReview" in js
+    assert "isGameReview" in js
     assert "gameReviewsCount" in js
     assert "insight-card" in body or "evidence-chip" in body
     assert 'class="coach-builder"' in body
     assert 'class="segmented-choice"' in body
     assert "Joueurs Challenger" in body
+    assert "Analyses de parties" in body
+    assert "game-review-layout" in body
+    assert "selectedGameReview" in js
 
 
 def test_feedback_note_textarea_wired():

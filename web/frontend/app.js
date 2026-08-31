@@ -47,6 +47,14 @@ function isAggregateReview(record) {
     && Array.isArray(review?.habits);
 }
 
+function isGameReview(record) {
+  const review = record?.review;
+  return record?.kind === "game"
+    && Array.isArray(review?.strengths)
+    && Array.isArray(review?.mistakes)
+    && typeof review?.next_focus === "string";
+}
+
 function app() {
   return {
     path: location.pathname,
@@ -93,7 +101,8 @@ function accountPage(slug) {
     predictedRank: null, predictedRankLoading: true,
     // coaching
     scope: "adc", outcome: "loss", target: "challenger",
-    reviews: [], review: null, gameReviewsCount: 0, reviewsLoading: true,
+    reviews: [], review: null, gameReviews: [], selectedGameReview: null,
+    coachingView: "overall", gameReviewsCount: 0, reviewsLoading: true,
     fbMap: {}, fbBusy: {}, noteDraft: {},
     coachOpen: false,
     // shap (F5)
@@ -146,6 +155,8 @@ function accountPage(slug) {
       }
       if (t === "shap" && this.shap === null) { this.loadShap(); }
     },
+
+    setCoachingView(view) { this.coachingView = view; },
 
     async loadShap() {
       this.shapLoading = true;
@@ -206,7 +217,9 @@ function accountPage(slug) {
       this.reviewsLoading = true;
       try {
         const list = await api(`/api/c/${this.slug}/reviews`);
-        this.gameReviewsCount = list.filter((item) => item?.kind === "game").length;
+        this.gameReviews = list.filter(isGameReview).reverse();
+        this.gameReviewsCount = this.gameReviews.length;
+        this.selectedGameReview = this.gameReviews.length ? this.gameReviews[0] : null;
         this.reviews = list.filter(isAggregateReview);
         this.review = this.reviews.length ? this.reviews[this.reviews.length - 1] : null;
         if (this.review) this.loadFeedback();
@@ -339,6 +352,29 @@ function accountPage(slug) {
     },
 
     meta() { return this.review?.payload?.meta || null; },
+
+    selectGameReview(review) { this.selectedGameReview = review; },
+    gameMeta(review) { return review?.payload?.meta || {}; },
+    gameChampion(review) { return this.gameMeta(review).champion || "Partie analysée"; },
+    gameOpponent(review) { return this.gameMeta(review).opponent || null; },
+    gameResult(review) {
+      const win = this.gameMeta(review).win;
+      return win === true ? "Victoire" : win === false ? "Défaite" : "Analyse";
+    },
+    gameDuration(review) {
+      const minutes = Number(this.gameMeta(review).duration_min);
+      return Number.isFinite(minutes) ? `${Math.round(minutes)} min` : null;
+    },
+    gameKda(review) {
+      const kda = this.gameMeta(review).kda;
+      return kda ? fmtKDA(kda.kills, kda.deaths, kda.assists) : null;
+    },
+    gamePatch(review) { return this.gameMeta(review).patch || null; },
+    gameMatchId(review) { return review?.match_id || this.gameMeta(review).match_id || "—"; },
+    gameIcon(review) {
+      const meta = this.gameMeta(review);
+      return meta.patch && meta.champion ? DDRAGON(meta.patch, meta.champion) : "";
+    },
 
     kda(g) { return fmtKDA(g.kills, g.deaths, g.assists); },
     champIcon(g) { return DDRAGON(g.patch, g.champion); },

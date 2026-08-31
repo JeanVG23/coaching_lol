@@ -178,6 +178,16 @@
   <!-- onglet coaching (tâche F4) -->
   <template x-if="tab === 'coaching'">
     <div>
+      <div class="coach-view-tabs" role="tablist" aria-label="Type de coaching">
+        <button type="button" :class="coachingView === 'overall' ? 'active' : ''"
+                :aria-selected="(coachingView === 'overall').toString()"
+                @click="setCoachingView('overall')">Coaching global</button>
+        <button type="button" :class="coachingView === 'games' ? 'active' : ''"
+                :aria-selected="(coachingView === 'games').toString()"
+                @click="setCoachingView('games')">Analyses de parties <span class="coach-tab-count" x-show="gameReviewsCount" x-text="gameReviewsCount"></span></button>
+      </div>
+
+      <div x-show="coachingView === 'overall'">
       <section class="coach-builder" aria-labelledby="coach-builder-title">
         <div class="coaching-intro">
           <span class="coaching-kicker">NOUVELLE ANALYSE</span>
@@ -360,6 +370,105 @@
           </template>
         </div>
       </template>
+      </div>
+
+      <div x-show="coachingView === 'games'">
+        <section class="game-reviews" aria-labelledby="game-reviews-title">
+          <div class="game-reviews-heading">
+            <div>
+              <p class="eyebrow">ANALYSES DÉTAILLÉES</p>
+              <h2 id="game-reviews-title">Revoir une partie, moment par moment.</h2>
+              <p>Chaque analyse est liée à une partie précise. Elle met l’accent sur les erreurs observables et le focus de ta prochaine game.</p>
+            </div>
+          </div>
+
+          <template x-if="reviewsLoading"><div class="state">Chargement des analyses de parties…</div></template>
+          <template x-if="!reviewsLoading && gameReviews.length === 0">
+            <div class="state empty-state"><strong>Aucune analyse de partie disponible.</strong><span>Les prochaines analyses individuelles apparaîtront ici.</span></div>
+          </template>
+
+          <template x-if="!reviewsLoading && selectedGameReview">
+            <div class="game-review-layout">
+              <nav class="game-review-list" aria-label="Analyses de parties disponibles">
+                <template x-for="item in gameReviews" :key="item.ts">
+                  <button type="button" class="game-review-option"
+                          :class="selectedGameReview.ts === item.ts ? 'selected' : ''"
+                          :aria-current="selectedGameReview.ts === item.ts ? 'true' : 'false'"
+                          @click="selectGameReview(item)">
+                    <img class="game-option-icon" :src="gameIcon(item)" :alt="gameChampion(item)"
+                         @error="$event.target.style.display = 'none'" loading="lazy">
+                    <span class="game-option-copy">
+                      <strong x-text="gameChampion(item)"></strong>
+                      <span x-text="gameResult(item) + ' · ' + formatDate(item.ts)"></span>
+                    </span>
+                    <span class="game-option-arrow" aria-hidden="true">→</span>
+                  </button>
+                </template>
+              </nav>
+
+              <article class="game-review-detail">
+                <header class="game-detail-header">
+                  <div class="game-detail-title">
+                    <img class="game-detail-icon" :src="gameIcon(selectedGameReview)" :alt="gameChampion(selectedGameReview)"
+                         @error="$event.target.style.display = 'none'">
+                    <div>
+                      <p class="eyebrow">ANALYSE DE PARTIE</p>
+                      <h3><span x-text="gameChampion(selectedGameReview)"></span><span x-show="gameOpponent(selectedGameReview)" x-text="' · contre ' + gameOpponent(selectedGameReview)"></span></h3>
+                      <p class="game-match-id" x-text="gameMatchId(selectedGameReview)"></p>
+                    </div>
+                  </div>
+                  <span class="game-result" :class="gameResult(selectedGameReview) === 'Victoire' ? 'win' : (gameResult(selectedGameReview) === 'Défaite' ? 'loss' : '')" x-text="gameResult(selectedGameReview)"></span>
+                </header>
+
+                <div class="game-detail-stats">
+                  <span x-show="gameKda(selectedGameReview)"><small>KDA</small><strong x-text="gameKda(selectedGameReview)"></strong></span>
+                  <span x-show="gameDuration(selectedGameReview)"><small>Durée</small><strong x-text="gameDuration(selectedGameReview)"></strong></span>
+                  <span x-show="gamePatch(selectedGameReview)"><small>Patch</small><strong x-text="gamePatch(selectedGameReview)"></strong></span>
+                  <span><small>Confiance</small><strong x-text="Math.round((selectedGameReview.review.confidence || 0) * 100) + '%'"></strong></span>
+                </div>
+
+                <section class="game-focus-card">
+                  <span class="game-focus-label">Focus pour ta prochaine partie</span>
+                  <p x-text="selectedGameReview.review.next_focus"></p>
+                </section>
+
+                <div class="game-insight-grid">
+                  <section class="game-insight-section strengths">
+                    <h3>Ce qui a bien fonctionné</h3>
+                    <template x-if="selectedGameReview.review.strengths.length === 0">
+                      <p class="game-empty-copy">Aucune force suffisamment nette n’a été retenue pour cette partie.</p>
+                    </template>
+                    <template x-for="(item, index) in selectedGameReview.review.strengths" :key="'game-strength-' + index">
+                      <article class="game-insight-item">
+                        <p x-text="item.point"></p>
+                        <details x-show="item.cause">
+                          <summary>Pourquoi ?</summary>
+                          <span x-text="item.cause"></span>
+                        </details>
+                        <span class="evidence-chip kind-strength" x-text="item.evidence"></span>
+                      </article>
+                    </template>
+                  </section>
+
+                  <section class="game-insight-section mistakes">
+                    <h3>Erreurs à retenir</h3>
+                    <template x-for="(item, index) in selectedGameReview.review.mistakes" :key="'game-mistake-' + index">
+                      <article class="game-insight-item">
+                        <p x-text="item.point"></p>
+                        <details x-show="item.cause" open>
+                          <summary>Pourquoi ?</summary>
+                          <span x-text="item.cause"></span>
+                        </details>
+                        <span class="evidence-chip kind-mistake" x-text="item.evidence"></span>
+                      </article>
+                    </template>
+                  </section>
+                </div>
+              </article>
+            </div>
+          </template>
+        </section>
+      </div>
     </div>
   </template>
   <!-- onglet shap : profil ML (tâche F5) -->
