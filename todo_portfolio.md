@@ -19,8 +19,9 @@
 > **P6 minimum CLÔTURÉ** : le pipeline est un graphe de dépendances déclaré dans le
 > `Makefile` (`make plan` / `make graph` / `make pipeline`), les deux boucles bash sont
 > supprimées, un cron hebdomadaire résout les dépendances sans le lock et rejoue `make demo`.
-> Reste ouvert : Airflow (décision, cf. P6), et le déploiement du Worker pour publier la
-> model card (P8).
+> **P8 CLÔTURÉ** : model card déployée et vérifiée en production.
+> Reste ouvert : **P6 Airflow** (décision, pas un oubli) et **P9** (nice to have).
+> Les huit chantiers P1-P8 sont clos.
 
 ## 🔥 P1 — Démo exploitable par quelqu'un qui ne connaît pas le projet
 
@@ -200,7 +201,11 @@ pas le badge du README.
       avec le tableau sélection/test, la purged CV, la dispersion et les résultats négatifs.
       Verrouillé par `tests/web/test_frontend.py::test_readme_exposes_the_model_card` (le test
       exige que les résultats **négatifs** restent affichés, pas seulement les bons).
-- [ ] Redéployer le Worker pour publier la carte (`cd web/cf && npx wrangler deploy`).
+- [x] Worker redéployé le 2026-09-04 : carte vérifiée en production sur `/readme`.
+      Au passage, la page annonçait `strengths[3]` alors que le schéma impose 1 à 3
+      depuis le correctif « trop vague » : corrigé, et la borne est désormais LUE
+      dans `schema.py` par `test_readme_states_the_real_schema_bounds` au lieu
+      d'être recopiée (c'est l'absence de ce lien qui avait laissé passer le défaut).
 
 ## 💡 Nice to have (si le temps le permet)
 
