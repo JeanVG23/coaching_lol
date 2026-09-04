@@ -196,24 +196,59 @@ OLLAMA_API_KEY=votre_cle_ollama
 
 ## 💻 Utilisation & Commandes Principales
 
-### Pipeline de Données & Scraping
+### Pipeline de Données & Orchestration
+
+Le pipeline est un **graphe de dépendances déclaré dans le `Makefile`**, pas une suite
+d'appels à lancer dans le bon ordre de tête. Chaque étape dépend des artefacts qu'elle lit
+**et du code qui la produit** : toucher `src/core/positioning.py` périme le silver, donc le
+gold, donc les datasets, donc les modèles. Sans cette arête, on sert un modèle entraîné sur
+des features qui n'existent plus, et rien ne le signale.
 
 ```bash
-# 1. Collecter des parties pour un référentiel de rang (ex: challenger)
-poetry run python src/collection/build_referential.py --region euw1 --rank challenger --players 20
-
-# 2. Agréger les données d'un joueur local
-poetry run python src/collection/aggregate_games.py --slug monjoueur -n 30
-
-# 3. Comparer son profil au référentiel Challenger
-poetry run python src/reporting/compare.py --player monjoueur --scope adc --target challenger
-
-# 4. Construire le dataset Parquet pour le ML
-poetry run python src/01_data_engineering/build_player_dataset.py
-
-# 5. Entraîner le modèle de prédiction de rang
-poetry run python src/02_data_science/train_player_ensemble.py
+make graph      # le graphe
+make plan       # ce qui est périmé et serait relancé (ne lance rien)
+make pipeline   # ne recalcule que le périmé
 ```
+
+```
+01_raw (collecte Riot, hors make)
+  └─ reextract_silver ──> 02_silver
+       ├─ rebuild_gold ──> 03_gold ──> compare / payload coaching
+       └─ build_dataset ──> adc_dataset.parquet
+            ├─ build_player_dataset ──> adc_player_dataset.parquet
+            └─ build_player_lp_dataset ──> adc_player_lp_dataset.parquet
+                 (+ apex_lp.json, `make lp-label`)
+                      └─ build_split ──> split.json
+                           ├─ train_player_ensemble ──> *_player_highelo.pkl
+                           │    └─ calibrate_player_rank
+                           └─ train_player_lp ──> *_player_lp.pkl
+```
+
+**Les étapes réseau ne sont jamais des dépendances.** La collecte Riot, le label LP et la
+publication Cloudflare sont des cibles explicites : `make pipeline` ne peut pas consommer de
+quota d'API ni publier quoi que ce soit par effet de bord. Un test le vérifie
+(`tests/test_pipeline_graph.py`), parce que c'est exactement le genre d'arête qu'on ajoute
+sans y penser.
+
+```bash
+make collect RANKS=challenger,grandmaster PLAYERS=200 ROUNDS=5   # collecte Riot
+make lp-label                                                    # label LP (apex)
+make sync                                                        # dry-run Cloudflare
+make sync-push                                                   # publication réelle
+make report                                                      # état des datasets
+```
+
+`make collect` remplace les deux boucles bash `for i in {1..5}; do … sleep 10; done` qui
+tenaient lieu d'ordonnanceur : mêmes appels, mais les paramètres sont des variables et non
+des constantes recopiées dans deux fichiers. La pause reste une politesse envers l'API ; le
+rate-limiter, lui, vit dans `riotlib`.
+
+> ⚠️ **Ce qui n'est pas orchestré, et pourquoi.** La collecte tourne en local : elle a besoin
+> de la clé Riot et écrit ~10 Go de raw compressé. La faire tourner dans un runner GitHub
+> serait une mise en scène. Le cron hebdomadaire (`.github/workflows/weekly.yml`) porte donc
+> sur ce qui a du sens à distance : il **résout les dépendances sans le lock** et rejoue
+> `make demo` de bout en bout, pour apprendre qu'une version de pandas casse la chaîne avant
+> le jour où il faut mettre à jour.
 
 ### Lancement de l'Application Web
 

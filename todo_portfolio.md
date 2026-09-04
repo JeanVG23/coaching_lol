@@ -16,7 +16,11 @@
 > taux publié et vérifié en production sur `/api/c/spadzze/eval`.
 > **P5 CLÔTURÉ** : `make demo` tourne après un simple clone (0 réseau, 0 clé) sur
 > 49 parties réelles pseudonymisées, et les goldens de parité s'exécutent enfin en CI.
-> Reste : P6 (orchestration).
+> **P6 minimum CLÔTURÉ** : le pipeline est un graphe de dépendances déclaré dans le
+> `Makefile` (`make plan` / `make graph` / `make pipeline`), les deux boucles bash sont
+> supprimées, un cron hebdomadaire résout les dépendances sans le lock et rejoue `make demo`.
+> Reste ouvert : Airflow (décision, cf. P6), et le déploiement du Worker pour publier la
+> model card (P8).
 
 ## 🔥 P1 — Démo exploitable par quelqu'un qui ne connaît pas le projet
 
@@ -131,18 +135,47 @@ L'audit tourne à la génération et **rejoue dans les tests** : c'est un invari
 **Autres corrections au passage** : le badge README annonçait encore « XGBoost | LightGBM »
 (même erreur factuelle que sur la page CV, LightGBM ayant été retiré du code).
 
-## ⚙️ P6 — Orchestration réelle
+## ⚙️ P6 — Orchestration réelle ✅ (minimum livré)
 
-Le pipeline récurrent est `run_scraping.sh` : une boucle bash `for i in {1..5}` avec `sleep 10`.
+Le pipeline récurrent était `run_scraping.sh` : une boucle bash `for i in {1..5}` avec `sleep 10`.
 Point faible le plus visible pour un poste data engineer.
 
-- [ ] **Minimum** : un `Makefile` déclarant les dépendances réelles entre étapes
-      (collecte -> `reextract_silver` -> `rebuild_gold` -> `build_*_dataset` -> train -> `sync_cloudflare`),
-      plus un cron GitHub Actions sur la partie légère.
-- [ ] **Si cible DE explicite** : Airflow local en docker-compose avec le DAG réel. Le pipeline
-      s'y prête (dépendances claires, idempotence déjà pensée dans `pipeline_ops/`). Coche une
-      case entière de job description.
-- [ ] Chantier le plus lourd : à garder pour un troisième temps.
+- [x] **Minimum** : `Makefile` déclarant les dépendances réelles entre étapes
+      (`reextract_silver` -> `rebuild_gold` / `build_*_dataset` -> `build_split` -> train ->
+      calibration), plus `make plan` / `make graph`, et un cron GitHub Actions hebdomadaire.
+- [x] Les deux boucles bash supprimées, remplacées par `make collect` paramétré.
+- [ ] **Si cible DE explicite** : Airflow local en docker-compose avec le DAG réel. Décision
+      ouverte : le graphe est désormais déclaré une fois dans le `Makefile`, un DAG Airflow
+      le redirait une seconde fois. Coche une case de job description, au prix d'une source
+      de vérité dupliquée (à moins que le DAG n'appelle les cibles make, ce qui est le
+      compromis honnête).
+
+### Journal P6 : orchestration (2026-09-04)
+
+**Ce que le graphe déclare vraiment.** Chaque étape dépend des artefacts qu'elle lit ET du
+code qui la produit (`src/core/*.py`). Toucher `positioning.py` périme le silver, donc le
+gold, donc les datasets, donc les modèles : c'est l'arête qui manque partout, et c'est celle
+qui fait servir un modèle entraîné sur des features disparues sans que rien ne le signale.
+
+**Le seul point où l'amont n'est pas produit par make** : `01_raw` grossit hors du graphe
+(collecte, densification, scripts ad hoc). Un témoin (`data/.stamps/raw`) est réévalué à
+chaque invocation par un `find -newer ... -print -quit`, qui s'arrête au premier fichier plus
+récent. Se fier à la date d'un fichier connu aurait été faux le jour d'une densification
+partielle.
+
+**Garde-fou testé** (`tests/test_pipeline_graph.py`) : `make pipeline` ne doit jamais
+appeler l'API Riot ni publier vers Cloudflare. Ces étapes sont des cibles explicites, et le
+test échoue si l'une d'elles devient un prérequis. Sans lui, ajouter `fetch_apex_lp` en
+dépendance passerait inaperçu jusqu'à la première facture de quota. Le test vérifie aussi
+que tout script référencé par le Makefile existe (un renommage casse l'orchestration au pire
+moment : après plusieurs heures de collecte) et que l'ordre topologique reste médaillon.
+
+**Le cron, et ses limites assumées.** La collecte a besoin de la clé Riot et de ~10 Go de
+raw : la faire tourner dans un runner GitHub serait une mise en scène. Le cron hebdomadaire
+porte donc sur ce qui a du sens à distance : il **résout les dépendances sans le lock** et
+rejoue `make demo` de bout en bout. Sur `poetry.lock` gelé il n'aurait rien vérifié de plus
+que la CI. Il est séparé de `ci.yml` pour que son échec (écosystème, pas code) ne rougisse
+pas le badge du README.
 
 ## 🧹 P7 — Hygiène qui fait tache au clone
 

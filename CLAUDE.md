@@ -289,6 +289,24 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   silver+gold périodique.
 - **`fetch_apex_lp.py`** — LP courant horodaté (3 appels API) pour la régression LP.
 
+### Orchestration (`Makefile`)
+
+Le pipeline n'est pas une suite de commandes à lancer de tête : c'est un graphe de
+dépendances déclaré dans le `Makefile`. Chaque étape dépend des artefacts qu'elle lit ET du
+code qui la produit (`src/core/*.py` en bloc), donc toucher `positioning.py` périme silver →
+gold → datasets → modèles. `make plan` répond « qu'est-ce qui est périmé ? » en déléguant à
+`make -n` (la seule réponse honnête). `make graph` affiche le DAG.
+⚠️ **Les étapes réseau ne sont JAMAIS des dépendances** : `collect` (Riot), `lp-label`
+(fetch_apex_lp) et `sync`/`sync-push` (Cloudflare) sont des cibles explicites, et
+`tests/test_pipeline_graph.py` échoue si l'une d'elles devient un prérequis de `pipeline`.
+⚠️ `01_raw` grossit hors du graphe : le témoin `data/.stamps/raw` est réévalué à chaque
+invocation par `find -newer … -print -quit`. C'est le seul nœud dont l'amont n'est pas
+produit par make.
+`make collect` remplace `run_scraping.sh`/`run_uniform_scraping.sh` (supprimés le
+2026-09-04) : mêmes appels, paramètres en variables (`RANKS`/`PLAYERS`/`GAMES`/`ROUNDS`).
+CI : `ci.yml` (push/PR, lock gelé) + `weekly.yml` (cron lundi, dépendances résolues SANS le
+lock puis `make demo`) : sur lock gelé, un cron ne vérifierait rien de plus que la CI.
+
 ### Modules `pipeline_ops/` (0 API)
 
 - **`reextract_silver.py`** — ré-extrait le silver depuis le raw caché ; à relancer après toute

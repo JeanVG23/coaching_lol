@@ -1,0 +1,47 @@
+name: Dérive hebdomadaire
+
+# La CI (ci.yml) tourne sur `poetry.lock`, donc elle vérifie le code à
+# dépendances gelées. Ce workflow-ci fait l'inverse : il RÉSOUT les dépendances
+# à neuf et rejoue le pipeline de bout en bout sur les fixtures versionnées.
+# C'est la seule façon d'apprendre qu'une version de pandas, de scikit-learn ou
+# de l'image runner casse la chaîne AVANT le jour où on a besoin de mettre à
+# jour. Il est volontairement séparé de la CI : son échec ne doit pas rougir le
+# badge du README, qui parle du code, pas de l'écosystème.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # lundi 6h17 UTC ; minute décalée, les heures rondes sont saturées
+  workflow_dispatch:
+
+jobs:
+  demo:
+    name: Pipeline complet, dépendances résolues à neuf
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Poetry
+        run: pipx install poetry
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # Le lock est écarté à dessein : on veut les versions les plus récentes
+      # compatibles avec les contraintes de pyproject.toml.
+      - name: Résoudre les dépendances sans le lock
+        run: |
+          rm -f poetry.lock
+          poetry install --without deep
+
+      - name: Versions résolues
+        run: poetry run pip list
+
+      # `make demo` rejoue silver -> gold -> compare -> coaching -> ancrage sur
+      # les 49 parties pseudonymisées. Aucune clé, aucun appel réseau.
+      - name: make demo
+        run: make demo
+
+      - name: Pytest
+        run: poetry run pytest tests/ -q
