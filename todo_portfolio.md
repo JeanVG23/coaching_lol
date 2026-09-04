@@ -14,7 +14,7 @@
 > Avancement au 2026-09-04 : **P1 fait et déployé**, **P2 fait** (CI + ruff), **P7 fait**,
 > **P3 CLÔTURÉ** : 12 analyses annotées, 96 % de mistakes utiles (cible ≥70 % sur ≥10),
 > taux publié et vérifié en production sur `/api/c/spadzze/eval`.
-> Reste : P4 (page CV), P5 (`make demo`), P6 (orchestration).
+> Reste : P5 (`make demo`), P6 (orchestration).
 
 ## 🔥 P1 — Démo exploitable par quelqu'un qui ne connaît pas le projet
 
@@ -67,7 +67,8 @@ contrefactuel).
 - [x] Publier le taux obtenu, **même mauvais**, sur la page CV et sur le site (`/readme`).
       Fait côté site : `GET /api/c/<slug>/eval` (calculé à la lecture, votes web inclus) +
       bandeau en tête de l'onglet Coaching + carte « critère de succès » dans `/readme`.
-      Reste la page CV, qui attend le chiffre réel (cf. P4).
+      Page CV faite le 2026-09-04 : le taux 96 % / 12 analyses y figure, avec le détail
+      par section (73 % sur les forces) plutôt que le seul chiffre flatteur.
 - [x] Enrichir chaque record de review : modèle, version de prompt, latence, coût estimé.
       Transforme « j'ai branché un LLM » en « j'ai un harness d'éval ».
 - [x] **Éval automatique** (au-delà de l'annotation) : `grounding.py` (les chiffres et
@@ -75,21 +76,21 @@ contrefactuel).
       contrôle négatif) et `counterfactual.py` (perturbation du payload → la sortie
       suit-elle ?). Les deux tournent sans humain et en CI.
 
-## ⚙️ P4 — Reformuler la page CV autour des bons arguments
+## ✅ P4 — Reformuler la page CV autour des bons arguments
 
 La page met en avant « compression ×13 » et « 6 couches » : de la plomberie, non différenciante.
 Les trois vrais atouts, dans cet ordre :
 
-- [ ] **Le protocole d'éval** (à mettre en titre) : split canonique par joueur
+- [x] **Le protocole d'éval** (à mettre en titre) : split canonique par joueur
       (`data/04_dataset/split.json`), purged CV avec fuite mesurée (≈ +0.005 d'AUC via les games
       partagées), headline sur test held-out (0.677) et non sur du OOF optimiste, script d'audit
       de fuite dédié (`audit_leakage.py`). Quasiment aucun projet de portfolio ne fait ça.
-- [ ] **La contrainte produit encodée dans le code** : `COACHING_SAFE` vs `ML_ONLY`, avec `assert`
+- [x] **La contrainte produit encodée dans le code** : `COACHING_SAFE` vs `ML_ONLY`, avec `assert`
       au chargement de `compare.py` qui crashe si une feature interdite fuit vers le coaching.
       C'est de la gouvernance de features, pas du storytelling.
-- [ ] **Les résultats négatifs assumés** : SSL `delta = -0.0195`, `high_elo` plafonné à 0.589,
+- [x] **Les résultats négatifs assumés** : SSL `delta = -0.0195`, `high_elo` plafonné à 0.589,
       per-game déprécié. Un lead DS valorise ça plus que trois AUC flatteuses.
-- [ ] Toujours donner le contexte du chiffre (n + protocole). « AUC 0,645 vs 0,633 » seul ne
+- [x] Toujours donner le contexte du chiffre (n + protocole). « AUC 0,645 vs 0,633 » seul ne
       prouve rien ; « test held-out, 201 joueurs, CV purgée » devient une preuve de méthode.
 
 ## ⚙️ P5 — Rendre le repo exécutable
@@ -161,3 +162,19 @@ P4 (réécriture de la page CV).
 
 > Si un seul item : **P2 (la CI)**. Quelques heures, et c'est le seul point où l'absence est
 > activement lue comme un défaut.
+
+## Journal P4 — page CV (2026-09-04)
+
+Faite dans `~/code/website/cv` (`data.yaml` = source du site, `projets/coaching-lol.md`
+= fiche privée d'entretien), deux commits, site régénéré via `./build.sh --site`.
+**Non déployé** : lancer `./build.sh --site --deploy` pour publier.
+
+Erreurs factuelles corrigées, qui auraient mal tourné en entretien :
+
+- **LightGBM** annoncé dans la stack et deux formulations de CV alors que
+  `train_ensemble.py` l'a retiré explicitement (« jumeau GBDT de XGBoost »).
+- **Docker** dans la stack alors que le `Dockerfile` vient d'être supprimé.
+- Le backend annoncé « archivé » alors qu'il est supprimé.
+- La limite « le schéma ne vérifie pas que l'evidence correspond au payload » :
+  devenue fausse depuis `grounding.py`.
+- La note « `?review=` en cours d'implémentation » : en production.
