@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 for module_path in (
     ROOT / "src" / "core",
     ROOT / "src" / "collection",
-    ROOT / "web" / "backend",
 ):
     if str(module_path) not in sys.path:
         sys.path.insert(0, str(module_path))
@@ -136,3 +135,33 @@ def test_dry_kv_never_calls_network(monkeypatch):
     kv.put("key", "value")
     assert kv.get("key") is None
     assert kv.puts == ["key"]
+
+
+def test_merge_jsonl_keeps_remote_and_overwrites_by_ts():
+    """Reviews et feedbacks arrivent des deux cotes (site + CLI) : une ligne
+    distante absente en local doit survivre, une ligne commune est reprise du
+    local (plus recent au moment du sync)."""
+    remote = "\n".join([
+        json.dumps({"ts": "t1", "src": "web"}),
+        json.dumps({"ts": "t2", "src": "web"}),
+    ]) + "\n"
+    merged = sc.merge_jsonl(remote, [{"ts": "t2", "src": "cli"},
+                                     {"ts": "t3", "src": "cli"}])
+    rows = [json.loads(line) for line in merged.splitlines()]
+    assert [r["ts"] for r in rows] == ["t1", "t2", "t3"]     # ordre distant preserve
+    assert rows[0]["src"] == "web"                           # web-only conserve
+    assert rows[1]["src"] == "cli"                           # local gagne sur t2
+
+
+def test_push_coaching_merges_reviews_and_feedback(data_root, monkeypatch):
+    monkeypatch.setattr(ml_rank, "predict_rank", lambda games: None)
+    _write(data_root / "07_coaching" / "p" / "reviews.jsonl",
+           json.dumps({"ts": "t2", "kind": "game"}) + "\n")
+    _write(data_root / "07_coaching" / "p" / "feedback.jsonl",
+           json.dumps({"ts": "t2", "items": []}) + "\n")
+    kv = FakeKV()
+    kv.store["coaching:p:reviews"] = json.dumps({"ts": "t1", "kind": "game"}) + "\n"
+    sc.sync_account(kv, "p", coaching=True)
+    reviews = [json.loads(l) for l in kv.store["coaching:p:reviews"].splitlines()]
+    assert [r["ts"] for r in reviews] == ["t1", "t2"]        # la review web survit
+    assert json.loads(kv.store["coaching:p:feedback"])["ts"] == "t2"

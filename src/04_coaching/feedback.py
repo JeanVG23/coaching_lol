@@ -213,6 +213,30 @@ def render_objective(obj: dict) -> str:
             f"(cible ≥{obj['target_rate']:.0%})")
 
 
+def eval_report(player: str, root=None) -> dict:
+    """Rapport d'éval sérialisable : la métrique de succès du projet + les taux
+    par section. Publié tel quel (site, page CV) — le chiffre n'a de valeur que
+    s'il est affiché même mauvais, avec son n et sa cible."""
+    fbs = load_feedbacks(player, root)
+    reviews = list_reviews(player, root)
+    obj = objective_stats(fbs, reviews)
+    stats = summarize(fbs)
+    return {
+        "player": player,
+        "n_game_reviews": sum(1 for r in reviews if r.get("kind") == "game"),
+        "objective": obj,
+        "target_met": bool(
+            obj["n_game_reviews_annotated"] >= obj["target_n"]
+            and (obj["mistake_useful_rate"] or 0) >= obj["target_rate"]
+        ),
+        "n_reviews_annotated": stats.get("n_reviews", 0),
+        "n_items": stats.get("n_items", 0),
+        "global_rate": stats.get("global_rate"),
+        "by_kind": stats.get("by_kind", {}),
+        "top_tags": [{"tag": t, "n": n} for t, n in stats.get("top_tags", [])],
+    }
+
+
 def pending_reviews(reviews: list[dict],
                     fbs: list[schema_mod.Feedback]) -> list[dict]:
     """Reviews sans feedback (jointure par ts), plus anciennes d'abord.
@@ -351,12 +375,17 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--player", default="spadzze")
     s.add_argument("--tag", default=None, help="filtre par tag")
     s.add_argument("--model", default=None, help="filtre par modèle")
+    s.add_argument("--json", action="store_true",
+                   help="rapport machine (publication site / page CV)")
 
     args = ap.parse_args(argv)
     if args.cmd == "annotate":
         return annotate(args.player, ts=args.ts, last=args.last,
                         pending=args.pending)
     if args.cmd == "summary":
+        if args.json:
+            print(json.dumps(eval_report(args.player), ensure_ascii=False, indent=2))
+            return 0
         fbs = load_feedbacks(args.player)
         objective = objective_stats(fbs, list_reviews(args.player))
         if args.model:

@@ -39,27 +39,48 @@ class CoachValidationError(RuntimeError):
         self.raw = raw
 
 
-def _generate(system: str, user: str, sch: dict, cls, model: str):
+def _generate(system: str, user: str, sch: dict, cls, model: str,
+              prompt_version: str, timeout: int = 180):
+    """Retourne (review validée, run). `run` = trace d'exécution persistée avec
+    la review : sans elle on ne peut ni rejouer une génération, ni attribuer une
+    variation du taux d'utilité à un changement de prompt ou de modèle.
+    Les tokens/latences des tentatives rejetées par le schéma sont cumulés :
+    une sortie non conforme a bien coûté un appel."""
     last_raw = None
-    for _ in range(2):                       # 1 essai + 1 retry
-        last_raw = llm_client.generate_json(model, system, user, sch)
+    total = {"latency_ms": 0, "prompt_tokens": 0, "completion_tokens": 0}
+    usage: dict = {}
+    for attempt in range(2):                 # 1 essai + 1 retry
+        gen = llm_client.generate(model, system, user, sch, timeout=timeout)
+        usage = dict(gen.usage)
+        for k in total:
+            value = usage.get(k)
+            if isinstance(value, (int, float)):
+                total[k] += value
+        last_raw = gen.data
         try:
-            return cls.model_validate(last_raw)
+            review = cls.model_validate(last_raw)
         except ValidationError:
             continue
+        usage.update(total)
+        usage["total_tokens"] = total["prompt_tokens"] + total["completion_tokens"]
+        usage["schema_retries"] = attempt
+        usage["cost_usd"] = llm_client.estimate_cost(
+            model, total["prompt_tokens"], total["completion_tokens"])
+        return review, {"prompt_version": prompt_version, **usage}
     raise CoachValidationError(last_raw)
 
 
-def generate_review(pl: dict, model: str) -> schema_mod.Review:
+def generate_review(pl: dict, model: str, timeout: int = 180):
     system, user = prompt_mod.render(pl)
     return _generate(system, user, schema_mod.review_json_schema(),
-                     schema_mod.Review, model)
+                     schema_mod.Review, model, prompt_mod.PROMPT_VERSION, timeout)
 
 
-def generate_game_review(pl: dict, model: str) -> schema_mod.GameReview:
+def generate_game_review(pl: dict, model: str, timeout: int = 180):
     system, user = prompt_mod.render_game(pl)
     return _generate(system, user, schema_mod.game_review_json_schema(),
-                     schema_mod.GameReview, model)
+                     schema_mod.GameReview, model, prompt_mod.GAME_PROMPT_VERSION,
+                     timeout)
 
 
 def pending_game_matches(records: list[dict], reviews: list[dict],
@@ -109,7 +130,7 @@ def run_batch(player: str, scope: str, target: str, model: str, n: int,
             pl = payload_mod.build_game(player, match_id=mid, scope=scope,
                                         target=target, silver_dir=silver,
                                         records=records, ref=ref)
-            review = generate_game_review(pl, model)
+            review, run = generate_game_review(pl, model)
         except FileNotFoundError as e:
             print(f"✗ {mid} : {e}", file=sys.stderr)
             failed += 1
@@ -123,7 +144,7 @@ def run_batch(player: str, scope: str, target: str, model: str, n: int,
             print(f"✗ {mid} : {e} — brut sauvé dans {p}", file=sys.stderr)
             failed += 1
             continue
-        persist(player, model, pl, review, ts, root=root)
+        persist(player, model, pl, review, ts, root=root, run=run)
         m = pl["meta"]
         issue = "victoire" if m.get("win") else "défaite"
         print(f"✓ {mid} : {m.get('champion')} ({issue}) reviewée")
@@ -135,13 +156,14 @@ def run_batch(player: str, scope: str, target: str, model: str, n: int,
 
 
 def persist(player: str, model: str, pl: dict, review, ts: str,
-            root=None) -> Path:
+            root=None, run: dict | None = None) -> Path:
     root = Path(root) if root is not None else rl.DATA / "07_coaching"
     out = root / player
     out.mkdir(parents=True, exist_ok=True)
     meta = pl["meta"]
     record = {"ts": ts, "model": model,
               "scope": meta["scope"], "target": meta["target"],
+              "run": run or {},          # version de prompt, latence, tokens, coût
               "payload": pl, "review": review.model_dump()}
     if meta.get("kind") == "game":           # review par-game (GameReview)
         record["kind"] = "game"
@@ -176,6 +198,22 @@ def render_text(review: schema_mod.Review) -> str:
     lines += [f"    • {h}" for h in review.habits]
     lines.append(f"\n  Focus prochaine game : {review.next_focus}")
     return "\n".join(lines)
+
+
+def render_run(run: dict) -> str:
+    """Ligne de trace affichée après la génération (mêmes champs que persistés)."""
+    ms, tok = run.get("latency_ms"), run.get("total_tokens")
+    cost = run.get("cost_usd")
+    parts = [f"prompt {run.get('prompt_version', '?')}"]
+    if ms is not None:
+        parts.append(f"{ms / 1000:.1f} s")
+    if tok is not None:
+        parts.append(f"{tok} tokens")
+    if run.get("schema_retries"):
+        parts.append(f"{run['schema_retries']} retry schéma")
+    if cost is not None:
+        parts.append(f"${cost:.4f}")
+    return "\n  Run : " + " · ".join(parts)
 
 
 def _save_failed(player: str, ts: str, raw, root=None) -> Path:
@@ -227,7 +265,8 @@ def main() -> int:
         return 1
 
     try:
-        review = (generate_game_review if per_game else generate_review)(pl, args.model)
+        review, run = (generate_game_review if per_game else generate_review)(
+            pl, args.model)
     except llm_client.LLMError as e:
         print(f"✗ appel LLM échoué : {e}", file=sys.stderr)
         return 1
@@ -236,7 +275,7 @@ def main() -> int:
         print(f"✗ {e} — brut sauvé dans {p}", file=sys.stderr)
         return 1
 
-    path = persist(args.player, args.model, pl, review, ts)
+    path = persist(args.player, args.model, pl, review, ts, run=run)
     if per_game:
         m = pl["meta"]
         issue = "victoire" if m["win"] else "défaite"
@@ -248,6 +287,7 @@ def main() -> int:
         print(f"COACHING — {args.player} ({args.scope}, issue={args.outcome}, "
               f"vs {args.target}) [modèle {args.model}]")
         print(render_text(review))
+    print(render_run(run))
     print(f"\n✓ review persistée dans {path}")
     return 0
 

@@ -3,7 +3,16 @@ import json
 import pytest
 
 import coach as C
+import llm_client as LC
 import schema as S
+
+
+def _gen(data, **usage):
+    """Generation factice : sortie + telemetrie (cf. llm_client.generate)."""
+    base = {"latency_ms": 1200, "attempts": 1, "prompt_tokens": 900,
+            "completion_tokens": 300, "total_tokens": 1200,
+            "server_duration_ms": 1100, "cost_usd": None}
+    return LC.Generation(data, {**base, **usage})
 
 
 def _review_dict():
@@ -13,10 +22,13 @@ def _review_dict():
 
 
 def test_generate_review_validates(monkeypatch):
-    monkeypatch.setattr(C.llm_client, "generate_json", lambda *a, **k: _review_dict())
-    r = C.generate_review({"meta": {"player": "x", "scope": "adc", "target": "challenger",
+    monkeypatch.setattr(C.llm_client, "generate", lambda *a, **k: _gen(_review_dict()))
+    r, run = C.generate_review({"meta": {"player": "x", "scope": "adc", "target": "challenger",
                                     "outcome_focus": "loss", "n_games_me": 1}}, "m")
     assert isinstance(r, S.Review) and r.confidence == 0.5
+    # la trace du run accompagne la review : version de prompt + coût de l'appel
+    assert run["prompt_version"] == C.prompt_mod.PROMPT_VERSION
+    assert run["total_tokens"] == 1200 and run["schema_retries"] == 0
 
 
 def test_generate_review_retries_then_raises(monkeypatch):
@@ -24,9 +36,9 @@ def test_generate_review_retries_then_raises(monkeypatch):
 
     def bad(*a, **k):
         calls["n"] += 1
-        return {"bogus": True}                       # invalide -> ValidationError
+        return _gen({"bogus": True})                 # invalide -> ValidationError
 
-    monkeypatch.setattr(C.llm_client, "generate_json", bad)
+    monkeypatch.setattr(C.llm_client, "generate", bad)
     with pytest.raises(C.CoachValidationError):
         C.generate_review({"meta": {"player": "x", "scope": "adc", "target": "challenger",
                                     "outcome_focus": "loss", "n_games_me": 1}}, "m")
@@ -63,10 +75,11 @@ def _game_payload():
 
 
 def test_generate_game_review_validates(monkeypatch):
-    monkeypatch.setattr(C.llm_client, "generate_json",
-                        lambda *a, **k: _game_review_dict())
-    r = C.generate_game_review(_game_payload(), "m")
+    monkeypatch.setattr(C.llm_client, "generate",
+                        lambda *a, **k: _gen(_game_review_dict()))
+    r, run = C.generate_game_review(_game_payload(), "m")
     assert isinstance(r, S.GameReview) and r.confidence == 0.4
+    assert run["prompt_version"] == C.prompt_mod.GAME_PROMPT_VERSION
 
 
 def test_persist_game_records_kind_and_match_id(tmp_path):
@@ -77,6 +90,36 @@ def test_persist_game_records_kind_and_match_id(tmp_path):
     line = json.loads(path.read_text().splitlines()[-1])
     assert line["kind"] == "game" and line["match_id"] == "EUW1_42"
     assert line["review"]["mistakes"][0]["evidence"].startswith("mort à 17:05")
+
+
+def test_persist_records_the_run_trace(tmp_path):
+    """Sans trace de run, une variation du taux d'utilite n'est attribuable ni au
+    prompt ni au modele : la review persistee porte version de prompt + cout."""
+    pl = _game_payload()
+    review = S.GameReview.model_validate(_game_review_dict())
+    run = {"prompt_version": "abc123", "latency_ms": 4200, "total_tokens": 1200,
+           "cost_usd": None, "schema_retries": 1}
+    path = C.persist("spadzze", "m", pl, review, ts="2026-07-05T10:00:00",
+                     root=tmp_path, run=run)
+    line = json.loads(path.read_text().splitlines()[-1])
+    assert line["run"] == run
+
+
+def test_generate_cumulates_usage_of_a_schema_retry(monkeypatch):
+    """Une sortie rejetee par le schema a bien coute un appel : ses tokens
+    comptent dans le run, sinon le cout par review est sous-estime."""
+    seq = [_gen({"bogus": True}), _gen(_game_review_dict())]
+    monkeypatch.setattr(C.llm_client, "generate", lambda *a, **k: seq.pop(0))
+    _, run = C.generate_game_review(_game_payload(), "m")
+    assert run["schema_retries"] == 1
+    assert run["total_tokens"] == 2400 and run["latency_ms"] == 2400
+
+
+def test_render_run_is_readable_without_price_table():
+    txt = C.render_run({"prompt_version": "abc123", "latency_ms": 4200,
+                        "total_tokens": 1200, "cost_usd": None})
+    assert "abc123" in txt and "4.2 s" in txt and "1200 tokens" in txt
+    assert "$" not in txt                        # pas de prix invente
 
 
 def test_render_game_text_has_sections():
@@ -99,11 +142,11 @@ def test_main_model_from_dotenv_when_no_flag(monkeypatch, tmp_path):
                                                   "outcome_focus": "loss", "n_games_me": 1}})
     used = {}
 
-    def fake_gen(model, system, user, sch):
+    def fake_gen(model, system, user, sch, **kw):
         used["model"] = model
-        return _review_dict()
+        return _gen(_review_dict())
 
-    monkeypatch.setattr(C.llm_client, "generate_json", fake_gen)
+    monkeypatch.setattr(C.llm_client, "generate", fake_gen)
     monkeypatch.setattr(C, "persist", lambda *a, **k: tmp_path / "reviews.jsonl")
     assert C.main() == 0
     assert used["model"] == "glm-5.2"             # .env honored, pas le défaut deepseek
@@ -172,8 +215,8 @@ def test_run_batch_generates_dedups_and_continues_on_error(tmp_path, monkeypatch
         return pl
 
     monkeypatch.setattr(C.payload_mod, "build_game", fake_build_game)
-    monkeypatch.setattr(C.llm_client, "generate_json",
-                        lambda *a, **k: _game_review_dict())
+    monkeypatch.setattr(C.llm_client, "generate",
+                        lambda *a, **k: _gen(_game_review_dict()))
     rc = C.run_batch("spadzze", "adc", "challenger", "m", 10,
                      root=root, silver_dir=silver)
     assert rc == 0
@@ -193,7 +236,7 @@ def test_run_batch_returns_1_when_all_attempts_fail(tmp_path, monkeypatch, capsy
 
     monkeypatch.setattr(C.payload_mod, "build_game",
                         lambda player, match_id=None, **kw: _game_payload())
-    monkeypatch.setattr(C.llm_client, "generate_json", boom)
+    monkeypatch.setattr(C.llm_client, "generate", boom)
     rc = C.run_batch("spadzze", "adc", "challenger", "m", 2,
                      root=root, silver_dir=silver)
     assert rc == 1
@@ -223,8 +266,8 @@ def test_run_batch_validation_error_saves_failed_under_root(tmp_path, monkeypatc
 
     monkeypatch.setattr(C.payload_mod, "build_game",
                         lambda player, match_id=None, **kw: _game_payload())
-    monkeypatch.setattr(C.llm_client, "generate_json",
-                        lambda *a, **k: {"bogus": True})     # invalide -> CoachValidationError après retry
+    monkeypatch.setattr(C.llm_client, "generate",
+                        lambda *a, **k: _gen({"bogus": True}))  # invalide -> CoachValidationError après retry
     rc = C.run_batch("spadzze", "adc", "challenger", "m", 1,
                      root=root, silver_dir=silver)
     assert rc == 1

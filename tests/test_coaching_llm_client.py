@@ -1,4 +1,3 @@
-import json
 
 import pytest
 
@@ -91,3 +90,39 @@ def test_generate_json_4xx_other_raises_immediately(monkeypatch):
     with pytest.raises(LC.LLMError):
         LC.generate_json("m", "s", "u", {})
     assert calls["n"] == 1                 # pas de retry sur 4xx dur
+
+def test_generate_returns_usage_telemetry(monkeypatch):
+    """La telemetrie (latence, tokens) est persistee avec la review : elle doit
+    venir de la reponse Ollama, pas d'une estimation locale."""
+    monkeypatch.setattr(LC.rl, "load_env", lambda: {"OLLAMA_API_KEY": "k"})
+    monkeypatch.setattr(LC.requests, "post", lambda *a, **k: _Resp(200, {
+        "message": {"content": '{"ok": true}'},
+        "prompt_eval_count": 1500, "eval_count": 400,
+        "total_duration": 7_000_000_000,
+    }))
+    gen = LC.generate("m", "s", "u", {})
+    assert gen.data == {"ok": True}
+    assert gen.usage["prompt_tokens"] == 1500
+    assert gen.usage["completion_tokens"] == 400
+    assert gen.usage["total_tokens"] == 1900
+    assert gen.usage["server_duration_ms"] == 7000
+    assert gen.usage["attempts"] == 1
+    assert isinstance(gen.usage["latency_ms"], int)
+
+
+def test_usage_absent_counts_stay_none(monkeypatch):
+    """Un champ absent vaut None, jamais 0 : 0 token serait un chiffre faux
+    une fois agrege sur l'ensemble des reviews."""
+    monkeypatch.setattr(LC.rl, "load_env", lambda: {"OLLAMA_API_KEY": "k"})
+    monkeypatch.setattr(LC.requests, "post",
+                        lambda *a, **k: _Resp(200, {"message": {"content": "{}"}}))
+    usage = LC.generate("m", "s", "u", {}).usage
+    assert usage["prompt_tokens"] is None and usage["total_tokens"] is None
+    assert usage["cost_usd"] is None
+
+
+def test_cost_is_none_until_a_price_is_declared(monkeypatch):
+    """Ollama Cloud est facture a l'abonnement : pas de prix invente par defaut."""
+    assert LC.estimate_cost("kimi-k2.6", 1000, 1000) is None
+    monkeypatch.setitem(LC.PRICE_PER_MTOK, "kimi-k2.6", (1.0, 2.0))
+    assert LC.estimate_cost("kimi-k2.6", 1_000_000, 1_000_000) == 3.0

@@ -6,6 +6,7 @@ signaux est déjà faite dans payload.py : ici on n'impose que le cadre de narra
 """
 from __future__ import annotations
 
+import hashlib
 import json
 
 SYSTEM = """Tu es un coach League of Legends personnel expert. Tu reçois un JSON \
@@ -124,3 +125,17 @@ def render_game(payload: dict) -> tuple[str, str]:
             f"{m['duration_min']} min), repères {m['target']} :\n\n"
             f"{body}\n\nProduis la review de cette game.")
     return SYSTEM_GAME, user
+
+
+# --- versionnage des prompts -------------------------------------------------
+# Une review persistée n'est comparable à une autre que si l'on sait sous quel
+# prompt elle a été produite. Un numéro à incrémenter à la main dérive dès qu'on
+# oublie un bump : la version est donc DÉRIVÉE du texte lui-même (empreinte
+# tronquée). Modifier une règle change la version mécaniquement.
+
+def version_of(system: str) -> str:
+    return hashlib.sha256(system.encode()).hexdigest()[:12]
+
+
+PROMPT_VERSION = version_of(SYSTEM)
+GAME_PROMPT_VERSION = version_of(SYSTEM_GAME)

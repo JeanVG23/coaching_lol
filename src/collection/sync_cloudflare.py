@@ -2,7 +2,7 @@
 """Synchronise les données locales et prédictions précalculées vers Workers KV.
 
 Le Worker ne parle jamais à Riot et ne charge aucun modèle ML. Ce script relit les
-couches silver/gold/SHAP locales, calcule le rang via ``web/backend/ml_rank.py`` et
+couches silver/gold/SHAP locales, calcule le rang via ``src/core/ml_rank.py`` et
 pousse une valeur KV par fichier logique. Les clés ``coaching:*`` restent la
 propriété du Worker ; ``--seed-reviews`` ne les amorce que si elles sont absentes.
 """
@@ -19,14 +19,14 @@ from urllib.parse import quote
 import requests
 
 ROOT = Path(__file__).resolve().parents[2]
-for module_path in (ROOT / "src" / "core", ROOT / "web" / "backend"):
+for module_path in (ROOT / "src" / "core",):
     if str(module_path) not in sys.path:
         sys.path.insert(0, str(module_path))
 
 import riotlib as rl  # noqa: E402
 from kv_keys import key as kv_key  # noqa: E402
 
-ACCOUNTS_FILE = ROOT / "web" / "backend" / "accounts.json"
+ACCOUNTS_FILE = ROOT / "config" / "accounts.json"
 KV_URL = (
     "https://api.cloudflare.com/client/v4/accounts/{account}"
     "/storage/kv/namespaces/{namespace}/values/{key}"
@@ -45,10 +45,13 @@ def _match_seq(match_id: str) -> int:
         return 0
 
 
+def parse_jsonl(raw: str) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in raw.splitlines() if line.strip()]
+
+
 def parse_games(raw: str) -> list[dict[str, Any]]:
     """Parse un JSONL silver déjà lu et trie par séquence de match décroissante."""
-    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
-    return sorted(rows, key=lambda row: _match_seq(row.get("match_id", "")), reverse=True)
+    return sorted(parse_jsonl(raw), key=lambda row: _match_seq(row.get("match_id", "")), reverse=True)
 
 
 def read_games(slug: str) -> list[dict[str, Any]]:
@@ -123,7 +126,47 @@ def put_json(kv: KV, key: str, value: Any) -> None:
     kv.put(key, json.dumps(value, ensure_ascii=False))
 
 
-def sync_account(kv: KV, slug: str, *, seed_reviews: bool = False) -> None:
+def merge_jsonl(remote: str | None, local: list[dict], id_key: str = "ts") -> str:
+    """Fusionne des lignes locales dans un JSONL distant, clé `id_key`.
+
+    Les reviews et feedbacks arrivent des DEUX côtés : le site écrit dans KV
+    (bouton coaching, annotations web) et la CLI locale écrit dans
+    ``data/07_coaching/``. Écraser la clé perdrait le web ; ne rien pousser
+    laisserait les annotations CLI invisibles sur le site. On garde l'ordre
+    distant, on remplace ligne à ligne sur `id_key` (le local, plus récent au
+    moment du sync, gagne) et on ajoute le reste à la fin.
+    """
+    rows = parse_jsonl(remote) if remote else []
+    by_id = {row.get(id_key): row for row in local if row.get(id_key) is not None}
+    merged, used = [], set()
+    for row in rows:
+        rid = row.get(id_key)
+        if rid in by_id:
+            merged.append(by_id[rid])
+            used.add(rid)
+        else:
+            merged.append(row)
+    merged.extend(row for rid, row in by_id.items() if rid not in used)
+    return "\n".join(json.dumps(row, ensure_ascii=False) for row in merged) + "\n"
+
+
+def push_coaching(kv: KV, slug: str) -> None:
+    """Pousse reviews + feedbacks locaux dans KV en fusionnant l'existant.
+
+    Sans cette étape, les reviews générées en CLI et surtout les annotations de
+    la boucle d'éval restent locales : le taux d'utilité publié sur le site
+    (`/api/c/<slug>/eval`) ignorerait la moitié des données."""
+    base = rl.DATA / "07_coaching" / slug
+    for name, filename in (("reviews", "reviews.jsonl"), ("feedback", "feedback.jsonl")):
+        path = base / filename
+        if not path.exists():
+            continue
+        key = kv_key(name, slug=slug)
+        kv.put(key, merge_jsonl(kv.get(key), parse_jsonl(path.read_text())))
+
+
+def sync_account(kv: KV, slug: str, *, seed_reviews: bool = False,
+                 coaching: bool = False) -> None:
     # Une seule lecture du JSONL : le texte brut part tel quel dans KV et sert aussi
     # de source au parse local (il était lu deux fois : read_games + read_text).
     games_file = rl.silver_games(rl.KIND_PERSONAL, slug)
@@ -156,7 +199,9 @@ def sync_account(kv: KV, slug: str, *, seed_reviews: bool = False) -> None:
     if shap.exists():
         kv.put(kv_key("shap", slug=slug), shap.read_text())
 
-    if seed_reviews:
+    if coaching:
+        push_coaching(kv, slug)
+    elif seed_reviews:
         reviews = rl.DATA / "07_coaching" / slug / "reviews.jsonl"
         review_key = kv_key("reviews", slug=slug)
         if reviews.exists() and kv.get(review_key) is None:
@@ -187,6 +232,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="amorce les reviews locales uniquement si la clé KV est absente",
     )
+    parser.add_argument(
+        "--push-coaching",
+        action="store_true",
+        help="fusionne reviews + annotations locales dans KV (le site les publie)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="journalise sans écrire dans KV")
     return parser
 
@@ -215,7 +265,8 @@ def main(argv: list[str] | None = None) -> None:
         if not accounts:
             raise SystemExit(f"compte inconnu : {args.slug}")
     for account in accounts:
-        sync_account(kv, account["slug"], seed_reviews=args.seed_reviews)
+        sync_account(kv, account["slug"], seed_reviews=args.seed_reviews,
+                     coaching=args.push_coaching)
     if not args.skip_ref:
         sync_referential(kv)
 

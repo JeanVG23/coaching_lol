@@ -7,7 +7,7 @@ Compte-rendu de coaching agrégé, narré par un LLM (Ollama Cloud, structured o
 
 ```
 gold (perso + référentiel) → payload.build (déterministe) → prompt.render
-   → llm_client.generate_json (Ollama Cloud, format=JSON-schema)
+   → llm_client.generate (Ollama Cloud, format=JSON-schema) → (sortie, télémétrie)
    → schema.Review (validation Pydantic) → render_text (FR) + persiste reviews.jsonl
 ```
 
@@ -18,7 +18,7 @@ gold (perso + référentiel) → payload.build (déterministe) → prompt.render
 | `payload.py` | gold perso+réf → payload déterministe, **safe-only** (positioning ⊂ `COACHING_SAFE`, profondeur `descriptive_only`) |
 | `prompt.py` | system (asymétrie + benchmark-relatif + règle format, FR) + user |
 | `schema.py` | Pydantic `Review` : 3 forces / 3 erreurs / 2 habitudes / 1 focus / confidence, **preuve chiffrée par point** |
-| `llm_client.py` | client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema, retries 429/5xx |
+| `llm_client.py` | client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema, retries 429/5xx. `generate` renvoie aussi la télémétrie du run (latence, tokens, coût) |
 | `coach.py` | CLI : payload→prompt→client→validation→affiche+persiste. `DEFAULT_MODEL = "kimi-k2.6"` |
 
 ## Usage
@@ -30,7 +30,23 @@ python3 src/04_coaching/coach.py --player spadzze --scope adc [--outcome loss] \
 
 Résolution du modèle : `--model` (CLI) > `OLLAMA_MODEL` (shell env) > `OLLAMA_MODEL` (`.env`)
 > `DEFAULT_MODEL`. Sortie persistée dans `data/07_coaching/<player>/reviews.jsonl`
-(1 ligne JSON par run : `ts`, `model`, `scope`, `target`, `outcome_focus`, `payload`, `review`).
+(1 ligne JSON par run : `ts`, `model`, `scope`, `target`, `outcome_focus`, `payload`,
+`review`, `run`).
+
+### Le bloc `run` (traçabilité)
+
+Chaque review persistée porte sa trace d'exécution :
+
+| Champ | Sens |
+|---|---|
+| `prompt_version` | empreinte du system prompt (`prompt.version_of`) — **dérivée du texte**, pas un numéro à incrémenter : oublier un bump est impossible |
+| `latency_ms` / `total_tokens` | coût réel de la génération, **retries de schéma inclus** (une sortie rejetée a bien coûté un appel) |
+| `prompt_tokens` / `completion_tokens` / `server_duration_ms` | détail renvoyé par Ollama ; `None` si absent, jamais `0` |
+| `schema_retries` | nombre de sorties rejetées par Pydantic avant succès |
+| `cost_usd` | `None` par défaut : Ollama Cloud est facturé à l'abonnement. Renseigner `llm_client.PRICE_PER_MTOK` suffit à l'obtenir |
+
+Sans ce bloc, une variation du taux d'utilité n'est attribuable ni au prompt ni au
+modèle : la boucle d'éval mesure sans savoir ce qu'elle mesure.
 
 ---
 
@@ -50,7 +66,10 @@ python3 src/04_coaching/feedback.py summary  --player spadzze   # agrégation
   `data/07_coaching/<player>/feedback.jsonl` (1 ligne/review ; réannotation écrase).
 - **summary** : taux d'utilité global + par section, top tags (conseils faux),
   par modèle, tendance (5 dernières vs précédentes ; low_sample `<10`). Filtres
-  `--tag <t>` / `--model <m>`.
+  `--tag <t>` / `--model <m>`. `--json` sort le rapport machine (`eval_report`)
+  publié sur le site et la page CV.
+- `--pending` enchaîne toutes les reviews non annotées (le chemin normal pour
+  fermer la boucle sur un lot de reviews par-game).
 - **Tags** : `asymetrie`, `stat-inventee`, `profondeur-en-faute`, `trop-vague`,
   `non-actionnable`, `autre` — ciblent les modes d'échec connus du prompt
   (règles 1/2/3). Le **top tag** est le signal actionnable pour durcir le prompt
@@ -58,6 +77,86 @@ python3 src/04_coaching/feedback.py summary  --player spadzze   # agrégation
 
 Schéma Pydantic partagé : `schema.FeedbackItem` (kind/index/useful/tag/note,
 invariant *tag requis si useful=False*) + `schema.Feedback`. Aucun appel réseau.
+
+### Critère de succès et publication
+
+**≥70 % d'erreurs jugées utiles sur ≥10 analyses par-partie annotées** (constantes
+`_OBJECTIVE_RATE` / `_OBJECTIVE_N`). La métrique ne retient que les `mistakes` des
+reviews `kind: "game"` : ce sont les seules vérifiables moment par moment.
+
+Le taux est affiché sur le site en tête de l'onglet Coaching, **atteint ou non**.
+Il est recalculé à la lecture par le Worker (`web/cf/src/evaluation.ts`,
+`GET /api/c/<slug>/eval`) et non poussé précalculé : les annotations arrivent
+aussi du site lui-même, un blob figé au dernier sync afficherait un taux périmé.
+Les deux implémentations (Python pour la CLI, TypeScript pour le site) sont
+verrouillées sur les mêmes seuils par `tests/test_eval_parity.py`.
+
+Les annotations et reviews locales rejoignent KV via :
+
+```bash
+poetry run python3 src/collection/sync_cloudflare.py --push-coaching   # fusion, pas écrasement
+```
+
+---
+
+## Évaluation automatique (0 humain) : ancrage + contrefactuels
+
+L'annotation mesure l'**utilité**, qui est un jugement. Deux familles de contrôles
+mesurent ce qui la précède et se calcule sans personne : la **fidélité au payload**
+et la **sensibilité à l'entrée**. Elles tournent sur les reviews déjà persistées.
+
+### `grounding.py` — les chiffres cités existent-ils ?
+
+Le prompt pose « n'invente aucune stat absente du payload » (règle 2) et le schéma
+`AnchoredInsight` vérifie la PRÉSENCE d'un `mm:ss`, jamais sa VÉRACITÉ : une
+evidence citant 22:07 quand la mort est à 15:13 passait la validation Pydantic.
+
+```bash
+python3 src/04_coaching/grounding.py --player spadzze [--details] [--json]
+```
+
+Trois mesures : chiffres ancrés, horodatages ancrés, violations d'asymétrie (une
+feature `descriptive_only` présentée comme une faute).
+
+**Le point de conception : le cloisonnement par unité.** Rapprocher un chiffre de
+n'importe quelle valeur du payload ne prouve rien — un journal contient des
+centaines de nombres. Les valeurs sont donc indexées par unité (`g`, `cs`, `pct`,
+`s`, `min`, `u`, `n`, `morts`), déduite de l'unité déclarée par le payload agrégé,
+sinon du chemin du champ ; un « 1 225 g » ne peut s'ancrer que sur un montant d'or.
+Sont admis en plus : les dénombrements et parts dérivables du journal (« 4 morts
+en BOT », « 60 % de tes morts »), les nombres portés par les noms de métriques
+(`gd14`), la valeur absolue (« -364 g challenger ») et l'arrondi entier d'une part.
+
+**Le détecteur est calibré par contrôle négatif** (`tests/test_grounding.py`) : on
+falsifie les chiffres de reviews réelles et on mesure le taux de rejet. À 5 % de
+tolérance d'arrondi il n'attrapait que 56 % des falsifications ; `ROUNDED_REL`
+vaut donc 1 %, ce qui en rejette ~91 % sans perdre les citations légitimes.
+Un taux d'ancrage sans mesure de puissance ne veut rien dire.
+
+### `counterfactual.py` — le coach lit-il le payload ?
+
+Un coach peut être parfaitement ancré et totalement insensible : réciter « tu meurs
+en BOT early » est plausible pour presque toute game d'ADC. On perturbe donc UNE
+dimension du payload, on régénère, et on vérifie que la sortie suit.
+
+```bash
+python3 src/04_coaching/counterfactual.py --player spadzze --n 3 [--dry-run]
+```
+
+| perturbation | attente vérifiable |
+|---|---|
+| `no_deaths` | journal pauvre → `confidence` baisse (règle 7 du prompt) |
+| `zone_to_top` | les morts citées basculent en TOP |
+| `unspent_gold_zero` | le gold non dépensé cité s'effondre |
+
+La review déjà persistée sert de référence : une perturbation coûte **un** appel.
+Chaque sortie perturbée est en plus passée à `grounding` **contre le payload
+perturbé** : un modèle qui récite les chiffres de la game d'origine voit son
+ancrage chuter, ce qui sépare « il a lu » de « il a deviné ».
+
+Le rapport va dans `data/07_coaching/<player>/eval/counterfactual.json`, **hors**
+de `reviews.jsonl` : une sortie contrefactuelle n'est pas une review du joueur,
+elle ne doit ni être annotée ni remonter sur le site.
 
 ---
 
