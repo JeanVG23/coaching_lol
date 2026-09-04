@@ -14,7 +14,9 @@
 > Avancement au 2026-09-04 : **P1 fait et déployé**, **P2 fait** (CI + ruff), **P7 fait**,
 > **P3 CLÔTURÉ** : 12 analyses annotées, 96 % de mistakes utiles (cible ≥70 % sur ≥10),
 > taux publié et vérifié en production sur `/api/c/spadzze/eval`.
-> Reste : P5 (`make demo`), P6 (orchestration).
+> **P5 CLÔTURÉ** : `make demo` tourne après un simple clone (0 réseau, 0 clé) sur
+> 49 parties réelles pseudonymisées, et les goldens de parité s'exécutent enfin en CI.
+> Reste : P6 (orchestration).
 
 ## 🔥 P1 — Démo exploitable par quelqu'un qui ne connaît pas le projet
 
@@ -93,15 +95,41 @@ Les trois vrais atouts, dans cet ordre :
 - [x] Toujours donner le contexte du chiffre (n + protocole). « AUC 0,645 vs 0,633 » seul ne
       prouve rien ; « test held-out, 201 joueurs, CV purgée » devient une preuve de méthode.
 
-## ⚙️ P5 — Rendre le repo exécutable
+## ✅ P5 — Rendre le repo exécutable
 
 `data/` est intégralement gitignoré : après `git clone && poetry install`, un lecteur ne peut
 **rien** lancer.
 
-- [ ] Jeu de fixtures anonymisées (quelques matchs raw compressés, versionnés).
-- [ ] Cible `make demo` : silver -> gold -> `compare` -> une review avec client LLM mocké.
-- [ ] Documenter `make demo` en tête du README. C'est ce qui fait passer de « README impressionnant »
-      à « code réellement exécuté par un lead tech ».
+- [x] Jeu de fixtures anonymisées (49 matchs raw compressés, 3,2 Mo, `tests/fixtures/demo/`),
+      régénérable par `make fixtures` (`src/pipeline_ops/build_demo_fixtures.py`).
+- [x] Cible `make demo` : silver -> gold -> `compare` -> review avec `--mock-llm` -> `grounding`.
+- [x] Documenter `make demo` en tête du README.
+- [x] Bonus non prévu : les 7 goldens de parité s'exécutent en CI au lieu de se sauter.
+
+### Journal P5 — dépôt exécutable (2026-09-04)
+
+**Parti pris.** `make demo` rejoue les scripts de PRODUCTION sur un petit jeu de données,
+au lieu d'être un chemin de démo parallèle. Sinon on démontre que la démo marche, pas que
+le pipeline marche. Seul l'appel au modèle est remplacé (`--mock-llm`).
+
+**Ce que la démo a révélé** (l'intérêt principal, en fait) : les goldens de parité
+`payload.py` ↔ `readers.ts` lisaient `data/03_gold/`, gitignoré. En CI ils se *skippaient*,
+donc ils étaient verts sans avoir rien vérifié, et ils ne protégeaient que le poste local.
+Adossés aux fixtures, ils ont échoué du premier coup sur un vrai défaut : `_zone_phase_signals`
+itérait `set(me) | set(ref)`, donc à delta égal l'ordre des morts par zone × phase dépendait
+du hachage des chaînes (`PYTHONHASHSEED`). Le payload envoyé au LLM n'était pas déterministe
+d'un run à l'autre, et le TypeScript, qui part de clés triées, divergeait. Corrigé, test de
+régression ajouté.
+
+**Pseudonymisation.** Deux natures d'identifiants, deux traitements. Les opaques (`puuid`,
+`summonerId`, `matchId`) sont remplacés partout par balayage récursif : se fier à une liste
+de clés, c'est fuir le jour où Riot en ajoute une. Les pseudonymes, eux, uniquement aux
+champs qui les portent : la première version remplaçait toute chaîne égale à un pseudo, et
+un joueur nommé « Aatrox » réécrivait silencieusement le `championName` de toutes les games.
+L'audit tourne à la génération et **rejoue dans les tests** : c'est un invariant du dépôt.
+
+**Autres corrections au passage** : le badge README annonçait encore « XGBoost | LightGBM »
+(même erreur factuelle que sur la page CV, LightGBM ayant été retiré du code).
 
 ## ⚙️ P6 — Orchestration réelle
 

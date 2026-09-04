@@ -201,6 +201,12 @@ qui n'étaient pas du serving et que la collecte locale utilise toujours ont mig
 `ml_rank.py` et `settings.py` → `src/core/`, `pipeline.py` → `src/collection/`. Le reste
 (main/jobs/readers/routers) ne servait que l'ancienne app ; l'historique git le garde.
 ⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : config source).
+⚠️ **`COACHING_DATA_DIR`** déplace toute la pile médaillon (`riotlib.DATA` ET
+`champion_profiles.STATIC_DIR`, sans quoi la démo lirait les catalogues réels). C'est ce qui
+permet à `make demo` de rejouer les scripts de production sur `tests/fixtures/demo/` sans
+toucher aux données réelles. Lue à l'import : côté tests, la fixture `demo_data` substitue
+les attributs de module (portée fonction — une redirection qui survit à son test contamine
+les suivants).
 ⚠️ Les chemins des couches sont définis dans `src/core/riotlib.py` (`RAW_DIR`/`SILVER_DIR`/`GOLD_DIR`).
 Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancien.
 
@@ -300,6 +306,14 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   `player_metrics.json` (⚠ DÉRIVE si le modèle servi n'est plus entraîné sur l'effectif courant).
   À relancer après chaque densification/rebuild.
 - **`archive_patch.py`** — archive raw/silver/gold/dataset du patch courant avant de passer au suivant.
+- **`build_demo_fixtures.py`** — fabrique `tests/fixtures/demo/` (cible `make demo`) : 49 parties
+  réelles **pseudonymisées** + amorce silver + Data Dragon élagué aux seuls champs lus.
+  Deux natures d'identifiants, deux traitements, et c'est le point à ne pas simplifier :
+  les **opaques** (`puuid`, `summonerId`, `matchId`) sont remplacés partout par balayage
+  récursif (un champ oublié = une fuite) ; les **pseudonymes** uniquement aux clés qui les
+  portent, parce qu'un joueur nommé « Aatrox » ferait réécrire le `championName` de toutes
+  les games par un remplacement global. `audit()` relit ce qui a été écrit et échoue sur
+  survivance ; `tests/test_demo.py` rejoue ce contrôle à chaque run.
 
 ### Modules `reporting/` et `experiments/`
 
@@ -423,6 +437,18 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
   sa suppression sans ajout de carte bancaire, elle est donc laissée en l'état sans réactiver
   la facturation. L'historique local disponible a été fusionné dans KV (17 reviews, 5 feedbacks) ;
   le volume Fly n'a pas été rapatrié davantage, par choix.
+- **Dépôt exécutable après clone** ✅ — 2026-09-04. `make demo` (README en tête) : 0 réseau,
+  0 clé, 49 parties réelles pseudonymisées dans `tests/fixtures/demo/` (3,2 Mo), et la chaîne
+  de PRODUCTION rejouée dessus (`reextract_silver` → `rebuild_gold` → `compare` → `coach
+  --mock-llm` → `grounding`). Seul l'appel modèle est remplacé (`src/04_coaching/mock_llm.py`,
+  substitué à `llm_client.generate` : le reste du chemin — schéma, validation Pydantic,
+  télémétrie, persistance — reste celui de prod, et le mock ne cite que des chiffres du
+  payload pour que `grounding` derrière rende un taux vrai). **Effet CI** : les 7 goldens de
+  parité `payload.py` ↔ `readers.ts` lisaient `data/03_gold/` (gitignoré) et se *skippaient*
+  en CI, donc verts sans rien vérifier ; adossés aux fixtures ils s'exécutent, et ont
+  immédiatement révélé un vrai défaut — `_zone_phase_signals` itérait `set(me) | set(ref)`,
+  donc à delta égal l'ordre dépendait du `PYTHONHASHSEED` (payload non déterministe entre
+  deux runs) alors que le TS partait de clés triées. Corrigé + test de régression.
 - **Phase 1 VALIDÉE** ✅ — positionnement reconstruit sans vision. Insight type :
   « 1 ennemi = 5/8 de tes morts » >> « meurs moins ».
 - **Phase 1.5 — agrégation multi-games** ✅ — pattern récurrent sur 14-20 games : ~37 % des

@@ -4,11 +4,42 @@
 [![Python](https://img.shields.io/badge/Python-3.13+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Poetry](https://img.shields.io/badge/Poetry-Package%20Manager-60A5FA?style=flat&logo=poetry&logoColor=white)](https://python-poetry.org/)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%2B%20KV-F38020?style=flat&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![XGBoost](https://img.shields.io/badge/ML-XGBoost%20%7C%20LightGBM-EB5424?style=flat)](https://xgboost.readthedocs.io/)
+[![XGBoost](https://img.shields.io/badge/ML-XGBoost%20%7C%20RF%20%7C%20EBM-EB5424?style=flat)](https://xgboost.readthedocs.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Worker-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 > **Un coach IA personnalisé centré sur les décisions du joueur, le macro-positionnement et la chaîne causale des événements, benchmarké par rapport aux données réelles de joueurs Challenger / Master.**
+
+---
+
+## ▶️ Essayer en deux commandes
+
+```bash
+poetry install
+make demo
+```
+
+Aucune clé API, aucun accès réseau, rien à configurer. `make demo` rejoue la chaîne
+complète sur **49 parties réelles pseudonymisées** versionnées dans
+`tests/fixtures/demo/` :
+
+| étape | ce qui tourne | ce que ça montre |
+|---|---|---|
+| 1 | `pipeline_ops/reextract_silver.py` | raw compressé → 274 records silver, 0 appel API |
+| 2 | `pipeline_ops/rebuild_gold.py` | agrégats benchmarkés, facettes victoire/défaite |
+| 3 | `reporting/compare.py` | verdict chiffré perso vs Challenger, à issue égale |
+| 4 | `04_coaching/coach.py --game` | payload → schéma → review validée |
+| 5 | `04_coaching/grounding.py` | taux d'ancrage de la review qui vient d'être produite |
+
+Ce sont les scripts de production, pas une démo parallèle : la seule pièce
+remplacée est l'appel au modèle (`--mock-llm`, générateur déterministe qui relit le
+payload). Les données de démo atterrissent dans `.demo/`, jetable ; `data/` n'est
+jamais touché. La chaîne complète est verrouillée par `tests/test_demo.py`.
+
+> Les fixtures sont des parties réelles dont tout identifiant Riot a été remplacé
+> par un jeton déterministe (`puuid`, `summonerId`, identifiant de partie, pseudo).
+> La pseudonymisation est régénérable (`make fixtures`) et **vérifiée à chaque
+> exécution des tests**, pas seulement au moment où elle a été faite.
 
 ---
 
@@ -93,7 +124,7 @@ coaching_lol/
 - **Contexte de Lane & Matchup** : Classification automatique de la composition botlane (`poke`, `all_in`, `scaling`, `mixed`) et calcul de l'exposition aux ganks (`low`, `med`, `high`).
 
 ### 3. Machine Learning & Estimation de Rang
-- **Classification de niveau** : Prédiction probabiliste du rang effectif (High Elo Challenger/Master vs Low Elo) entraînée sur les profils agrégés de joueurs (`build_player_dataset.py`, XGBoost / LightGBM).
+- **Classification de niveau** : Prédiction probabiliste du rang effectif (High Elo Challenger/Master vs Low Elo) entraînée sur les profils agrégés de joueurs (`build_player_dataset.py`, ensemble XGBoost / Random Forest / EBM).
 - **Régression de LP** : Modèle calibré estimant le niveau en League Points continus.
 - **Interprétabilité SHAP** : Extraction des leviers de progression spécifiques au joueur (SHAP values indiquant précisément quelles habitudes freinent la montée en elo).
 
@@ -206,7 +237,10 @@ L'application est accessible en local sur `http://localhost:8787` (et déployée
 Le projet intègre une suite de tests unitaires et de cohérence pour garantir la parité stricte entre les pipelines Python et TypeScript :
 
 ```bash
-# Lancer les tests Python (pytest)
+# Tout d'un coup
+make test && make lint
+
+# Ou commande par commande — les tests Python (pytest)
 poetry run pytest tests/web/
 poetry run pytest tests/
 
@@ -223,8 +257,15 @@ npm run --prefix web/cf typecheck
 Ces quatre commandes sont exactement celles que joue la CI GitHub Actions
 (`.github/workflows/ci.yml`) à chaque push et chaque pull request. La CI installe le
 socle sans `torch` (`poetry install --without deep`) : les tests du transformer
-séquentiel se sautent alors d'eux-mêmes, et ceux qui ont besoin des agrégats locaux
-aussi, puisque `data/` n'est pas versionné.
+séquentiel se sautent alors d'eux-mêmes.
+
+Les tests qui ont besoin d'une pile de données complète, eux, ne se sautent plus :
+ils la construisent depuis `tests/fixtures/demo/` (fixture `demo_data`). Les sept
+goldens de parité `payload.py` ↔ `readers.ts` s'exécutaient auparavant chez le
+mainteneur uniquement, faute de `data/` en CI, et un test sauté est vert sans avoir
+rien vérifié. Adossés aux fixtures, ils ont immédiatement révélé une divergence
+réelle : côté Python, l'ordre des morts par zone × phase dépendait du hachage des
+chaînes, donc du `PYTHONHASHSEED`, alors que le TypeScript partait de clés triées.
 
 > ⚠️ Sur macOS, `torch` et `xgboost` ne cohabitent pas dans le même processus (double
 > chargement de `libomp`, segfault). Lancer la suite complète avec `torch` installé
@@ -236,7 +277,7 @@ aussi, puisque `data/` n'est pas versionné.
 ## 🔒 Confidentialité & Hygiène des Données
 
 - **Pas de données brutes versionnées** : Les fichiers volumineux de timeline (`data/01_raw/`, `data/02_silver/`, etc.) ainsi que les fichiers d'environnement `.env` sont strictement exclus par `.gitignore`.
-- **Fixtures de test anonymisées** : Les jeux de données présents dans `tests/web/fixtures/` sont des fixtures synthétiques minimales conçues pour valider les endpoints de l'API et les parsers sans dépendre de données réelles.
+- **Fixtures de test anonymisées** : `tests/web/fixtures/` contient des fixtures synthétiques minimales pour les endpoints de l'API et les parsers. `tests/fixtures/demo/` (cf. `make demo`) contient à l'inverse de **vraies parties**, pseudonymisées : identifiants opaques (`puuid`, `summonerId`, identifiant de partie) remplacés partout par balayage récursif, pseudonymes remplacés aux seuls champs qui les portent — un joueur peut s'appeler « Aatrox », et un remplacement global réécrirait le `championName` de toutes les parties. `tests/test_demo.py` échoue si un identifiant réel réapparaît.
 - **Gestion des comptes** : `config/accounts.json` n'est pas versionné — les comptes suivis sont des données personnelles. Copiez `config/accounts.example.json` pour créer le vôtre ; à défaut, la chaîne démarre sur l'exemple.
 
 ---
