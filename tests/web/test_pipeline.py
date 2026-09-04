@@ -1,10 +1,8 @@
 # tests/web/test_pipeline.py
 import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pipeline
-import riotlib as rl
 
 
 def test_fetch_games_progress_and_writes_silver_gold(tmp_path):

@@ -35,7 +35,7 @@ npm test
 npm run typecheck
 ```
 
-> ℹ️ **Stack de serving** : Le site (en local comme en production) tourne exclusivement sur le Worker Cloudflare TypeScript (`web/cf/`). L'ancien backend FastAPI (`web/backend/`) issu de l'hébergement initial sur Fly.io a été décommissionné et n'est conservé que comme archive historique / référence de schéma.
+> ℹ️ **Stack de serving** : Le site (en local comme en production) tourne exclusivement sur le Worker Cloudflare TypeScript (`web/cf/`). L'ancien backend FastAPI (`web/backend/`) issu de l'hébergement initial sur Fly.io a été supprimé du dépôt ; l'historique git en garde la trace, et les modules qui servaient encore à la collecte locale ont été déplacés dans `src/core/` (`ml_rank.py`, `settings.py`) et `src/collection/` (`pipeline.py`).
 
 ## Synchroniser les données locales vers KV
 
@@ -113,7 +113,6 @@ web/
     index.html          # shell SPA
     style.css           # composants et thème
     app.js              # Alpine, API et consommation SSE
-  backend/              # [Archivé] ancienne implémentation FastAPI (Fly.io)
 src/collection/sync_cloudflare.py  # publication locale vers KV
 ```
 

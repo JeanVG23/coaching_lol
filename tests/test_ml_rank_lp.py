@@ -1,9 +1,6 @@
-"""Tests du chemin LP hybride de web/backend/ml_rank.py (helpers purs, modèles
+"""Tests du chemin LP hybride de src/core/ml_rank.py (helpers purs, modèles
 mockés — le placement binaire existant n'est pas re-testé ici)."""
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web" / "backend"))
 import ml_rank
 
 

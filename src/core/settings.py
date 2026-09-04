@@ -1,5 +1,8 @@
-# web/backend/settings.py
-"""Config web : comptes préconfigurés, chemins, secrets lus via env puis .env."""
+"""Config du pipeline web : comptes suivis, chemins, secrets lus via env puis .env.
+
+Vivait dans `web/backend/` du temps de l'app FastAPI. Le backend est parti, pas ce
+module : `pipeline.py` et `sync_cloudflare.py` en dependent pour la collecte locale
+qui alimente Cloudflare KV."""
 from __future__ import annotations
 
 import json
@@ -8,9 +11,11 @@ from pathlib import Path
 
 import riotlib as rl
 
-HERE = Path(__file__).resolve().parent
-ACCOUNTS_FILE = HERE / "accounts.json"
-ACCOUNTS_EXAMPLE_FILE = HERE / "accounts.example.json"
+# Les comptes suivis sont des donnees personnelles : accounts.json est ignore par git,
+# accounts.example.json sert de gabarit et de repli.
+CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
+ACCOUNTS_FILE = CONFIG_DIR / "accounts.json"
+ACCOUNTS_EXAMPLE_FILE = CONFIG_DIR / "accounts.example.json"
 JOBS_FILE = rl.DATA / "08_jobs" / "jobs.jsonl"
 
 _PUUID_CACHE: dict[str, str] = {}

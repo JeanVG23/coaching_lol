@@ -34,13 +34,7 @@ from pathlib import Path
 import pandas as pd
 import riotlib as rl
 
-# riotlib est déjà résolu par le sys.path applicatif (main.py) ou par
-# tests/conftest.py — mais ml_features (src/core/) n'y est pas garanti (dépend
-# d'un état de réorg non commité), donc on l'ajoute nous-mêmes, défensivement,
-# comme le fait déjà ce fichier pour DATA_ENG ci-dessous.
-CORE = Path(__file__).resolve().parents[2] / "src" / "core"
-if str(CORE) not in sys.path:
-    sys.path.insert(0, str(CORE))
+# Voisins de src/core/ : resolus par le sys.path qui a servi a importer ce module.
 import ml_features as mf
 
 DATA_ENG = Path(__file__).resolve().parents[2] / "src" / "01_data_engineering"
