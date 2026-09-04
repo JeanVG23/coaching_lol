@@ -25,6 +25,7 @@ import payload as payload_mod
 import prompt as prompt_mod
 import schema as schema_mod
 import llm_client
+import mock_llm
 import feedback as feedback_mod
 
 # Modèle par défaut retenu après A/B (cf. README.md) : kimi-k2.6 respecte le plus
@@ -240,7 +241,17 @@ def main() -> int:
                      metavar="N",
                      help="génère les reviews par-game des N dernières games "
                           "du scope pas encore reviewées (défaut 10)")
+    ap.add_argument("--mock-llm", action="store_true",
+                    help="remplace l'appel Ollama par un générateur déterministe "
+                         "(make demo : 0 réseau, 0 clé)")
     args = ap.parse_args()
+    if args.mock_llm:
+        # Substitution au point d'entrée réseau : tout le reste du chemin
+        # (schéma, validation, télémétrie, persistance) reste celui de production.
+        llm_client.generate = mock_llm.generate
+        args.model = mock_llm.MODEL_NAME
+        print("⚠ --mock-llm : sortie fabriquée à partir du payload, "
+              "ce n'est pas du coaching.\n")
     # Résolution modèle : --model CLI > OLLAMA_MODEL (shell env) > .env > défaut.
     # load_env() ne peuple pas os.environ, donc on lit .env explicitement ici.
     if args.model is None:
