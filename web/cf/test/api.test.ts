@@ -59,6 +59,25 @@ describe("GET /api/accounts", () => {
   });
 });
 
+describe("POST /api/chat", () => {
+  it("route le chat et refuse une position ennemie cachée sans appeler Ollama", async () => {
+    const { env, kv } = await seed();
+    const response = await handle(new Request("http://x/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        slug: "spadzze", review_ts: "2026-08-30T12:00:00",
+        messages: [{ role: "user", content: "Où était le jungler ennemi ?" }],
+      }),
+    }), env);
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain("event: message");
+    expect(body).toContain('"refused_hidden_info":true');
+    expect(kv.store.get(KEYS.chats("spadzze"))).toContain("review_ts");
+  });
+});
+
 describe("GET /api/c/{slug}/games", () => {
   it("défauts page=1 size=20, tri séquence décroissante", async () => {
     const { env } = await seed();

@@ -224,3 +224,39 @@ export function buildPayload(
   }
   return { meta, signals, context };
 }
+
+/** Map : garde uniquement les causes qualitatives des 20 dernières reviews game. */
+export function addGameReviewCauses(
+  payload: JsonRecord,
+  reviews: JsonRecord[],
+  scope: string,
+  limit = 20,
+): JsonRecord {
+  const mapped = reviews.filter((record) => {
+    const meta = record.payload?.meta ?? {};
+    return record.kind === "game"
+      && (scope === "all" || (record.scope ?? meta.scope) === scope);
+  }).sort((left, right) => String(right.ts ?? "").localeCompare(String(left.ts ?? "")))
+    .map((record) => {
+      const meta = record.payload?.meta ?? {};
+      const qualitative = (section: "strengths" | "mistakes") =>
+        (record.review?.[section] ?? []).filter((insight: JsonRecord) =>
+          typeof insight?.point === "string"
+            && typeof insight?.cause === "string"
+            && insight.cause.trim() !== "")
+          .map((insight: JsonRecord) => ({ point: insight.point, cause: insight.cause }));
+      return {
+        champion: meta.champion ?? null,
+        outcome: meta.win ? "win" : "loss",
+        strengths: qualitative("strengths"),
+        mistakes: qualitative("mistakes"),
+      };
+    }).filter((row) => row.strengths.length > 0 || row.mistakes.length > 0)
+    .slice(0, limit);
+  if (mapped.length === 0) return payload;
+  return {
+    ...payload,
+    meta: { ...payload.meta, n_game_reviews_used: mapped.length },
+    game_review_causes: mapped,
+  };
+}

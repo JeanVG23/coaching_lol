@@ -37,10 +37,10 @@ def _pf(gold_total, gold_current, level=5, x=13000, y=2000):
             "level": level, "position": {"x": x, "y": y}}
 
 
-def _kill(t_ms, victim, killer, assists=(), x=13000, y=2000):
+def _kill(t_ms, victim, killer, assists=(), x=13000, y=2000, **extra):
     return {"type": "CHAMPION_KILL", "timestamp": t_ms, "victimId": victim,
             "killerId": killer, "assistingParticipantIds": list(assists),
-            "position": {"x": x, "y": y}}
+            "position": {"x": x, "y": y}, **extra}
 
 
 def _buy(t_ms, pid, item=1055):
@@ -133,6 +133,41 @@ def test_death_gank_flag():
     tl = _basic_timeline({4: [_kill(270000, victim=1, killer=10, assists=[6])]})
     d = J.game_journal(_match(), tl, ME)["deaths"][0]
     assert d["is_ganked_by_jungle"] is True and d["is_solo"] is False
+
+
+def test_death_damage_summarizes_poke_engage_basics_and_sources():
+    fatal = [
+        {"name": "Skarner", "type": "OTHER", "basic": False,
+         "physicalDamage": 0, "magicDamage": 300, "trueDamage": 0},
+    ]
+    fight = [
+        {"name": "Caitlyn", "type": "OTHER", "basic": True,
+         "physicalDamage": 200, "magicDamage": 0, "trueDamage": 0},
+        {"name": "Caitlyn", "type": "OTHER", "basic": True,
+         "physicalDamage": 100, "magicDamage": 0, "trueDamage": 0},
+        *fatal,
+    ]
+    tl = _basic_timeline({4: [_kill(
+        270000, victim=1, killer=10,
+        victimDamageReceived=fatal,
+        victimTeamfightDamageReceived=fight,
+    )]})
+    damage = J.game_journal(_match(), tl, ME)["deaths"][0]["damage"]
+
+    assert damage["total_damage"] == 600
+    assert damage["before_engage_damage"] == 300
+    assert damage["before_engage_share"] == 0.5
+    assert damage["basic_damage"] == 300 and damage["basic_share"] == 0.5
+    assert damage["top_sources"][0] == {
+        "source": "Caitlyn", "type": "OTHER", "damage": 300,
+        "basic_damage": 300, "spell_damage": 0, "share": 0.5,
+        "before_engage_damage": 300, "during_engage_damage": 0,
+    }
+
+
+def test_death_damage_omitted_when_death_recap_is_absent():
+    tl = _basic_timeline({4: [_kill(270000, victim=1, killer=6)]})
+    assert "damage" not in J.game_journal(_match(), tl, ME)["deaths"][0]
 
 
 def test_recalls_cluster_purchases_and_skip_opening_buy():

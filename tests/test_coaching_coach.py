@@ -82,6 +82,46 @@ def test_generate_game_review_validates(monkeypatch):
     assert run["prompt_version"] == C.prompt_mod.GAME_PROMPT_VERSION
 
 
+def test_specialized_review_runs_two_axes_then_chief_without_rewriting(monkeypatch):
+    death = {"strengths": [{"point": "bon placement", "cause": "reste derrière",
+                             "evidence": "à 10:04, 300 dégâts"}],
+             "mistakes": [{"point": "respecte le poke", "cause": "autos avant engage",
+                            "evidence": "mort à 11:06, 600 dégâts"}],
+             "next_focus": "placement", "confidence": 0.7}
+    economy = {"strengths": [],
+               "mistakes": [{"point": "reset avant objectif", "cause": "achat tardif",
+                              "evidence": "recall à 12:00, 1 500 g"}],
+               "next_focus": "reset", "confidence": 0.6}
+    chief = {
+        "summary_insight_id": "death_positioning:mistakes:0",
+        "priority_mistake_ids": ["death_positioning:mistakes:0",
+                                 "economy_build:mistakes:0"],
+        "strength_insight_ids": ["death_positioning:strengths:0"],
+        "next_focus_insight_id": "economy_build:mistakes:0",
+        "confidence": 0.75,
+    }
+
+    def fake_generate(model, system, user, schema, **kwargs):
+        if "agent chef" in system:
+            return _gen(chief)
+        if "MORTS & POSITIONNEMENT" in system:
+            return _gen(death)
+        if "ÉCONOMIE & BUILD" in system:
+            return _gen(economy)
+        raise AssertionError(system)
+
+    monkeypatch.setattr(C.llm_client, "generate", fake_generate)
+    review, run = C.generate_specialized_game_review(_game_payload(), "m")
+    assert isinstance(review, S.SpecializedGameReview)
+    assert review.summary == "respecte le poke"
+    assert [item.point for item in review.mistakes] == [
+        "respecte le poke", "reset avant objectif"]
+    assert review.next_focus == "reset avant objectif"
+    assert [axis.axis for axis in review.axes] == [
+        "death_positioning", "economy_build"]
+    assert len(run["stages"]) == 3
+
+
 def test_persist_game_records_kind_and_match_id(tmp_path):
     pl = _game_payload()
     review = S.GameReview.model_validate(_game_review_dict())

@@ -74,11 +74,12 @@ def cited_clocks(text: str) -> list[str]:
 # falsifications. On indexe donc les valeurs PAR UNITÉ, et un « 1 225 g » ne peut
 # s'ancrer que sur un champ de gold, pas sur un timestamp qui passait par là.
 
-UNITS = ("g", "cs", "pct", "s", "min", "u", "n", "morts")
+UNITS = ("g", "cs", "pct", "dmg", "s", "min", "u", "n", "morts")
 ANY = "any"
 
 # Unité déduite du nom de champ. Ordre significatif : le premier motif gagne.
 _KEY_UNITS = (
+    (("damage", "_dmg"), "dmg"),
     (("gold", "gd10", "gd14", "gd20", "cost", "price"), "g"),
     (("csd", "cs_", "creep"), "cs"),
     (("delta_s", "dead_time", "duration_s", "_seconds"), "s"),
@@ -89,10 +90,11 @@ _KEY_UNITS = (
 )
 # `"unit"` déclarée par les signaux du payload agrégé -> bloc de valeurs.
 _DECLARED_UNITS = {"g": "g", "cs": "cs", "s": "s", "u": "u", "pct": "pct",
-                   "min": "min", "ward": "n", "n": "n"}
+                   "dmg": "dmg", "min": "min", "ward": "n", "n": "n"}
 # Champs internes jamais cités tels quels : les inclure gonflait l'espace des
 # valeurs plausibles sans qu'un coach puisse légitimement les citer.
 _IGNORED_KEYS = ("t_ms",)
+_UNGROUNDED_SUBTREES = ("game_review_causes", "axes")
 
 
 def _unit_of(key: str) -> str | None:
@@ -107,6 +109,8 @@ def _walk(node, key: str, out: dict[str, set[float]], inherited: str | None = No
     """L'unité se transmet du parent à l'enfant : le payload agrégé range les
     valeurs sous `{"gd14": {"me": .., "ref": .., "delta": ..}}`, et lire l'unité
     sur la feuille (`me`) rangeait des gold parmi les dénombrements."""
+    if key in _UNGROUNDED_SUBTREES:
+        return
     if isinstance(node, bool) or node is None:
         return
     own = _unit_of(key) if key else None
@@ -135,16 +139,18 @@ def _walk(node, key: str, out: dict[str, set[float]], inherited: str | None = No
             _walk(child, key, out, own or inherited)
 
 
-def _strings_and_keys(node) -> list[str]:
+def _strings_and_keys(node, key: str = "") -> list[str]:
     """Textes du payload : les noms de métriques portent des nombres (`gd14`,
     « cs diff @10 ») qu'une evidence cite légitimement."""
+    if key in _UNGROUNDED_SUBTREES:
+        return []
     if isinstance(node, str):
         return [node]
     if isinstance(node, dict):
-        return [k for k in node] + [t for child in node.values()
-                                    for t in _strings_and_keys(child)]
+        return [k for k in node] + [t for child_key, child in node.items()
+                                    for t in _strings_and_keys(child, child_key)]
     if isinstance(node, list):
-        return [t for child in node for t in _strings_and_keys(child)]
+        return [t for child in node for t in _strings_and_keys(child, key)]
     return []
 
 
@@ -207,8 +213,10 @@ def _clock_seconds(clock: str) -> int:
 
 
 # Unité portée par le texte qui suit immédiatement le nombre.
-_EXACT_SUFFIXES = {"g": "g", "or": "g", "cs": "cs", "s": "s"}
+_EXACT_SUFFIXES = {"g": "g", "or": "g", "cs": "cs", "s": "s",
+                   "dmg": "dmg"}
 _PREFIX_SUFFIXES = (("sec", "s"), ("min", "min"), ("unit", "u"),
+                    ("dégât", "dmg"), ("degat", "dmg"), ("damage", "dmg"),
                     ("mort", "morts"), ("déc", "morts"), ("dec", "morts"))
 
 

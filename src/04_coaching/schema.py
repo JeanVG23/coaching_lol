@@ -87,6 +87,41 @@ def game_review_json_schema() -> dict:
     return GameReview.model_json_schema()
 
 
+# --- Review par agents spécialisés ------------------------------------------
+
+AxisKind = Literal["death_positioning", "economy_build"]
+
+
+class AxisReview(GameReview):
+    axis: AxisKind
+    label: str
+
+
+class ChiefSelection(BaseModel):
+    """Le chef ne rédige rien : il sélectionne les IDs des sous-agents."""
+    summary_insight_id: str
+    priority_mistake_ids: Annotated[list[str], Field(min_length=1, max_length=3)]
+    strength_insight_ids: Annotated[list[str], Field(max_length=2)]
+    next_focus_insight_id: str
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+
+
+class SpecializedGameReview(GameReview):
+    """Vue compatible GameReview + analyses complètes dépliables par axe."""
+    summary: str
+    axes: Annotated[list[AxisReview], Field(min_length=2, max_length=2)]
+
+
+def chief_selection_json_schema(mistake_ids: list[str], strength_ids: list[str]) -> dict:
+    schema = ChiefSelection.model_json_schema()
+    props = schema["properties"]
+    props["summary_insight_id"]["enum"] = mistake_ids
+    props["priority_mistake_ids"]["items"]["enum"] = mistake_ids
+    props["next_focus_insight_id"]["enum"] = mistake_ids
+    props["strength_insight_ids"]["items"]["enum"] = strength_ids
+    return schema
+
+
 # --- Boucle d'évaluation : annotation des reviews persistées -----------------
 
 TagKind = Literal["asymetrie", "stat-inventee", "profondeur-en-faute",

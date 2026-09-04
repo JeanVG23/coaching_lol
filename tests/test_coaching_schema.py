@@ -123,3 +123,11 @@ def test_json_schema_has_fixed_lengths():
     assert sch["properties"]["strengths"]["maxItems"] == 3
     assert sch["properties"]["mistakes"]["minItems"] == 3
     assert sch["properties"]["habits"]["maxItems"] == 2
+
+
+def test_chief_schema_constrains_selection_to_specialist_ids():
+    sch = S.chief_selection_json_schema(["m1", "m2"], ["s1"])
+    props = sch["properties"]
+    assert props["summary_insight_id"]["enum"] == ["m1", "m2"]
+    assert props["priority_mistake_ids"]["items"]["enum"] == ["m1", "m2"]
+    assert props["strength_insight_ids"]["items"]["enum"] == ["s1"]

@@ -83,6 +83,30 @@ def test_units_are_isolated():
     assert G.check_review(_record("290 % à 4:42"))["numbers"][0]["status"] == "non_ancre"
 
 
+def test_damage_unit_is_isolated_from_gold_and_percentages():
+    payload = _payload()
+    payload["journal"]["deaths"][0]["damage"] = {
+        "total_damage": 900, "basic_share": 0.4,
+    }
+    record = _record("900 dégâts et 40 % d'autos à 4:42")
+    record["payload"] = payload
+    assert all(number["status"] != "non_ancre"
+               for number in G.check_review(record)["numbers"])
+
+    wrong_unit = _record("900 g à 4:42")
+    wrong_unit["payload"] = payload
+    assert G.check_review(wrong_unit)["numbers"][0]["status"] == "non_ancre"
+
+
+def test_numbers_from_llm_causes_never_become_grounding_sources():
+    payload = _payload(game_review_causes=[{
+        "mistakes": [{"point": "ancien point", "cause": "9 999 g à 42:42"}],
+    }])
+    record = _record("9 999 g à 4:42")
+    record["payload"] = payload
+    assert G.check_review(record)["numbers"][0]["status"] == "non_ancre"
+
+
 def test_derived_share_may_be_cited_rounded():
     """« 50 % de tes morts (1/2) » est derivable du journal, pas invente."""
     check = G.check_review(_record("1 mort sur 2 en BOT à 4:42, soit 50 % de tes morts"))

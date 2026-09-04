@@ -15,6 +15,7 @@ export const KEYS = {
   shap: (slug: string) => `shap:${slug}:drivers`,
   reviews: (slug: string) => `coaching:${slug}:reviews`,
   feedback: (slug: string) => `coaching:${slug}:feedback`,
+  chats: (slug: string) => `coaching:${slug}:chats`,
 };
 
 export function matchSeq(matchId: string): number {

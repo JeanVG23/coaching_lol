@@ -48,6 +48,39 @@ assert set(POS_META) == positioning.COACHING_SAFE, \
 
 LOW_SAMPLE_THRESHOLD = 30
 
+# Match-V5 expose les IDs, pas les libellés. Tables stables et volontairement
+# locales : enrichir un payload ne doit jamais provoquer un appel Data Dragon.
+SUMMONER_SPELLS = {
+    1: "Cleanse", 3: "Exhaust", 4: "Flash", 6: "Ghost", 7: "Heal",
+    11: "Smite", 12: "Teleport", 13: "Clarity", 14: "Ignite", 21: "Barrier",
+    30: "To the King!", 31: "Poro Toss", 32: "Mark",
+}
+RUNES = {
+    8005: "Press the Attack", 8008: "Lethal Tempo", 8010: "Conqueror",
+    8021: "Fleet Footwork", 8112: "Electrocute", 8128: "Dark Harvest",
+    9923: "Hail of Blades", 8214: "Summon Aery", 8229: "Arcane Comet",
+    8230: "Phase Rush", 8351: "Glacial Augment", 8360: "Unsealed Spellbook",
+    8369: "First Strike", 8437: "Grasp of the Undying", 8439: "Aftershock",
+    8465: "Guardian",
+    # Runes secondaires les plus fréquentes (les IDs inconnus restent exposés
+    # sous forme ``rune_<id>`` plutôt que d'être silencieusement supprimés).
+    8009: "Presence of Mind", 9101: "Absorb Life", 9111: "Triumph",
+    9104: "Legend: Alacrity", 9105: "Legend: Haste", 9103: "Legend: Bloodline",
+    8014: "Coup de Grace", 8017: "Cut Down", 8299: "Last Stand",
+    8126: "Cheap Shot", 8139: "Taste of Blood", 8143: "Sudden Impact",
+    8136: "Zombie Ward", 8120: "Ghost Poro", 8138: "Eyeball Collection",
+    8135: "Treasure Hunter", 8134: "Relentless Hunter", 8105: "Ultimate Hunter",
+    8224: "Nullifying Orb", 8226: "Manaflow Band", 8275: "Nimbus Cloak",
+    8210: "Transcendence", 8234: "Celerity", 8233: "Absolute Focus",
+    8237: "Scorch", 8232: "Waterwalking", 8236: "Gathering Storm",
+    8446: "Demolish", 8463: "Font of Life", 8401: "Shield Bash",
+    8429: "Conditioning", 8444: "Second Wind", 8473: "Bone Plating",
+    8451: "Overgrowth", 8453: "Revitalize", 8242: "Unflinching",
+    8306: "Hextech Flashtraption", 8304: "Magical Footwear", 8321: "Cash Back",
+    8313: "Triple Tonic", 8345: "Biscuit Delivery", 8347: "Cosmic Insight",
+    8410: "Approach Velocity", 8316: "Jack of All Trades",
+}
+
 
 def _lane_signals(mf: dict, rf: dict) -> list[dict]:
     out = []
@@ -123,8 +156,49 @@ def _load(gold_dir: Path, kind: str, name: str, scope: str) -> dict:
     return json.loads(path.read_text())
 
 
+def _game_review_causes(reviews: list[dict], scope: str, limit: int = 20) -> list[dict]:
+    """Map : sorties par-game -> causes qualitatives, sans preuves chiffrées.
+
+    Les ``evidence`` et match_ids sont volontairement retirés. Ils viennent d'un
+    LLM et ne doivent jamais devenir des chiffres citables dans la synthèse.
+    """
+    eligible = []
+    for record in reviews:
+        if record.get("kind") != "game":
+            continue
+        meta = (record.get("payload") or {}).get("meta") or {}
+        if scope != "all" and record.get("scope", meta.get("scope")) != scope:
+            continue
+        review = record.get("review") or {}
+
+        def qualitative(section: str) -> list[dict]:
+            out = []
+            for insight in review.get(section) or []:
+                if not isinstance(insight, dict):
+                    continue
+                point, cause = insight.get("point"), insight.get("cause")
+                if isinstance(point, str) and isinstance(cause, str) and cause.strip():
+                    out.append({"point": point, "cause": cause})
+            return out
+
+        strengths, mistakes = qualitative("strengths"), qualitative("mistakes")
+        if not strengths and not mistakes:
+            continue
+        eligible.append({
+            "ts": record.get("ts") or "",
+            "champion": meta.get("champion"),
+            "outcome": "win" if meta.get("win") else "loss",
+            "strengths": strengths,
+            "mistakes": mistakes,
+        })
+    eligible.sort(key=lambda row: row["ts"], reverse=True)
+    return [{k: value for k, value in row.items() if k != "ts"}
+            for row in eligible[:limit]]
+
+
 def build(player: str, scope: str = "adc", target: str = "challenger",
-          outcome: str = "loss", gold_dir=None) -> dict:
+          outcome: str = "loss", gold_dir=None, game_reviews=None,
+          review_limit: int = 20) -> dict:
     gold_dir = Path(gold_dir) if gold_dir is not None else rl.gold_dir()
     me = _load(gold_dir, rl.KIND_PERSONAL, player, scope)
     ref = _load(gold_dir, rl.KIND_REF, target, scope)
@@ -149,7 +223,12 @@ def build(player: str, scope: str = "adc", target: str = "challenger",
         if cb:
             context[axis] = cb
 
-    return {"meta": meta, "signals": signals, "context": context}
+    out = {"meta": meta, "signals": signals, "context": context}
+    causes = _game_review_causes(game_reviews or [], scope, review_limit)
+    if causes:
+        out["game_review_causes"] = causes
+        meta["n_game_reviews_used"] = len(causes)
+    return out
 
 
 # --- Payload par-game : journal ancré + repères référentiel -------------------
@@ -160,6 +239,89 @@ def _resolve_recall_items(recall: dict, catalog: dict) -> dict:
     items = [catalog[i] for i in recall.get("item_ids", []) if i in catalog]
     if items:
         out["items"] = items
+    return out
+
+
+def _named_id(value, catalog: dict[int, str], prefix: str) -> dict | None:
+    if not isinstance(value, int) or value <= 0:
+        return None
+    return {"id": value, "name": catalog.get(value, f"{prefix}_{value}")}
+
+
+def _participant_matchup(participant: dict, item_catalog: dict) -> dict:
+    """Ce que le scoreboard/champ select montrait sur un joueur de lane."""
+    spells = [_named_id(participant.get(key), SUMMONER_SPELLS, "spell")
+              for key in ("summoner1Id", "summoner2Id")]
+    styles = ((participant.get("perks") or {}).get("styles") or [])
+    primary = ((styles[0].get("selections") or []) if styles else [])
+    secondary = ((styles[1].get("selections") or []) if len(styles) > 1 else [])
+    keystone_id = primary[0].get("perk") if primary else None
+    secondary_ids = [selection.get("perk") for selection in secondary[:2]]
+    item_ids = [participant.get(f"item{i}") for i in range(6)]
+    build = [item_catalog[item_id] for item_id in item_ids
+             if isinstance(item_id, int) and item_id > 0 and item_id in item_catalog]
+    out = {
+        "champion": participant.get("championName"),
+        "summoner_spells": [spell for spell in spells if spell],
+        "keystone": _named_id(keystone_id, RUNES, "rune"),
+        "secondary_runes": [rune for rune in
+                            (_named_id(rid, RUNES, "rune") for rid in secondary_ids)
+                            if rune],
+        "final_build": build,
+    }
+    return out
+
+
+def _matchup_context(match: dict, puuid: str, item_catalog: dict) -> dict | None:
+    pid = rl.participant_id(match, puuid)
+    if pid is None:
+        return None
+    participants = match.get("info", {}).get("participants") or []
+    if pid > len(participants):
+        return None
+    me = participants[pid - 1]
+    role = me.get("teamPosition") or ""
+    enemy_pid = (rl.find_pid(match, team=rl.enemy_team_of(me.get("teamId")), role=role)
+                 if role and me.get("teamId") in (100, 200) else None)
+    if enemy_pid is None or enemy_pid > len(participants):
+        return None
+    opponent = participants[enemy_pid - 1]
+    return {
+        "lane_opponent": opponent.get("championName"),
+        "player": _participant_matchup(me, item_catalog),
+        "opponent": _participant_matchup(opponent, item_catalog),
+    }
+
+
+def _next_purchase(recall: dict) -> dict | None:
+    items = recall.get("items") or []
+    if not items:
+        return None
+    positive_costs = [item.get("cost") for item in items
+                      if isinstance(item, dict)
+                      and isinstance(item.get("cost"), (int, float))
+                      and item["cost"] > 0]
+    out = {"clock": recall.get("clock"), "items": items}
+    if positive_costs:
+        out["cheapest_item_cost"] = min(positive_costs)
+    return out
+
+
+def _attach_next_purchases(deaths: list[dict], recalls: list[dict]) -> list[dict]:
+    """Lie chaque mort à la première visite de shop qui la suit.
+
+    C'est le garde-fou mécanique du cas 1 268 g avant une B.F. Sword à
+    1 300 g : le modèle n'a plus à reconstruire le lien entre deux listes.
+    """
+    out = []
+    for death in deaths:
+        enriched = dict(death)
+        following = next((recall for recall in recalls
+                          if recall.get("t_ms", -1) >= death.get("t_ms", 0)), None)
+        purchase = _next_purchase(following) if following else None
+        if purchase:
+            enriched["next_purchase"] = purchase
+        out.append(enriched)
     return out
 
 
@@ -234,11 +396,17 @@ def build_game(player: str, match_id: str | None = None, scope: str = "adc",
     }
     catalog = cprof.load_items()
     recalls = [_resolve_recall_items(r, catalog) for r in journal["recalls"]]
+    deaths = _attach_next_purchases(journal["deaths"], recalls)
     out = {"meta": meta,
-           "journal": {"deaths": journal["deaths"], "recalls": recalls},
+           "journal": {"deaths": deaths, "recalls": recalls},
            "benchmarks": benchmarks}
     comp = rec.get("comp")
-    if comp:
-        # Champ select = info que le joueur avait (asymétrie-safe).
-        out["context"] = {"comp": comp, **cprof.derive_context(comp)}
+    matchup = _matchup_context(match, rec["puuid"], catalog)
+    if comp or matchup:
+        # Champ select + scoreboard = informations visibles (asymétrie-safe).
+        out["context"] = {}
+        if comp:
+            out["context"].update({"comp": comp, **cprof.derive_context(comp)})
+        if matchup:
+            out["context"]["matchup"] = matchup
     return out

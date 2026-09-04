@@ -929,6 +929,23 @@ button, select, textarea { font:inherit; }
   border-radius:10px;
 }
 
+.game-chief-summary {
+  padding:14px 16px; margin:0 0 12px; color:var(--text);
+  background:rgba(83,210,117,.07); border:1px solid rgba(83,210,117,.22);
+  border-radius:10px;
+}
+.game-chief-summary span { color:var(--win); font-size:10px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
+.game-chief-summary p { margin:5px 0 0; font-size:15px; font-weight:650; line-height:1.5; }
+.game-axis-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0 0 18px; }
+.game-axis { padding:0 13px; background:rgba(18,24,36,.6); border:1px solid var(--border-soft); border-radius:10px; }
+.game-axis > summary { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 0; color:var(--text); cursor:pointer; font-size:12px; font-weight:700; }
+.game-axis > summary small { color:var(--text-faint); font-size:9px; font-weight:500; }
+.game-axis-body { padding:0 0 12px; }
+.game-axis-body article { padding:10px 0; border-top:1px solid var(--border-soft); }
+.game-axis-body strong { display:block; color:var(--text); font-size:12px; line-height:1.45; }
+.game-axis-body p { margin:5px 0; color:var(--text-dim); font-size:11px; line-height:1.45; }
+.game-axis-body span { color:var(--text-faint); font-size:10px; line-height:1.4; }
+
 .game-focus-label { color:var(--gold); font-size:10px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
 .game-focus-card p { margin:5px 0 0; color:var(--text); font-size:14px; font-weight:600; line-height:1.55; }
 
@@ -943,6 +960,19 @@ button, select, textarea { font:inherit; }
 .game-insight-item summary { color:var(--text-faint); cursor:pointer; font-size:11px; font-weight:700; }
 .game-insight-item details span { display:block; padding:7px 0 0; }
 .game-empty-copy { margin:0; color:var(--text-faint); font-size:12px; line-height:1.55; }
+
+.game-chat { margin-top:18px; padding:16px; background:rgba(18,24,36,.6); border:1px solid var(--border-soft); border-radius:10px; }
+.game-chat-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.game-chat-heading h3 { margin:4px 0 0; color:var(--text); font-size:14px; }
+.game-chat-heading small { max-width:220px; color:var(--text-faint); font-size:10px; text-align:right; }
+.game-chat-log { display:flex; flex-direction:column; gap:8px; margin:14px 0; }
+.game-chat-log p { max-width:86%; margin:0; padding:9px 11px; border-radius:9px; font-size:12px; line-height:1.5; }
+.game-chat-log .user { align-self:flex-end; color:var(--text); background:rgba(230,185,106,.13); }
+.game-chat-log .assistant { align-self:flex-start; color:var(--text-dim); background:rgba(9,12,18,.65); }
+.game-chat-form { display:flex; align-items:flex-end; gap:9px; margin-top:14px; }
+.game-chat-form textarea { flex:1; resize:vertical; padding:10px; color:var(--text); background:rgba(9,12,18,.65); border:1px solid var(--border); border-radius:8px; font:12px/1.45 inherit; }
+.game-chat-form button { min-height:39px; padding:0 14px; color:#211706; background:var(--gold); border:0; border-radius:8px; cursor:pointer; font:700 11px/1 inherit; }
+.game-chat-form button:disabled { opacity:.5; cursor:default; }
 
 .meta-strip {
   gap:11px;
@@ -1032,6 +1062,9 @@ button, select, textarea { font:inherit; }
   .profile-hero { gap:22px; padding:22px; border-radius:14px; }
   .profile-stats { grid-template-columns:1fr; }
   .profile-stat { min-height:66px; padding:11px 13px; }
+  .game-axis-list { grid-template-columns:1fr; }
+  .game-chat-heading, .game-chat-form { align-items:stretch; flex-direction:column; }
+  .game-chat-heading small { max-width:none; text-align:left; }
   .tabs { margin-bottom:22px; }
   .tab { padding:9px 12px; font-size:12px; }
   .game-row { grid-template-columns:40px minmax(110px, 1fr) auto; gap:10px; padding:10px; }

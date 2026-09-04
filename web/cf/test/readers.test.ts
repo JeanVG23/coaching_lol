@@ -32,6 +32,7 @@ describe("KEYS", () => {
     expect(KEYS.shap("spadzze")).toBe("shap:spadzze:drivers");
     expect(KEYS.reviews("spadzze")).toBe("coaching:spadzze:reviews");
     expect(KEYS.feedback("spadzze")).toBe("coaching:spadzze:feedback");
+    expect(KEYS.chats("spadzze")).toBe("coaching:spadzze:chats");
   });
 });
 

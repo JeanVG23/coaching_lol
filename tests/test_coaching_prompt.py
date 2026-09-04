@@ -27,6 +27,13 @@ def test_system_gates_strengths_on_notable_favorable_signals():
     assert "remplissage" in s.lower()
 
 
+def test_system_aggregate_uses_game_causes_without_trusting_their_numbers():
+    s = PR.SYSTEM
+    assert "game_review_causes" in s
+    assert "UNIQUEMENT" in s
+    assert "INTERDICTION" in s
+
+
 def test_render_returns_system_and_user_with_payload():
     system, user = PR.render(_payload())
     assert system == PR.SYSTEM
@@ -90,6 +97,16 @@ def test_system_game_judges_gold_relative_to_next_buy():
     s = PR.SYSTEM_GAME
     assert "PROCHAIN ACHAT" in s
     assert "légitime" in s
+    assert "next_purchase" in s
+    assert "cheapest_item_cost" in s
+
+
+def test_system_game_uses_fatal_damage_to_explain_deaths():
+    s = PR.SYSTEM_GAME
+    assert "damage" in s
+    assert "avant l'engage" in s
+    assert "attaques de base" in s
+    assert "principales sources" in s
 
 
 def test_system_game_requires_consequence_chain():
@@ -98,3 +115,25 @@ def test_system_game_requires_consequence_chain():
     assert "chaîne" in s.lower()          # restituer la chaîne causale
     assert "pendant que tu étais mort" in s.lower()  # formulation prudente
     assert "corrélation" in s.lower()     # fenêtre = corrélation, pas preuve
+
+
+def test_specialists_receive_only_their_payload_axis():
+    payload = _game_payload()
+    payload["journal"] = {
+        "deaths": [{"clock": "4:42", "damage": {"total_damage": 900},
+                    "unspent_gold": 1200}],
+        "recalls": [{"clock": "5:00", "gold_before": 1200}],
+    }
+    _, death_user = PR.render_specialist(payload, "death_positioning")
+    _, economy_user = PR.render_specialist(payload, "economy_build")
+    assert '"damage"' in death_user and '"recalls"' not in death_user
+    assert '"recalls"' in economy_user and '"damage"' not in economy_user
+
+
+def test_chief_can_only_select_existing_insights():
+    assert "identifiants" in PR.SYSTEM_CHIEF
+    assert "INTERDICTION" in PR.SYSTEM_CHIEF
+    _, user = PR.render_chief([{"axis": "death_positioning", "mistakes": [
+        {"id": "death_positioning:mistakes:0", "point": "p"},
+    ]}])
+    assert "death_positioning:mistakes:0" in user

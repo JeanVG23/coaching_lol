@@ -27,12 +27,12 @@ de la timeline porte :
 - `victimTeamfightDamageReceived` : même chose sur le **combat entier**, pas seulement
   le burst final. C'est celui-là qui porte l'insight de Jean.
 
-- [ ] Enrichir `game_journal.deaths` d'un bloc `damage` : part des PV perdus avant
+- [x] Enrichir `game_journal.deaths` d'un bloc `damage` : part des PV perdus avant
       l'engage vs pendant, top 2-3 sources, part `basic` (autos) vs sorts.
-- [ ] Restituer dans `SYSTEM_GAME` règle 2 (la `cause` devient « 62 % de tes PV partis
+- [x] Restituer dans `SYSTEM_GAME` règle 2 (la `cause` devient « 62 % de tes PV partis
       sur 3 autos de Caitlyn avant l'engage, puis Skarner finit » au lieu de
       « mort par gank de Skarner »).
-- [ ] Étendre les unités de `grounding.py` (une part de dégâts est un `pct`, une valeur
+- [x] Étendre les unités de `grounding.py` (une part de dégâts est un `pct`, une valeur
       de dégâts une nouvelle unité `dmg` : sans cloisonnement, ces nombres ancreront
       n'importe quoi).
 
@@ -49,9 +49,9 @@ bon feedback, plus de détails sur la game comme le match-up par exemple ».
 Le bloc `context` existe (comp botlane + jungles + mid, `lane_pattern`, `gank_exposure`)
 mais ne nomme pas explicitement l'adversaire direct et ignore le reste.
 
-- [ ] Adversaire de lane explicite, sorts d'invocateur des deux côtés, runes clés,
+- [x] Adversaire de lane explicite, sorts d'invocateur des deux côtés, runes clés,
       build final des deux ADC. Tout est dans le match brut, 0 appel API.
-- [ ] Asymétrie : champ select + sorts + items visibles au scoreboard = info que le
+- [x] Asymétrie : champ select + sorts + items visibles au scoreboard = info que le
       joueur AVAIT. Reste safe.
 
 ## L3 — Analyse globale = agrégation des reviews par-partie
@@ -61,8 +61,8 @@ joueur, récupérer les analyses LLM par game et regarder ce qu'il en ressort »
 
 C'est le fix direct des forces à 68 %.
 
-- [ ] Map-reduce : N reviews par-partie en entrée, une synthèse en sortie.
-- [ ] ⚠️ **Précaution non négociable** : un LLM sur des sorties de LLM casse
+- [x] Map-reduce : N reviews par-partie en entrée, une synthèse en sortie.
+- [x] ⚠️ **Précaution non négociable** : un LLM sur des sorties de LLM casse
       `grounding.py` (les chiffres ne viennent plus d'un payload déterministe, donc plus
       rien n'est vérifiable) et amplifie les erreurs. Version qui tient : le payload
       agrégé déterministe reste la **source des chiffres** (seuls ceux-là citables), les
@@ -88,12 +88,12 @@ Nuance honnête : la découpe seule ne « croise » rien, chaque agent voit une 
 différente du payload, il n'y a ni vote ni redondance. Le croisement n'existe QUE dans
 l'étape chef.
 
-- [ ] Commencer à **2 axes** (morts/positionnement contre économie/build), pas 5.
-- [ ] Le chef ne cite QUE des insights produits par les sous-agents, jamais de
+- [x] Commencer à **2 axes** (morts/positionnement contre économie/build), pas 5.
+- [x] Le chef ne cite QUE des insights produits par les sous-agents, jamais de
       reformulation libre (sinon même problème de grounding qu'en L3).
-- [ ] Coût : N+1 appels par game au lieu de 1. À mettre en regard de la lenteur actuelle
+- [x] Coût : N+1 appels par game au lieu de 1. À mettre en regard de la lenteur actuelle
       d'Ollama Cloud (60-150 s par appel, cf. les 6 timeouts du run contrefactuel).
-- [ ] UI : synthèse dépliable par axe.
+- [x] UI : synthèse dépliable par axe.
 
 ## L5 — Chat interactif sur sa game
 
@@ -102,13 +102,13 @@ tranche (« ok, cas particulier, mais dans ce cas-là il fallait plutôt… »).
 Son argument : « les fausses croyances sont les pires pour s'améliorer ». Bénéfice
 secondaire : chaque échange produit de l'annotation gratuite pour la boucle d'éval.
 
-- [ ] Le SSE Ollama existe déjà côté Worker (bouton coaching), donc ce n'est pas parti
+- [x] Le SSE Ollama existe déjà côté Worker (bouton coaching), donc ce n'est pas parti
       de zéro.
-- [ ] ⚠️ **Piège d'asymétrie** : en question libre, le joueur PEUT demander « où était le
+- [x] ⚠️ **Piège d'asymétrie** : en question libre, le joueur PEUT demander « où était le
       jungler ennemi ». Le modèle doit refuser plutôt que lire la timeline complète. Cela
       veut dire durcir la règle 1 dans un contexte où l'utilisateur pousse activement
       dans l'autre sens. À tester explicitement (cas de test dédié).
-- [ ] Chantier le plus lourd de la liste : à garder pour la fin.
+- [x] Chantier le plus lourd de la liste : à garder pour la fin.
 
 ## L6 — A/B de modèles (glm 5.3 vs kimi-k2.6)
 
@@ -119,6 +119,7 @@ d'avant le harness.
 - [ ] Rejouer l'A/B **sans annotation humaine** : `grounding.py` (ancrage + asymétrie) et
       `counterfactual.py` (sensibilité au payload) suffisent à départager, plus la latence
       et le nombre de retries de schéma déjà tracés dans le bloc `run`.
+      Harness implémenté dans `model_ab.py` ; le run Ollama réel reste à lancer.
 - [ ] À faire **après** L1-L2 : comparer deux modèles sur un payload pauvre ne mesure que
       le bruit.
 
@@ -129,9 +130,13 @@ attendre 1,3k g pour avoir la BT, donc ça semble normal ». C'est exactement ce
 **règle 4 de `SYSTEM_GAME` interdit déjà** : le gold retenu se juge relativement au
 PROCHAIN ACHAT RÉEL.
 
-- [ ] Diagnostiquer : le payload ne donnait pas l'achat suivant, ou le modèle a ignoré
+- [x] Diagnostiquer : le payload ne donnait pas l'achat suivant, ou le modèle a ignoré
       la règle ? Les deux se vérifient sur la review concernée.
-- [ ] Ajouter le cas de test correspondant.
+      **Diagnostic :** les `items` existaient dans la liste de recalls, mais aucun lien
+      explicite ne reliait la mort de 11:06 au recall de 11:17 ; le modèle n'a pas fait
+      ce rapprochement et a ignoré l'exemple de la règle. Le nouveau `next_purchase`
+      porte directement B.F. Sword (1 300 g) sur la mort à 1 268 g.
+- [x] Ajouter le cas de test correspondant.
 
 ## Ordre retenu
 

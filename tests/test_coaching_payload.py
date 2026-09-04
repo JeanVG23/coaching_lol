@@ -82,3 +82,24 @@ def test_zone_phase_ordering_is_deterministic_on_ties():
     rf = {"by_zone_phase": {}}
     keys = [s["key"] for s in PL._zone_phase_signals(mf, rf)]
     assert keys == ["MID|late", "BOT|early", "JUNGLE/RIVER|early", "JUNGLE/RIVER|late"]
+
+
+def test_game_review_map_keeps_causes_but_drops_llm_evidence_and_ids():
+    reviews = [
+        {"ts": "2026-09-02", "kind": "game", "scope": "adc",
+         "match_id": "EUW1_42", "payload": {"meta": {"champion": "Jinx", "win": False}},
+         "review": {"strengths": [], "mistakes": [{
+             "point": "Tu greed tes resets", "cause": "Tu attends trop longtemps",
+             "evidence": "1 268 g à 11:06",
+         }]}},
+        {"ts": "2026-09-03", "kind": "game", "scope": "mid",
+         "payload": {"meta": {"champion": "Ahri", "win": True}},
+         "review": {"mistakes": [{"point": "mid", "cause": "mid cause"}]}},
+    ]
+    causes = PL._game_review_causes(reviews, "adc")
+    assert causes == [{
+        "champion": "Jinx", "outcome": "loss", "strengths": [],
+        "mistakes": [{"point": "Tu greed tes resets",
+                      "cause": "Tu attends trop longtemps"}],
+    }]
+    assert "1 268" not in json.dumps(causes) and "EUW1_42" not in json.dumps(causes)

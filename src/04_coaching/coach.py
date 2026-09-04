@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -84,6 +85,94 @@ def generate_game_review(pl: dict, model: str, timeout: int = 180):
                      timeout)
 
 
+def _indexed_axis(axis: str, review: schema_mod.GameReview) -> tuple[dict, dict]:
+    """Ajoute des IDs hors LLM et retourne (vue chef, index id -> insight)."""
+    dumped = review.model_dump()
+    lookup = {}
+    chief = {"axis": axis, "label": prompt_mod.AXIS_LABELS[axis],
+             "strengths": [], "mistakes": []}
+    for section in ("strengths", "mistakes"):
+        for index, insight in enumerate(dumped[section]):
+            insight_id = f"{axis}:{section}:{index}"
+            chief[section].append({"id": insight_id, **insight})
+            lookup[insight_id] = (section, insight)
+    return chief, lookup
+
+
+def _combined_run(runs: list[dict]) -> dict:
+    additive = ("prompt_tokens", "completion_tokens", "total_tokens", "schema_retries")
+    out = {key: sum(float(run.get(key) or 0) for run in runs) for key in additive}
+    # Les deux spécialistes tournent en parallèle ; le chef les suit. La latence
+    # murale estimée n'est donc pas la somme des trois appels.
+    specialist_latency = max((float(run.get("latency_ms") or 0)
+                              for run in runs if run.get("stage") != "chief"), default=0)
+    chief_latency = sum(float(run.get("latency_ms") or 0)
+                        for run in runs if run.get("stage") == "chief")
+    out["latency_ms"] = specialist_latency + chief_latency
+    costs = [float(run["cost_usd"]) for run in runs
+             if isinstance(run.get("cost_usd"), (int, float))]
+    out["cost_usd"] = sum(costs) if costs else None
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens", "schema_retries"):
+        out[key] = int(out[key])
+    out["prompt_version"] = prompt_mod.SPECIALIZED_PROMPT_VERSION
+    out["stages"] = runs
+    return out
+
+
+def generate_specialized_game_review(pl: dict, model: str, timeout: int = 180):
+    """Deux sous-agents en parallèle, puis un chef qui ne choisit que leurs IDs."""
+    axes = tuple(prompt_mod.SPECIALIST_SYSTEMS)
+
+    def generate_axis(axis: str):
+        system, user = prompt_mod.render_specialist(pl, axis)
+        review, run = _generate(system, user, schema_mod.game_review_json_schema(),
+                                schema_mod.GameReview, model,
+                                prompt_mod.version_of(system), timeout)
+        return axis, review, run
+
+    with ThreadPoolExecutor(max_workers=len(axes)) as pool:
+        generated = list(pool.map(generate_axis, axes))
+
+    chief_axes, lookup, axis_models, runs = [], {}, [], []
+    for axis, review, run in generated:
+        indexed, axis_lookup = _indexed_axis(axis, review)
+        chief_axes.append(indexed)
+        lookup.update(axis_lookup)
+        axis_models.append(schema_mod.AxisReview(
+            axis=axis, label=prompt_mod.AXIS_LABELS[axis], **review.model_dump()))
+        runs.append({"stage": axis, **run})
+
+    mistake_ids = [key for key, (kind, _) in lookup.items() if kind == "mistakes"]
+    strength_ids = [key for key, (kind, _) in lookup.items() if kind == "strengths"]
+    system, user = prompt_mod.render_chief(chief_axes)
+    chief, chief_run = _generate(
+        system, user, schema_mod.chief_selection_json_schema(mistake_ids, strength_ids),
+        schema_mod.ChiefSelection, model, prompt_mod.version_of(system), timeout)
+    runs.append({"stage": "chief", **chief_run})
+
+    priority_ids = list(dict.fromkeys(chief.priority_mistake_ids))
+    strength_selection = list(dict.fromkeys(chief.strength_insight_ids))
+    valid = (chief.summary_insight_id in priority_ids
+             and chief.next_focus_insight_id in priority_ids
+             and all(key in mistake_ids for key in priority_ids)
+             and all(key in strength_ids for key in strength_selection))
+    if not valid:
+        raise CoachValidationError(chief.model_dump())
+
+    def insight(key: str) -> schema_mod.GameInsight:
+        return schema_mod.GameInsight.model_validate(lookup[key][1])
+
+    final = schema_mod.SpecializedGameReview(
+        summary=insight(chief.summary_insight_id).point,
+        strengths=[insight(key) for key in strength_selection],
+        mistakes=[insight(key) for key in priority_ids],
+        next_focus=insight(chief.next_focus_insight_id).point,
+        confidence=chief.confidence,
+        axes=axis_models,
+    )
+    return final, _combined_run(runs)
+
+
 def pending_game_matches(records: list[dict], reviews: list[dict],
                          scope: str, n: int) -> list[str]:
     """Match_ids du scope sans review kind=game (dédup quel que soit le modèle),
@@ -105,7 +194,7 @@ def pending_game_matches(records: list[dict], reviews: list[dict],
 
 
 def run_batch(player: str, scope: str, target: str, model: str, n: int,
-              root=None, silver_dir=None) -> int:
+              root=None, silver_dir=None, specialized: bool = False) -> int:
     """Génère jusqu'à n reviews par-game sur les games du scope pas encore
     reviewées (kind=game). Continue sur échec d'une game ; bilan final."""
     silver = Path(silver_dir) if silver_dir is not None else rl.silver_dir()
@@ -131,7 +220,8 @@ def run_batch(player: str, scope: str, target: str, model: str, n: int,
             pl = payload_mod.build_game(player, match_id=mid, scope=scope,
                                         target=target, silver_dir=silver,
                                         records=records, ref=ref)
-            review, run = generate_game_review(pl, model)
+            generate = generate_specialized_game_review if specialized else generate_game_review
+            review, run = generate(pl, model)
         except FileNotFoundError as e:
             print(f"✗ {mid} : {e}", file=sys.stderr)
             failed += 1
@@ -244,6 +334,9 @@ def main() -> int:
     ap.add_argument("--mock-llm", action="store_true",
                     help="remplace l'appel Ollama par un générateur déterministe "
                          "(make demo : 0 réseau, 0 clé)")
+    ap.add_argument("--specialized", action="store_true",
+                    help="2 sous-agents (morts/positionnement + économie/build) "
+                         "puis un chef ; 3 appels LLM par game")
     args = ap.parse_args()
     if args.mock_llm:
         # Substitution au point d'entrée réseau : tout le reste du chemin
@@ -260,7 +353,7 @@ def main() -> int:
 
     if args.game_batch is not None:
         return run_batch(args.player, args.scope, args.target,
-                         args.model, args.game_batch)
+                         args.model, args.game_batch, specialized=args.specialized)
 
     ts = datetime.now().isoformat(timespec="seconds")
     per_game = args.game is not None
@@ -270,14 +363,18 @@ def main() -> int:
             pl = payload_mod.build_game(args.player, match_id=mid,
                                         scope=args.scope, target=args.target)
         else:
-            pl = payload_mod.build(args.player, args.scope, args.target, args.outcome)
+            pl = payload_mod.build(
+                args.player, args.scope, args.target, args.outcome,
+                game_reviews=feedback_mod.list_reviews(args.player),
+            )
     except FileNotFoundError as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1
 
     try:
-        review, run = (generate_game_review if per_game else generate_review)(
-            pl, args.model)
+        generate = (generate_specialized_game_review if per_game and args.specialized
+                    else generate_game_review if per_game else generate_review)
+        review, run = generate(pl, args.model)
     except llm_client.LLMError as e:
         print(f"✗ appel LLM échoué : {e}", file=sys.stderr)
         return 1

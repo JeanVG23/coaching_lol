@@ -15,9 +15,9 @@ gold (perso + référentiel) → payload.build (déterministe) → prompt.render
 
 | Fichier | Rôle |
 |---|---|
-| `payload.py` | gold perso+réf → payload déterministe, **safe-only** (positioning ⊂ `COACHING_SAFE`, profondeur `descriptive_only`) |
+| `payload.py` | gold perso+réf → payload déterministe, **safe-only** ; par-game : fatal damage, matchup complet et prochain achat réel |
 | `prompt.py` | system (asymétrie + benchmark-relatif + règle format, FR) + user |
-| `schema.py` | Pydantic `Review` : 3 forces / 3 erreurs / 2 habitudes / 1 focus / confidence, **preuve chiffrée par point** |
+| `schema.py` | Pydantic `Review` : 1–3 forces / 3 erreurs / 2 habitudes / 1 focus ; schémas par-game et agents spécialisés |
 | `llm_client.py` | client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema, retries 429/5xx. `generate` renvoie aussi la télémétrie du run (latence, tokens, coût) |
 | `coach.py` | CLI : payload→prompt→client→validation→affiche+persiste. `DEFAULT_MODEL = "kimi-k2.6"` |
 
@@ -26,6 +26,9 @@ gold (perso + référentiel) → payload.build (déterministe) → prompt.render
 ```bash
 python3 src/04_coaching/coach.py --player spadzze --scope adc [--outcome loss] \
                                   [--target challenger] [--model kimi-k2.6]
+
+# 2 sous-agents en parallèle + chef (3 appels par partie)
+python3 src/04_coaching/coach.py --player spadzze --game EUW1_x --specialized
 ```
 
 Résolution du modèle : `--model` (CLI) > `OLLAMA_MODEL` (shell env) > `OLLAMA_MODEL` (`.env`)
@@ -157,6 +160,20 @@ ancrage chuter, ce qui sépare « il a lu » de « il a deviné ».
 Le rapport va dans `data/07_coaching/<player>/eval/counterfactual.json`, **hors**
 de `reviews.jsonl` : une sortie contrefactuelle n'est pas une review du joueur,
 elle ne doit ni être annotée ni remonter sur le site.
+
+### A/B reproductible sur le payload enrichi
+
+`model_ab.py` regénère une baseline propre à chaque modèle, puis rejoue les trois
+perturbations. Il compare ancrage, sensibilité, erreurs, retries de schéma, tokens et
+latence sans annotation humaine. Les valeurs par défaut sont `kimi-k2.6` et `glm-5.3`.
+
+```bash
+python3 src/04_coaching/model_ab.py --player spadzze --n 3 --dry-run
+python3 src/04_coaching/model_ab.py --player spadzze --n 3
+```
+
+Le rapport est écrit dans `data/07_coaching/<player>/eval/model_ab.json`, jamais dans
+le corpus de reviews.
 
 ---
 

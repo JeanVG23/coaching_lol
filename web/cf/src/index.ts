@@ -1,5 +1,6 @@
 import { ACCOUNTS } from "./accounts";
 import { apiCoach } from "./coach";
+import { apiChat } from "./chat";
 import { readEval } from "./evaluation";
 import { apiFeedback } from "./feedback";
 import {
@@ -171,6 +172,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   if (url.pathname === "/api/coach" && request.method === "POST") {
     return apiCoach(request, env);
+  }
+  if (url.pathname === "/api/chat" && request.method === "POST") {
+    return apiChat(request, env);
   }
   if (url.pathname === "/api/feedback" && request.method === "POST") {
     return apiFeedback(request, env);

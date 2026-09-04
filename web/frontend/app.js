@@ -147,6 +147,7 @@ function accountPage(slug, search) {
     reviews: [], review: null, aggregateReviewsTotal: 0,
     gameReviews: [], selectedGameReview: null, gameReviewsPage: 1, gameReviewsLoading: false,
     gameReviewLoading: false, gameReviewError: null,
+    chatMessages: [], chatDraft: "", chatBusy: false, chatError: null,
     coachingView: deep.view || "overall", gameReviewsCount: 0, reviewsLoading: true,
     reviewsInFlight: false,
     evalReport: null, evalLoading: false,
@@ -474,12 +475,54 @@ function accountPage(slug, search) {
       // les selections automatiques (loadFeedback = false), pas apres un choix humain.
       if (loadFeedback) this.pendingReviewId = null;
       this.gameReviewLoading = true; this.gameReviewError = null;
+      this.chatMessages = []; this.chatDraft = ""; this.chatError = null;
       try {
         this.selectedGameReview = await api(`/api/c/${this.slug}/reviews/${encodeURIComponent(review.ts)}`);
         if (loadFeedback && this.coachingView === "games") await this.loadFeedback(this.selectedGameReview);
       } catch (e) {
         this.gameReviewError = "Impossible de charger cette analyse. Réessaie dans un instant.";
       } finally { this.gameReviewLoading = false; }
+    },
+
+    async sendGameChat() {
+      const content = this.chatDraft.trim();
+      if (!content || !this.selectedGameReview?.ts || this.chatBusy) return;
+      const pending = [...this.chatMessages, { role: "user", content }];
+      this.chatMessages = pending; this.chatDraft = ""; this.chatBusy = true; this.chatError = null;
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: this.slug, review_ts: this.selectedGameReview.ts,
+            messages: pending.slice(-12),
+          }),
+        });
+        if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let boundary;
+          while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+            const frame = buffer.slice(0, boundary); buffer = buffer.slice(boundary + 2);
+            const event = /^event: (.+)$/m.exec(frame)?.[1];
+            const raw = /^data: (.+)$/m.exec(frame)?.[1];
+            if (!event || !raw) continue;
+            const data = JSON.parse(raw);
+            if (event === "message") {
+              this.chatMessages = [...this.chatMessages, {
+                role: "assistant", content: data.answer,
+                refused_hidden_info: data.refused_hidden_info,
+              }];
+            } else if (event === "error") throw new Error(data.error);
+          }
+        }
+      } catch (e) {
+        this.chatError = coachErrorMessage(e);
+      } finally { this.chatBusy = false; }
     },
     gameMeta(review) { return review?.payload?.meta || review?.meta || {}; },
     gameChampion(review) { return this.gameMeta(review).champion || "Partie analysée"; },

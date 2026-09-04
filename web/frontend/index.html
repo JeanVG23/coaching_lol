@@ -483,6 +483,35 @@
                   <span><small>Confiance</small><strong x-text="Math.round((selectedGameReview.review.confidence || 0) * 100) + '%'"></strong></span>
                 </div>
 
+                <template x-if="selectedGameReview.review.summary">
+                  <section class="game-chief-summary">
+                    <span>Synthèse du coach</span>
+                    <p x-text="selectedGameReview.review.summary"></p>
+                  </section>
+                </template>
+
+                <template x-if="selectedGameReview.review.axes?.length">
+                  <section class="game-axis-list" aria-label="Analyses spécialisées">
+                    <template x-for="axis in selectedGameReview.review.axes" :key="axis.axis">
+                      <details class="game-axis">
+                        <summary>
+                          <span x-text="axis.label"></span>
+                          <small x-text="`${axis.strengths.length} force(s) · ${axis.mistakes.length} erreur(s)`"></small>
+                        </summary>
+                        <div class="game-axis-body">
+                          <template x-for="(item, index) in [...axis.strengths, ...axis.mistakes]" :key="axis.axis + index">
+                            <article>
+                              <strong x-text="item.point"></strong>
+                              <p x-text="item.cause"></p>
+                              <span x-text="item.evidence"></span>
+                            </article>
+                          </template>
+                        </div>
+                      </details>
+                    </template>
+                  </section>
+                </template>
+
                 <section class="game-focus-card">
                   <span class="game-focus-label">Focus pour ta prochaine partie</span>
                   <p x-text="selectedGameReview.review.next_focus"></p>
@@ -562,6 +591,30 @@
                     </template>
                   </section>
                 </div>
+
+                <section class="game-chat" aria-labelledby="game-chat-title">
+                  <div class="game-chat-heading">
+                    <div>
+                      <span class="game-focus-label">COACH INTERACTIF</span>
+                      <h3 id="game-chat-title">Conteste, explique ou approfondis.</h3>
+                    </div>
+                    <small>Le coach refuse les informations ennemies cachées.</small>
+                  </div>
+                  <div class="game-chat-log" x-show="chatMessages.length">
+                    <template x-for="(message, index) in chatMessages" :key="index">
+                      <p :class="message.role" x-text="message.content"></p>
+                    </template>
+                  </div>
+                  <form class="game-chat-form" @submit.prevent="sendGameChat()">
+                    <label class="sr-only" for="game-chat-input">Question au coach</label>
+                    <textarea id="game-chat-input" rows="2" maxlength="2000"
+                              x-model="chatDraft"
+                              placeholder="Ex. : j’ai gardé cet or pour ma B.F. Sword, est-ce que ce choix était vraiment mauvais ?"></textarea>
+                    <button type="submit" :disabled="chatBusy || !chatDraft.trim()"
+                            x-text="chatBusy ? 'Le coach réfléchit…' : 'Envoyer'"></button>
+                  </form>
+                  <p class="feedback-error" x-show="chatError" x-text="chatError"></p>
+                </section>
               </article>
               </template>
               <p class="feedback-error" x-show="feedbackError" x-text="feedbackError"></p>

@@ -22,6 +22,7 @@ TEMPLATES = {
     "shap": "shap:{slug}:drivers",
     "reviews": "coaching:{slug}:reviews",
     "feedback": "coaching:{slug}:feedback",
+    "chats": "coaching:{slug}:chats",
 }
 
 

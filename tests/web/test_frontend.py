@@ -164,6 +164,15 @@ def test_coaching_tab_wired():
     assert "selectedGameReview" in js
 
 
+def test_interactive_game_chat_wired():
+    body = _read("index.html")
+    js = _read("app.js")
+    assert 'class="game-chat"' in body
+    assert "sendGameChat" in js
+    assert 'fetch("/api/chat"' in js
+    assert "informations ennemies cachées" in body
+
+
 def test_feedback_note_textarea_wired():
     """Le champ note (Pydantic FeedbackItem.note, déjà accepté par l'API) était
     modélisé de bout en bout (schema/API/CLI) mais jamais exposé côté web — seuls

@@ -1,9 +1,9 @@
 import { accountFor } from "./accounts";
 import { generateJson } from "./llm_client";
-import { buildPayload, type Outcome } from "./payload";
+import { addGameReviewCauses, buildPayload, type Outcome } from "./payload";
 import { render } from "./prompt";
 import { jsonError, notFound } from "./http";
-import { appendJsonl, KEYS, readJson, type KVLike } from "./readers";
+import { appendJsonl, KEYS, readJson, readJsonl, type KVLike } from "./readers";
 import { reviewJsonSchema, validateReview, type Review } from "./schema";
 import type { Env } from "./index";
 
@@ -36,9 +36,10 @@ export async function* coachFlow(
   params: CoachParams,
 ): AsyncGenerator<SseEvent> {
   // Lectures indépendantes : en parallèle, un seul aller-retour KV avant le 1er event SSE.
-  const [me, ref] = await Promise.all([
+  const [me, ref, previousReviews] = await Promise.all([
     readJson<Record<string, any>>(deps.kv, KEYS.gold(params.slug, params.scope)),
     readJson<Record<string, any>>(deps.kv, KEYS.ref(params.target, params.scope)),
+    readJsonl<Record<string, any>>(deps.kv, KEYS.reviews(params.slug)),
   ]);
   if (!me || !ref) {
     const missing = !me
@@ -59,6 +60,7 @@ export async function* coachFlow(
       target: params.target,
       outcome: params.outcome as Outcome,
     });
+    payload = addGameReviewCauses(payload, previousReviews, params.scope);
   } catch (error) {
     yield { event: "error", data: { error: `payload invalide : ${errorMessage(error)}` } };
     return;

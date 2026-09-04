@@ -13,6 +13,7 @@ restent ML_ONLY dans positioning.py et ne doivent jamais entrer ici.
 from __future__ import annotations
 
 import bisect
+from collections import defaultdict
 
 from riotlib import (SR_MAP_ID, approx_zone, enemy_team_of, find_pid,
                      frames_by_minute, iter_events, participant_id, patch_of,
@@ -176,6 +177,82 @@ def _consequences(tl: _Timeline, t_ms: int, my_team: int,
     return out
 
 
+def _damage_value(row: dict) -> int:
+    """Dégâts toutes mitigations appliquées d'une ligne du death recap."""
+    return sum(max(0, int(row.get(key) or 0))
+               for key in ("physicalDamage", "magicDamage", "trueDamage"))
+
+
+def _damage_summary(event: dict) -> dict | None:
+    """Résume le death recap sans exposer sa liste verbeuse au LLM.
+
+    Riot fournit deux fenêtres : ``victimDamageReceived`` pour la séquence
+    fatale et ``victimTeamfightDamageReceived`` pour le combat entier. Leur
+    différence rend visible le poke encaissé avant l'engage qui a rendu la mort
+    possible. Sur certains matchs les deux listes sont identiques : on restitue
+    alors honnêtement 0 dégât pré-engage au lieu d'inventer une chronologie.
+    """
+    fatal_rows = event.get("victimDamageReceived") or []
+    fight_rows = event.get("victimTeamfightDamageReceived") or fatal_rows
+    if not isinstance(fight_rows, list):
+        return None
+
+    total = sum(_damage_value(row) for row in fight_rows if isinstance(row, dict))
+    if total <= 0:
+        return None
+    fatal = min(total, sum(_damage_value(row) for row in fatal_rows
+                           if isinstance(row, dict)))
+    before = max(0, total - fatal)
+    basic = sum(_damage_value(row) for row in fight_rows
+                if isinstance(row, dict) and row.get("basic") is True)
+
+    sources: dict[tuple[str, str], dict] = defaultdict(
+        lambda: {"damage": 0, "basic_damage": 0, "spell_damage": 0})
+    fatal_sources: dict[tuple[str, str], int] = defaultdict(int)
+    for row in fatal_rows:
+        if not isinstance(row, dict):
+            continue
+        name = row.get("name") or row.get("type") or "source inconnue"
+        fatal_sources[(str(name), str(row.get("type") or "OTHER"))] += _damage_value(row)
+    for row in fight_rows:
+        if not isinstance(row, dict):
+            continue
+        damage = _damage_value(row)
+        if damage <= 0:
+            continue
+        name = row.get("name") or row.get("type") or "source inconnue"
+        source_type = str(row.get("type") or "OTHER")
+        source = sources[(str(name), source_type)]
+        source["damage"] += damage
+        source["basic_damage" if row.get("basic") is True else "spell_damage"] += damage
+
+    top_sources = []
+    for (name, source_type), values in sorted(
+            sources.items(), key=lambda item: item[1]["damage"], reverse=True)[:3]:
+        during_source = min(values["damage"], fatal_sources[(name, source_type)])
+        top_sources.append({
+            "source": name,
+            "type": source_type,
+            **values,
+            "before_engage_damage": values["damage"] - during_source,
+            "during_engage_damage": during_source,
+            "share": round(values["damage"] / total, 4),
+        })
+
+    return {
+        "total_damage": total,
+        "before_engage_damage": before,
+        "during_engage_damage": fatal,
+        "before_engage_share": round(before / total, 4),
+        "during_engage_share": round(fatal / total, 4),
+        "basic_damage": basic,
+        "spell_damage": total - basic,
+        "basic_share": round(basic / total, 4),
+        "spell_share": round((total - basic) / total, 4),
+        "top_sources": top_sources,
+    }
+
+
 def _deaths(ctx: "_GameContext") -> list[dict]:
     """Morts du joueur ciblé, horodatées et contextualisées.
 
@@ -211,6 +288,9 @@ def _deaths(ctx: "_GameContext") -> list[dict]:
         cons = _consequences(tl, t, ctx.my_team, ctx.pid_team)
         if cons:
             entry["consequences"] = cons
+        damage = _damage_summary(ev)
+        if damage:
+            entry["damage"] = damage
         out.append(entry)
     out.sort(key=lambda d: d["t_ms"])
     return out

@@ -5,6 +5,8 @@ describe("prompt", () => {
   it("SYSTEM porte les règles d'asymétrie et de benchmark", () => {
     expect(SYSTEM).toContain("ASYMÉTRIE");
     expect(SYSTEM).toContain("BENCHMARK-RELATIF");
+    expect(SYSTEM).toContain("game_review_causes");
+    expect(SYSTEM).toContain("INTERDICTION");
     expect(SYSTEM.length).toBeGreaterThan(500);
   });
 
