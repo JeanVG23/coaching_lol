@@ -6,13 +6,17 @@ d'identité par champion et dérive les axes de contexte de botlane.
 from __future__ import annotations
 
 import json
+import os
 from functools import lru_cache
 from pathlib import Path
 
 import requests
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-STATIC_DIR = ROOT / "data" / "00_static"
+# Même racine surchargeable que riotlib.DATA : sans elle, une pile démo déportée
+# irait quand même lire les catalogues Data Dragon des données réelles.
+_DATA = Path(os.environ.get("COACHING_DATA_DIR") or (ROOT / "data")).resolve()
+STATIC_DIR = _DATA / "00_static"
 DDRAGON_VERSION = "16.13.1"  # figée ; refresh = action manuelle (fetch_ddragon)
 TRAITS_PATH = STATIC_DIR / "champion_traits.json"
 

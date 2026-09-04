@@ -1,0 +1,11 @@
+{
+  "player": "spadzze",
+  "rank": "challenger",
+  "patch": "16.13",
+  "queue": 420,
+  "n_rows_personal": 24,
+  "n_rows_referential": 250,
+  "n_matches": 49,
+  "n_identifiers_remapped": 1375,
+  "note": "Games réelles pseudonymisées : puuid, summonerId, riot id et match id remplacés par des jetons déterministes. Régénérer avec src/pipeline_ops/build_demo_fixtures.py."
+}

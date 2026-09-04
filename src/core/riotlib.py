@@ -11,6 +11,7 @@ from __future__ import annotations
 import collections
 import gzip
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -23,7 +24,10 @@ import champion_profiles as cp
 # --------------------------------------------------------------------- chemins
 # riotlib vit dans src/core/ ; la racine projet (data/, .env) est deux niveaux au-dessus.
 ROOT = Path(__file__).resolve().parent.parent.parent
-DATA = ROOT / "data"
+# `COACHING_DATA_DIR` déplace toute la pile médaillon ailleurs : c'est ce qui permet à
+# `make demo` de rejouer les scripts de production sur le jeu de fixtures versionné
+# sans jamais toucher aux données réelles.
+DATA = Path(os.environ.get("COACHING_DATA_DIR") or (ROOT / "data")).resolve()
 # Couches médaillon numérotées pour matérialiser l'ordre du pipeline.
 LAYER_RAW = "01_raw"        # JSON API brut, immuable, partagé (compressé .json.zst)
 LAYER_SILVER = "02_silver"  # 1 ligne JSONL = 1 game nettoyée
@@ -231,26 +235,40 @@ class RiotClient:
 # Le cache raw est compressé en zstd (.json.zst) pour gagner ~8× de stockage.
 # La lecture est tolérante : elle cherche .json.zst, puis .json.gz, puis .json
 # brut, de façon à rester lisible pendant/après la migration des fichiers existants.
+def _raw_path(base: str) -> Path | None:
+    """Premier fichier raw existant pour ce préfixe, dans l'ordre de `_RAW_EXTS`."""
+    for ext in _RAW_EXTS:
+        p = raw_dir() / (base + ext)
+        if p.exists():
+            return p
+    return None
+
+
+def _read_raw_at(path: Path) -> dict:
+    """Décode un document raw désigné par son chemin (extension = codec)."""
+    data = path.read_bytes()
+    if path.name.endswith(".json.zst"):
+        data = zstd.ZstdDecompressor().decompress(data)
+    elif path.name.endswith(".json.gz"):
+        data = gzip.decompress(data)
+    return json.loads(data)
+
+
+def _write_raw_at(path: Path, obj: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(zstd.ZstdCompressor(level=ZSTD_LEVEL).compress(
+        json.dumps(obj).encode()))
+
+
 def _read_raw(base: str) -> dict | None:
     """Lit un document raw par son préfixe (ex: '<matchId>_match')."""
-    for ext in _RAW_EXTS:
-        p = RAW_DIR / (base + ext)
-        if not p.exists():
-            continue
-        data = p.read_bytes()
-        if ext == ".json.zst":
-            data = zstd.ZstdDecompressor().decompress(data)
-        elif ext == ".json.gz":
-            data = gzip.decompress(data)
-        return json.loads(data)
-    return None
+    p = _raw_path(base)
+    return _read_raw_at(p) if p is not None else None
 
 
 def _write_raw(base: str, obj: dict) -> None:
     """Écrit un document raw compressé en zstd (.json.zst)."""
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    p = RAW_DIR / (base + ".json.zst")
-    p.write_bytes(zstd.ZstdCompressor(level=ZSTD_LEVEL).compress(json.dumps(obj).encode()))
+    _write_raw_at(raw_dir() / (base + ".json.zst"), obj)
 
 
 def get_match_timeline(client: RiotClient, match_id: str,

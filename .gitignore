@@ -37,3 +37,4 @@ frames/
 web/cf/node_modules/
 web/cf/.dev.vars
 web/cf/.wrangler/
+.demo/
