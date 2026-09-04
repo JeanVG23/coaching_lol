@@ -1,4 +1,9 @@
 """Tests sequence_model : encoder, masked-mean-pool, reconstruct."""
+import pytest
+
+# Le transformer séquentiel vit dans le groupe `analysis` (torch) : la CI installe le
+# socle sans ces extras, la suite doit se sauter proprement plutôt qu'échouer.
+pytest.importorskip("torch")
 import importlib.util, sys
 from pathlib import Path
 _SRC = Path(__file__).resolve().parent.parent / "src"

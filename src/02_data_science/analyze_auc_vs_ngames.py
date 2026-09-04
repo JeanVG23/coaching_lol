@@ -41,9 +41,6 @@ import ml_features as mf
 from cv_common import make_models, purged_train_features
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
-import xgboost as xgb
-from sklearn.ensemble import RandomForestClassifier
-from interpret.glassbox import ExplainableBoostingClassifier
 
 DATASET_PER_GAME = rl.DATA / "04_dataset" / "adc_dataset.parquet"
 MODEL_DIR = rl.DATA / "05_model"

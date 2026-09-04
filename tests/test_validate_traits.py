@@ -177,7 +177,7 @@ def test_gank_score_for_game_zero_inputs():
 )
 def test_detect_lane_visits_returns_dict():
     """Smoke test sur données réelles."""
-    import json, glob
+    import glob
     from riotlib import _read_raw
     files = glob.glob(str(vt.SILVER_REF_DIR / "*" / "games.jsonl"))
     for fpath in files[:1]:

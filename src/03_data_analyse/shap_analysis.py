@@ -211,7 +211,6 @@ def main(target: str = "dia_chall") -> int:
     for c in cross:
         flag = "✓" if c["spearman"] > 0.3 else ("⚠" if c["spearman"] < -0.2 else "·")
         print(f"    {flag} {c['feature']:<20} rho={c['spearman']:+.2f}  sign_agree={c['sign_agree']:.0%}")
-    agree = np.mean([1 for c in cross if c["spearman"] > 0.3])
     print(f"    → {int(sum(1 for c in cross if c['spearman'] > 0.3))}/{len(cross)} features en accord direction (rho>0.3)")
     (OUT / "crosscheck_tree_vs_ebm.json").write_text(json.dumps(cross, indent=2))
 

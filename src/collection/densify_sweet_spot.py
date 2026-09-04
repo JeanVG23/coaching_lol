@@ -54,7 +54,6 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))                     # densify_targets
 sys.path.insert(0, str(HERE.parent / "core"))      # riotlib
-import pandas as pd
 import riotlib as rl
 from cli import arg, flag as has_flag
 import densify_targets as dt

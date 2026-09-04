@@ -23,7 +23,6 @@ def main():
     # Load dataset
     df = pd.read_parquet(DATASET)
     ref_mask = df["source"] == "referentiel"
-    spad_mask = df["source"].str.startswith("personal:spadzze", na=False)
     
     # Load ensemble SHAP values (computed in shap_analysis.py)
     sv_ref_vals = np.load(OUT / "sv_ensemble.npy")

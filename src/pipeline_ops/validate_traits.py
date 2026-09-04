@@ -677,7 +677,7 @@ def main() -> int:
 
     # Top combos par nombre de games (debug)
     top = sorted(idx.items(), key=lambda kv: -len(kv[1]))[:10]
-    print(f"\nTop 10 combos (champion, role) par nombre de games :")
+    print("\nTop 10 combos (champion, role) par nombre de games :")
     for (champ, role), gs in top:
         print(f"  • {champ:<18} {role:<8} {len(gs)} games")
 
@@ -687,14 +687,14 @@ def main() -> int:
     per_champ_gank = compute_gank_stats_from_raw(idx, min_games=args.min_games)
 
     print(f"  {len(per_champ_gank)} junglers avec >= {args.min_games} games")
-    print(f"\n  Top 10 par gank_frames moyen (proxy gank) :")
+    print("\n  Top 10 par gank_frames moyen (proxy gank) :")
     top = sorted(per_champ_gank.items(), key=lambda kv: -kv[1]["gank_frames_mean"])[:10]
     for champ, st in top:
         print(f"  • {champ:<14} lane_visits={st['lane_visits_mean']:>4.1f} "
               f"gank_frames={st['gank_frames_mean']:>4.1f} "
               f"gank_kills={st['gank_kills_mean']:>4.1f} n={st['n']}")
 
-    print(f"\n  Bottom 10 par gank_frames moyen :")
+    print("\n  Bottom 10 par gank_frames moyen :")
     bot = sorted(per_champ_gank.items(), key=lambda kv: kv[1]["gank_frames_mean"])[:10]
     for champ, st in bot:
         print(f"  • {champ:<14} lane_visits={st['lane_visits_mean']:>4.1f} "
@@ -704,7 +704,7 @@ def main() -> int:
     # Distribution par label
     by_label_gank = group_gank_stats_by_label(per_champ_gank, traits)
     if by_label_gank:
-        print(f"\n  Distribution par label (gank_kills_v2_mean) :")
+        print("\n  Distribution par label (gank_kills_v2_mean) :")
         print(f"  {'label':<24} {'n_champs':>9} {'n_games':>9} {'médian':>8} {'P25':>6} {'P75':>6}")
         for label, st in sorted(by_label_gank.items()):
             print(f"  {label:<24} {st['n_champions']:>9} {st['n_games']:>9} "
@@ -717,13 +717,13 @@ def main() -> int:
 
     print(f"  {len(per_champ_roam)} champions mid/support avec score calculé")
     if by_label_roam:
-        print(f"\n  Distribution par label 'roam' (frac_roam_mid) :")
+        print("\n  Distribution par label 'roam' (frac_roam_mid) :")
         print(f"  {'label':<12} {'n_champs':>9} {'n_games':>9} {'médian':>8} {'P25':>6} {'P75':>6}")
         for label, st in sorted(by_label_roam.items()):
             print(f"  {label:<12} {st['n_champions']:>9} {st['n_games']:>9} "
                   f"{st['score_median']:>8.3f} {st['score_p25']:>6.3f} {st['score_p75']:>6.3f}")
 
-    print(f"\n  Top 5 mid roamers :")
+    print("\n  Top 5 mid roamers :")
     mid_roamers = sorted(
         [(c, d) for c, d in per_champ_roam.items()
          if any(g.get("role") == "MIDDLE" for g in idx.get((c, "MIDDLE"), []))],
@@ -739,13 +739,13 @@ def main() -> int:
 
     print(f"  {len(per_champ_lp)} champions ADC/support avec stats calculées")
     if by_label_lp:
-        print(f"\n  Distribution par label 'lane_pattern' (csd10) :")
+        print("\n  Distribution par label 'lane_pattern' (csd10) :")
         print(f"  {'label':<12} {'n_champs':>9} {'n_games':>9} {'médian':>8} {'P25':>6} {'P75':>6}")
         for label, st in sorted(by_label_lp.items()):
             print(f"  {label:<12} {st['n_champions']:>9} {st['n_games']:>9} "
                   f"{st['score_median']:>8.2f} {st['score_p25']:>6.2f} {st['score_p75']:>6.2f}")
 
-    print(f"\n  Top 5 'all_in' présumés (csd10 négatif + early_kp haut) :")
+    print("\n  Top 5 'all_in' présumés (csd10 négatif + early_kp haut) :")
     all_in = sorted(
         [(c, d) for c, d in per_champ_lp.items()],
         key=lambda kv: (-kv[1]["early_kp_mean"], kv[1]["csd10_mean"]),
@@ -753,7 +753,7 @@ def main() -> int:
     for champ, st in all_in:
         print(f"  • {champ:<14} csd10={st['csd10_mean']:>6.1f} early_kp={st['early_kp_mean']:>4.2f} n={st['n']}")
 
-    print(f"\n  Top 5 'poke' présumés (csd10 haut + early_kp bas) :")
+    print("\n  Top 5 'poke' présumés (csd10 haut + early_kp bas) :")
     poke = sorted(
         [(c, d) for c, d in per_champ_lp.items()],
         key=lambda kv: (kv[1]["early_kp_mean"], -kv[1]["csd10_mean"]),
@@ -766,7 +766,7 @@ def main() -> int:
     per_champ_pc = compute_power_curve_stats(idx, min_games=args.min_games)
 
     print(f"  {len(per_champ_pc)} champions avec winrates calculés")
-    print(f"\n  Top 5 late-game scalers (winrate_long - winrate_short > 0.05) :")
+    print("\n  Top 5 late-game scalers (winrate_long - winrate_short > 0.05) :")
     scalers = sorted(
         [(c, d) for c, d in per_champ_pc.items()
          if d.get("winrate_long") is not None and d.get("winrate_short") is not None],
@@ -778,7 +778,7 @@ def main() -> int:
         print(f"  • {champ:<14} WR_short={st['winrate_short']:>5.1%} "
               f"WR_long={st['winrate_long']:>5.1%} Δ={delta:+.1%} n={st['n']}")
 
-    print(f"\n  Top 5 early-game bullies (winrate_short > winrate_long) :")
+    print("\n  Top 5 early-game bullies (winrate_short > winrate_long) :")
     bullies = sorted(
         [(c, d) for c, d in per_champ_pc.items()
          if d.get("winrate_long") is not None and d.get("winrate_short") is not None],
@@ -792,7 +792,7 @@ def main() -> int:
 
     by_label_pc = group_power_curve_stats_by_label(per_champ_pc, traits, bucket="long")
     if by_label_pc:
-        print(f"\n  Distribution par label 'power_curve' (winrate_long) :")
+        print("\n  Distribution par label 'power_curve' (winrate_long) :")
         print(f"  {'label':<10} {'n_champs':>9} {'médian':>8} {'P25':>6} {'P75':>6}")
         for label, st in sorted(by_label_pc.items()):
             print(f"  {label:<10} {st['n_champions']:>9} "
@@ -831,7 +831,7 @@ def main() -> int:
     report["proposals"] = proposals
     print(f"  {len(proposals)} champions avec assez de données et SANS axes curés")
     if proposals:
-        print(f"\n  Top 10 par nombre de games :")
+        print("\n  Top 10 par nombre de games :")
         top = sorted(proposals, key=lambda p: -p["n_games"])[:10]
         for p in top:
             ax_str = ", ".join(f"{a}={v}" for a, v in p["proposed_axes"].items())
@@ -846,7 +846,7 @@ def main() -> int:
     print()
     print(render_text(report))
 
-    print(f"\n✓ Toutes les phases OK (1+2+3+4+5+6+7).")
+    print("\n✓ Toutes les phases OK (1+2+3+4+5+6+7).")
     return 0
 
 
@@ -1219,7 +1219,7 @@ def render_text(report: dict) -> str:
     """Rapport texte console, lisible."""
     s: list[str] = []
     cfg = report["config"]
-    s.append(f"=== Validation data-driven champion_traits.json ===")
+    s.append("=== Validation data-driven champion_traits.json ===")
     s.append(f"  {cfg['n_total_games']} games analysées, "
              f"min_games={cfg['min_games']}")
     s.append("")

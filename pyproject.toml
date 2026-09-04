@@ -7,9 +7,6 @@ dependencies = [
     "requests>=2.32",
     "zstandard>=0.23",
     "pydantic>=2",
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
-    "httpx>=0.27",
     "numpy>=2.0",
     "pandas>=2.0",
     "scikit-learn>=1.5",
@@ -23,6 +20,26 @@ package-mode = false
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.4"
 pytest-mock = ">=3.15"
+ruff = ">=0.14"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+# Backend FastAPI archivé (cf. web/cf pour la production) : plus maintenu, pas linté.
+exclude = ["web/backend", ".venv"]
+
+[tool.ruff.lint]
+# On garde les règles qui attrapent des bugs (F : imports morts, variables non
+# utilisées, redéfinitions) et on écarte celles qui ne jugent que le style maison.
+select = ["E4", "E7", "E9", "F"]
+ignore = [
+    "E401",  # imports groupés sur une ligne, style assumé
+    "E402",  # convention flat-import : sys.path.insert avant `import riotlib`
+    "E701",  # `if x: return` sur une ligne, style assumé
+    "E702",  # instructions séparées par `;`, style assumé
+    "E731",  # lambda affectée à un nom
+    "E741",  # noms courts type `l` dans les boucles de calcul
+]
 
 [tool.poetry.group.analysis.dependencies]
 scipy = ">=1.16"
@@ -31,4 +48,8 @@ matplotlib = ">=3.10"
 seaborn = ">=0.13"
 interpret-core = ">=0.7"
 shap = ">=0.52"
+
+# Torch est isole de `analysis` : la roue est enorme et la CI n'en a pas besoin pour
+# la suite deterministe. Les tests du transformer se sautent quand il est absent.
+[tool.poetry.group.deep.dependencies]
 torch = ">=2.6"

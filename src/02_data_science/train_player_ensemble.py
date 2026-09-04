@@ -51,9 +51,6 @@ import ml_features as mf
 import dataset_split as ds
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, accuracy_score
-import xgboost as xgb
-from sklearn.ensemble import RandomForestClassifier
-from interpret.glassbox import ExplainableBoostingClassifier
 import shap
 
 DATASET = rl.DATA / "04_dataset" / "adc_player_dataset.parquet"
@@ -63,7 +60,7 @@ MODEL_DIR = rl.DATA / "05_model"
 
 # Briques de CV partagées (cf. cv_common.py) — réexportées ici : le module reste le
 # point d'entrée historique de `purged_train_features` pour les tests et train_player_lp.
-from cv_common import (SEED, control_train_features, make_models,  # noqa: E402
+from cv_common import (SEED, control_train_features, make_models,  # noqa: E402,F401
                        purged_train_features)
 
 

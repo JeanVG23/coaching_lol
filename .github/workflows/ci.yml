@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+# Un push qui en suit un autre annule le run precedent : inutile de payer deux fois
+# la meme verification sur une branche en cours.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Lint et tests Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Poetry
+        run: pipx install poetry
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: poetry
+
+      # `--without deep` écarte torch : la roue pèse plusieurs centaines de Mo et seuls
+      # les tests du transformer séquentiel en dépendent. Ils se sautent d'eux-mêmes
+      # (pytest.importorskip) au lieu d'échouer.
+      - name: Installer les dépendances
+        run: poetry install --without deep
+
+      - name: Ruff
+        run: poetry run ruff check .
+
+      # Aucune donnée dans le dépôt (data/ est ignoré) : les tests qui ont besoin des
+      # agrégats locaux se sautent, le reste tourne sur fixtures.
+      - name: Pytest
+        run: poetry run pytest tests/ -q
+
+  worker:
+    name: Worker Cloudflare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web/cf
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/cf/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Vitest
+        run: npm test

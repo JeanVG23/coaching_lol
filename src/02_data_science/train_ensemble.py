@@ -135,7 +135,7 @@ def main(target: str = "high_elo") -> int:
 
     for train_idx, val_idx in cv.split(X, y, groups):
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
-        y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+        y_train, _y_val = y.iloc[train_idx], y.iloc[val_idx]
         
         models = make_models()
         for name, model in models.items():

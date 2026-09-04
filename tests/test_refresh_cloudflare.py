@@ -11,7 +11,6 @@ for module_path in (
     ROOT / "src" / "core",
     ROOT / "src" / "collection",
     ROOT / "src" / "04_coaching",
-    ROOT / "web" / "backend",
 ):
     if str(module_path) not in sys.path:
         sys.path.insert(0, str(module_path))

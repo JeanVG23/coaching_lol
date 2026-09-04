@@ -1,4 +1,9 @@
 """Smoke : pretrain SSL + finetune tourne sur mini-dataset synthétique."""
+import pytest
+
+# Le transformer séquentiel vit dans le groupe `analysis` (torch) : la CI installe le
+# socle sans ces extras, la suite doit se sauter proprement plutôt qu'échouer.
+pytest.importorskip("torch")
 import importlib.util, sys
 from pathlib import Path
 import numpy as np
