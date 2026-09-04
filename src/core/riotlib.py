@@ -396,6 +396,153 @@ class MatchCache:
         return self._snaps
 
 
+def _lane_metrics(my_fr: dict, opp_fr: dict, opp_pid: int | None,
+                  pid_champ: dict[int, str]) -> dict:
+    def gold_diff_at(minute: int) -> int | None:
+        mine, opponent = my_fr.get(minute), opp_fr.get(minute)
+        if not mine or not opponent:
+            return None
+        return mine.get("totalGold", 0) - opponent.get("totalGold", 0)
+
+    lane = {
+        "gd10": gold_diff_at(10), "gd14": gold_diff_at(14), "gd20": gold_diff_at(20),
+        "csd10": (cs_of(my_fr[10]) - cs_of(opp_fr[10])) if 10 in my_fr and 10 in opp_fr else None,
+        "csd14": (cs_of(my_fr[14]) - cs_of(opp_fr[14])) if 14 in my_fr and 14 in opp_fr else None,
+        "xpd10": (my_fr[10].get("xp", 0) - opp_fr[10].get("xp", 0)) if 10 in my_fr and 10 in opp_fr else None,
+        "csm10": cs_of(my_fr[10]) / 10.0 if 10 in my_fr else None,
+        "csm14": cs_of(my_fr[14]) / 14.0 if 14 in my_fr else None,
+        "gpm10": my_fr[10].get("totalGold", 0) / 10.0 if 10 in my_fr else None,
+        "gpm14": my_fr[14].get("totalGold", 0) / 14.0 if 14 in my_fr else None,
+        "xppm10": my_fr[10].get("xp", 0) / 10.0 if 10 in my_fr else None,
+    }
+    if opp_pid:
+        lane["opponent"] = pid_champ[opp_pid]
+    return lane
+
+
+def _gold_state_from_frames(my_fr: dict, opp_fr: dict, minute: int) -> str | None:
+    for current in range(minute, -1, -1):
+        if current in my_fr and current in opp_fr:
+            diff = my_fr[current].get("totalGold", 0) - opp_fr[current].get("totalGold", 0)
+            return _gold_state(diff)
+    return None
+
+
+def _combat_metrics(timeline: dict, *, my_pid: int, support_pid: int | None,
+                    enemy_jungle_pid: int | None, enemy_bot_pids: set[int],
+                    pid_role: dict[int, str], pid_champ: dict[int, str],
+                    my_fr: dict, opp_fr: dict) -> tuple[list, list, list, list]:
+    deaths, kills, assists, support_deaths = [], [], [], []
+    my_bot_pids = {my_pid, support_pid} - {None}
+
+    for frame in timeline["info"]["frames"]:
+        for event in frame.get("events", []):
+            if event.get("type") != "CHAMPION_KILL":
+                continue
+            minute = round(event["timestamp"] / 60000)
+            killer_pid = event.get("killerId")
+            assisters = event.get("assistingParticipantIds", [])
+            involved = {killer_pid, *assisters} - {None}
+
+            if event.get("victimId") == my_pid:
+                position = event.get("position", {})
+                deaths.append({
+                    "minute": minute,
+                    "phase": phase_of(minute),
+                    "zone": approx_zone(position.get("x", 0), position.get("y", 0)),
+                    "killer_role": pid_role.get(killer_pid, "?"),
+                    "killer_champ": pid_champ.get(killer_pid, "?"),
+                    "gold_state": _gold_state_from_frames(my_fr, opp_fr, minute),
+                    "is_solo": len(assisters) == 0,
+                    "is_ganked_by_jungle": enemy_jungle_pid is not None
+                    and enemy_jungle_pid in involved,
+                    "is_2v2": bool(involved) and involved.issubset(enemy_bot_pids),
+                })
+            elif event.get("victimId") == support_pid:
+                support_deaths.append(minute)
+
+            if killer_pid == my_pid:
+                kills.append({
+                    "minute": minute,
+                    "phase": phase_of(minute),
+                    "is_solo": len(assisters) == 0,
+                    "is_2v2": bool(involved) and involved.issubset(my_bot_pids)
+                    and event.get("victimId") in enemy_bot_pids,
+                })
+            elif my_pid in assisters:
+                assists.append({
+                    "minute": minute,
+                    "phase": phase_of(minute),
+                    "is_2v2": bool(involved) and involved.issubset(my_bot_pids)
+                    and event.get("victimId") in enemy_bot_pids,
+                })
+    return deaths, kills, assists, support_deaths
+
+
+def _frames_in_base_early(timeline: dict, my_pid: int, my_team: int) -> int:
+    count = 0
+    x0, x1, y0, y1 = BASE_RECT.get(my_team, (0, 0, 0, 0))
+    for frame in timeline["info"]["frames"]:
+        if round(frame["timestamp"] / 60000) >= EARLY_END_MINUTE:
+            continue
+        participant = frame["participantFrames"].get(str(my_pid))
+        position = (participant or {}).get("position") or {}
+        x, y = position.get("x"), position.get("y")
+        if x is not None and y is not None and x0 <= x < x1 and y0 <= y < y1:
+            count += 1
+    return count
+
+
+def _dragon_proximity(timeline: dict, my_fr: dict) -> int | None:
+    distances = []
+    for event in iter_events(timeline):
+        if event.get("type") != "ELITE_MONSTER_KILL" or event.get("monsterType") != "DRAGON":
+            continue
+        minute_before = max(0, round((event["timestamp"] - 60000) / 60000))
+        participant = my_fr.get(minute_before)
+        if not participant or "position" not in participant or "position" not in event:
+            continue
+        x, y = participant["position"].get("x"), participant["position"].get("y")
+        monster_x, monster_y = event["position"].get("x"), event["position"].get("y")
+        if None not in (x, y, monster_x, monster_y):
+            distances.append(((x - monster_x) ** 2 + (y - monster_y) ** 2) ** 0.5)
+    return round(sum(distances) / len(distances)) if distances else None
+
+
+def _plate_diff_early(timeline: dict, my_team: int, enemy_team: int) -> int:
+    mine = enemy = 0
+    for event in iter_events(timeline):
+        if event.get("type") != "TURRET_PLATE_DESTROYED" or event.get("laneType") != "BOT_LANE":
+            continue
+        if round(event["timestamp"] / 60000) >= 14:
+            continue
+        if event.get("teamId") == enemy_team:
+            mine += 1
+        elif event.get("teamId") == my_team:
+            enemy += 1
+    return mine - enemy
+
+
+def _composition(parts: list[dict], pid_champ: dict[int, str], my_team: int,
+                 me: dict) -> dict:
+    def champ_at(team_is_mine: bool, role: str) -> str | None:
+        for pid, participant in enumerate(parts, 1):
+            same_team = participant["teamId"] == my_team
+            if same_team == team_is_mine and (participant.get("teamPosition") or "") == role:
+                return pid_champ[pid]
+        return None
+
+    return {
+        "self_adc": me["championName"],
+        "self_support": champ_at(True, "UTILITY"),
+        "enemy_adc": champ_at(False, "BOTTOM"),
+        "enemy_support": champ_at(False, "UTILITY"),
+        "self_jungle": champ_at(True, "JUNGLE"),
+        "enemy_jungle": champ_at(False, "JUNGLE"),
+        "enemy_mid": champ_at(False, "MIDDLE"),
+    }
+
+
 def extract_game(match: dict, timeline: dict, puuid: str,
                  rank: str | None = None, cache: "MatchCache | None" = None) -> dict | None:
     """Une game -> record silver (morts + benchmark de lane). None si hors Faille."""
@@ -427,128 +574,16 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     my_fr = frames_of(my_pid)
     opp_fr = frames_of(opp_pid) if opp_pid else {}
 
-    def gold_diff_at(minute: int) -> int | None:
-        a, b = my_fr.get(minute), opp_fr.get(minute)
-        return (a.get("totalGold", 0) - b.get("totalGold", 0)) if a and b else None
-
-    # Snapshots de lane aux minutes clés
-    lane = {
-        "gd10": gold_diff_at(10), "gd14": gold_diff_at(14), "gd20": gold_diff_at(20),
-        "csd10": (cs_of(my_fr[10]) - cs_of(opp_fr[10])) if 10 in my_fr and 10 in opp_fr else None,
-        "csd14": (cs_of(my_fr[14]) - cs_of(opp_fr[14])) if 14 in my_fr and 14 in opp_fr else None,
-        "xpd10": (my_fr[10].get("xp", 0) - opp_fr[10].get("xp", 0)) if 10 in my_fr and 10 in opp_fr else None,
-        "csm10": cs_of(my_fr[10]) / 10.0 if 10 in my_fr else None,
-        "csm14": cs_of(my_fr[14]) / 14.0 if 14 in my_fr else None,
-        "gpm10": my_fr[10].get("totalGold", 0) / 10.0 if 10 in my_fr else None,
-        "gpm14": my_fr[14].get("totalGold", 0) / 14.0 if 14 in my_fr else None,
-        "xppm10": my_fr[10].get("xp", 0) / 10.0 if 10 in my_fr else None,
-    }
-    if opp_pid:
-        lane["opponent"] = pid_champ[opp_pid]
-
-    def gold_state_at(minute: int) -> str | None:
-        for m in range(minute, -1, -1):  # frame la plus récente ≤ minute
-            if m in my_fr and m in opp_fr:
-                return _gold_state(my_fr[m].get("totalGold", 0) - opp_fr[m].get("totalGold", 0))
-        return None
-
-    deaths = []
-    kills = []
-    assists = []
-    support_deaths = []
-    dragon_distances = []
-    my_plates = 0
-    enemy_plates = 0
-    frames_in_base = 0
-    
-    for frame in timeline["info"]["frames"]:
-        minute = round(frame["timestamp"] / 60000)
-        
-        if minute < EARLY_END_MINUTE:
-            p_frame = frame["participantFrames"].get(str(my_pid))
-            pos = (p_frame or {}).get("position") or {}
-            px, py = pos.get("x"), pos.get("y")
-            x0, x1, y0, y1 = BASE_RECT.get(my_team, (0, 0, 0, 0))
-            if px is not None and py is not None and x0 <= px < x1 and y0 <= py < y1:
-                frames_in_base += 1
-
-
-        for ev in frame.get("events", []):
-            if ev.get("type") == "CHAMPION_KILL":
-                ev_minute = round(ev["timestamp"] / 60000)
-                kpid = ev.get("killerId")
-                assisters = ev.get("assistingParticipantIds", [])
-                involved = {kpid}.union(set(assisters)) - {None}
-                
-                if ev.get("victimId") == my_pid:
-                    pos = ev.get("position", {})
-                    is_2v2 = len(involved) > 0 and involved.issubset(enemy_bot_pids)
-                    
-                    deaths.append({
-                        "minute": ev_minute,
-                        "phase": phase_of(ev_minute),
-                        "zone": approx_zone(pos.get("x", 0), pos.get("y", 0)),
-                        "killer_role": pid_role.get(kpid, "?"),
-                        "killer_champ": pid_champ.get(kpid, "?"),
-                        "gold_state": gold_state_at(ev_minute),
-                        "is_solo": len(assisters) == 0,
-                        "is_ganked_by_jungle": (enemy_jungle_pid is not None) and (enemy_jungle_pid in involved),
-                        "is_2v2": is_2v2,
-                    })
-                elif ev.get("victimId") == support_pid:
-                    support_deaths.append(ev_minute)
-                
-                if kpid == my_pid:
-                    my_bot_pids = {my_pid, support_pid} - {None}
-                    is_kill_2v2 = len(involved) > 0 and involved.issubset(my_bot_pids) and ev.get("victimId") in enemy_bot_pids
-                    kills.append({
-                        "minute": ev_minute,
-                        "phase": phase_of(ev_minute),
-                        "is_solo": len(assisters) == 0,
-                        "is_2v2": is_kill_2v2,
-                    })
-                elif my_pid in assisters:
-                    my_bot_pids = {my_pid, support_pid} - {None}
-                    is_assist_2v2 = len(involved) > 0 and involved.issubset(my_bot_pids) and ev.get("victimId") in enemy_bot_pids
-                    assists.append({
-                        "minute": ev_minute,
-                        "phase": phase_of(ev_minute),
-                        "is_2v2": is_assist_2v2,
-                    })
-            elif ev.get("type") == "ELITE_MONSTER_KILL" and ev.get("monsterType") == "DRAGON":
-                minute_before = max(0, round((ev["timestamp"] - 60000) / 60000))
-                p_frame = my_fr.get(minute_before)
-                if p_frame and "position" in p_frame and "position" in ev:
-                    px, py = p_frame["position"].get("x"), p_frame["position"].get("y")
-                    mx, my = ev["position"].get("x"), ev["position"].get("y")
-                    if px is not None and py is not None and mx is not None and my is not None:
-                        dragon_distances.append(((px - mx)**2 + (py - my)**2)**0.5)
-            elif ev.get("type") == "TURRET_PLATE_DESTROYED" and ev.get("laneType") == "BOT_LANE":
-                ev_minute = round(ev["timestamp"] / 60000)
-                if ev_minute < 14:
-                    if ev.get("teamId") == enemy_team:
-                        my_plates += 1
-                    elif ev.get("teamId") == my_team:
-                        enemy_plates += 1
-
-    avg_dragon_prox = round(sum(dragon_distances) / len(dragon_distances)) if dragon_distances else None
-
-    def champ_at(team_is_mine: bool, role: str) -> str | None:
-        for i, p in enumerate(parts):
-            same = (p["teamId"] == my_team)
-            if same == team_is_mine and (p.get("teamPosition") or "") == role:
-                return pid_champ[i + 1]
-        return None
-
-    comp = {
-        "self_adc": me["championName"],
-        "self_support": champ_at(True, "UTILITY"),
-        "enemy_adc": champ_at(False, "BOTTOM"),
-        "enemy_support": champ_at(False, "UTILITY"),
-        "self_jungle": champ_at(True, "JUNGLE"),
-        "enemy_jungle": champ_at(False, "JUNGLE"),
-        "enemy_mid": champ_at(False, "MIDDLE"),
-    }
+    lane = _lane_metrics(my_fr, opp_fr, opp_pid, pid_champ)
+    deaths, kills, assists, support_deaths = _combat_metrics(
+        timeline, my_pid=my_pid, support_pid=support_pid,
+        enemy_jungle_pid=enemy_jungle_pid, enemy_bot_pids=enemy_bot_pids,
+        pid_role=pid_role, pid_champ=pid_champ, my_fr=my_fr, opp_fr=opp_fr,
+    )
+    frames_in_base = _frames_in_base_early(timeline, my_pid, my_team)
+    avg_dragon_prox = _dragon_proximity(timeline, my_fr)
+    plates_diff_early = _plate_diff_early(timeline, my_team, enemy_team)
+    comp = _composition(parts, pid_champ, my_team, me)
 
     import positioning  # import paresseux : évite le cycle riotlib<->positioning
     pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
@@ -573,7 +608,7 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "kills": kills,
         "assists": assists,
         "support_deaths_early": sum(1 for m in support_deaths if m < 14),
-        "plates_diff_early": my_plates - enemy_plates,
+        "plates_diff_early": plates_diff_early,
         "frames_in_base_early": frames_in_base,
         "avg_dragon_prox": avg_dragon_prox,
         "position": position,

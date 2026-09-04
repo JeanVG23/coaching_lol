@@ -50,3 +50,36 @@ def test_closes_gap_false_when_target_not_bottom():
 def test_closes_gap_false_when_target_absent():
     games = [{"puuid": "p2", "role": "BOTTOM"}]
     assert densify_players.closes_gap(games, "p1") is False
+
+
+def test_collect_player_stops_when_adc_gap_is_closed(monkeypatch):
+    class Client:
+        def match_ids(self, puuid, **kwargs):
+            assert puuid == "p1"
+            assert kwargs == {"count": 50, "queue": densify_players.rl.QUEUE_SOLO,
+                              "start_time": 123}
+            return ["seen", "wrong-patch", "missing", "good", "must-not-fetch"]
+
+    responses = {
+        "wrong-patch": ({"info": {"gameVersion": "16.12.1"}}, {}),
+        "missing": None,
+        "good": ({"info": {"gameVersion": "16.13.1"}}, {}),
+    }
+    monkeypatch.setattr(densify_players.rl, "get_match_timeline",
+                        lambda _client, match_id: responses[match_id])
+    extracted = [
+        {"puuid": "p1", "role": "BOTTOM"},
+        {"puuid": "p2", "role": "UTILITY"},
+    ]
+    monkeypatch.setattr(densify_players.rl, "extract_all_games",
+                        lambda *_args, **_kwargs: extracted)
+
+    seen = {"seen"}
+    games, adc_games = densify_players.collect_player_games(
+        Client(), "p1", rank="master", patch="16.13", max_history=50,
+        start_time=123, gap=1, seen_matches=seen,
+    )
+
+    assert games == extracted
+    assert adc_games == 1
+    assert seen == {"seen", "wrong-patch", "missing", "good"}

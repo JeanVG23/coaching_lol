@@ -51,6 +51,94 @@ def closes_gap(games: list[dict], puuid: str) -> bool:
     return any(g["puuid"] == puuid and g["role"] == "BOTTOM" for g in games)
 
 
+def collect_player_games(client, puuid: str, *, rank: str, patch: str,
+                         max_history: int, start_time: int, gap: int | None,
+                         seen_matches: set[str]) -> tuple[list[dict], int]:
+    """Collecte les nouvelles performances d'un joueur, avec arrêt au gap ADC."""
+    history = client.match_ids(
+        puuid, count=max_history, queue=rl.QUEUE_SOLO, start_time=start_time)
+    collected: list[dict] = []
+    adc_games_added = 0
+
+    for match_id in history:
+        if match_id in seen_matches:
+            continue
+        seen_matches.add(match_id)
+
+        got = rl.get_match_timeline(client, match_id)
+        if not got or rl.patch_of(got[0]["info"].get("gameVersion", "")) != patch:
+            continue
+
+        games = rl.extract_all_games(got[0], got[1], rank=rank)
+        if not games:
+            continue
+        collected.extend(games)
+        if gap is not None and closes_gap(games, puuid):
+            adc_games_added += 1
+            if adc_games_added >= gap:
+                break
+
+    return collected, adc_games_added
+
+
+def _known_match_ids() -> set[str]:
+    seen: set[str] = set()
+    for rank in ALL_RANKS:
+        path = rl.silver_games(rl.KIND_REF, rank)
+        if not path.exists():
+            continue
+        seen.update(row["match_id"] for row in rl.read_jsonl(path) if row.get("match_id"))
+    return seen
+
+
+def _patch_from_sources(sources_file: Path) -> str | None:
+    if not sources_file.exists():
+        return None
+    try:
+        return json.loads(sources_file.read_text()).get("patch")
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _existing_player_count(sources_file: Path) -> int:
+    if not sources_file.exists():
+        return 0
+    try:
+        return json.loads(sources_file.read_text()).get("n_players", 0)
+    except (json.JSONDecodeError, OSError):
+        return 0
+
+
+def _persist_pool(path: Path, sources_file: Path, pool: list[dict], *,
+                  rank: str, patch: str) -> list[dict]:
+    merged = rl.merge_jsonl(path, pool)
+    sources_file.write_text(json.dumps({
+        "rank": rank,
+        "patch": patch,
+        "collected_at": time.strftime("%Y-%m-%d %H:%M"),
+        "n_players": _existing_player_count(sources_file),
+        "n_games": len(merged),
+    }, indent=2))
+    pool.clear()
+    return merged
+
+
+def _players_for_rank(path: Path, rank: str, target_file: str | None) \
+        -> tuple[list[str], dict[str, int]]:
+    if target_file:
+        targets = json.loads(Path(target_file).read_text())
+        puuids, gaps = parse_target_list(targets, rank)
+        print(f"\n=== {rank.upper()} : {len(puuids)} joueurs CIBLÉS à densifier "
+              f"({len(gaps)} avec objectif chiffré = arrêt anticipé) ===", file=sys.stderr)
+        return puuids, gaps
+
+    existing = rl.read_jsonl(path)
+    puuids = list({row["puuid"] for row in existing if row.get("puuid")})
+    print(f"\n=== {rank.upper()} : {len(puuids)} joueurs existants à densifier ===",
+          file=sys.stderr)
+    return puuids, {}
+
+
 def main() -> int:
     env = rl.load_env()
     api_key = env.get("RIOT_API_ID")
@@ -73,16 +161,9 @@ def main() -> int:
 
     start_time = int(time.time()) - days_back * 86400
 
-    # 1. Charger tous les match_ids déjà connus pour éviter les appels d'API inutiles
-    global_seen_matches = set()
-    for r in ALL_RANKS:
-        path = rl.silver_games(rl.KIND_REF, r)
-        if path.exists():
-            for row in rl.read_jsonl(path):
-                if row.get("match_id"):
-                    global_seen_matches.add(row["match_id"])
-                    
+    global_seen_matches = _known_match_ids()
     print(f"→ {len(global_seen_matches)} match_ids uniques déjà en base.", file=sys.stderr)
+    target_file = arg("--target-list") if has_flag("--target-list") else None
 
     for rank in ranks:
         silver_base = rl.SILVER_DIR / rl.KIND_REF / rank
@@ -91,65 +172,25 @@ def main() -> int:
             print(f"  ⚠ {rank}: aucun games.jsonl trouvé, skip.", file=sys.stderr)
             continue
             
-        gap_by_puuid: dict[str, int] = {}
-        if has_flag("--target-list"):
-            target_file = arg("--target-list")
-            targets = json.loads(Path(target_file).read_text())
-            puuids, gap_by_puuid = parse_target_list(targets, rank)
-            print(f"\n=== {rank.upper()} : {len(puuids)} joueurs CIBLÉS à densifier "
-                  f"({len(gap_by_puuid)} avec objectif chiffré = arrêt anticipé) ===", file=sys.stderr)
-            if not puuids:
-                continue
-        else:
-            existing = rl.read_jsonl(path)
-            # Extraire les puuids uniques associés à ce rang
-            puuids = list(set(row["puuid"] for row in existing if row.get("puuid")))
-            print(f"\n=== {rank.upper()} : {len(puuids)} joueurs existants à densifier ===", file=sys.stderr)
+        puuids, gap_by_puuid = _players_for_rank(path, rank, target_file)
+        if not puuids:
+            continue
         
-        # Trouver le patch courant de ce rang dans sources.json
-        patch = None
         sources_file = silver_base / "sources.json"
-        if sources_file.exists():
-            try:
-                patch = json.loads(sources_file.read_text()).get("patch")
-            except Exception:
-                pass
-        
+        patch = _patch_from_sources(sources_file)
         if not patch:
             print("  ⚠ Patch introuvable, skip.", file=sys.stderr)
             continue
 
         pool: list[dict] = []
         for i, puuid in enumerate(puuids, 1):
-            perf_kept = 0
-            adc_games_added = 0
-            gap = gap_by_puuid.get(puuid)  # None = pas d'objectif chiffré -> historique complet (comportement historique)
-            # Récupérer l'historique complet
-            history = client.match_ids(puuid, count=max_history, queue=rl.QUEUE_SOLO, start_time=start_time)
-
-            for mid in history:
-                if mid in global_seen_matches:
-                    continue  # Déjà analysé par le passé
-
-                global_seen_matches.add(mid)
-
-                got = rl.get_match_timeline(client, mid)
-                if not got:
-                    continue
-
-                # Vérifier que c'est bien sur le même patch
-                if rl.patch_of(got[0]["info"].get("gameVersion", "")) != patch:
-                    continue
-
-                games = rl.extract_all_games(got[0], got[1], rank=rank)
-                if games:
-                    pool.extend(games)
-                    perf_kept += len(games)
-
-                    if gap is not None and closes_gap(games, puuid):
-                        adc_games_added += 1
-                        if adc_games_added >= gap:
-                            break  # objectif atteint, joueur suivant plutôt que d'épuiser --history
+            gap = gap_by_puuid.get(puuid)
+            games, adc_games_added = collect_player_games(
+                client, puuid, rank=rank, patch=patch, max_history=max_history,
+                start_time=start_time, gap=gap, seen_matches=global_seen_matches,
+            )
+            pool.extend(games)
+            perf_kept = len(games)
 
             if perf_kept > 0:
                 goal = f" (objectif ADC {adc_games_added}/{gap} atteint)" if gap and adc_games_added >= gap else ""
@@ -157,38 +198,12 @@ def main() -> int:
 
             # Checkpoint
             if pool and i % checkpoint_every == 0:
-                merged = rl.merge_jsonl(path, pool)
-                
-                existing_players = 0
-                if sources_file.exists():
-                    try:
-                        existing_players = json.loads(sources_file.read_text()).get("n_players", 0)
-                    except json.JSONDecodeError:
-                        pass
-                        
-                sources_file.write_text(json.dumps({
-                    "rank": rank, "patch": patch,
-                    "collected_at": time.strftime("%Y-%m-%d %H:%M"),
-                    "n_players": existing_players, "n_games": len(merged),
-                }, indent=2))
-                pool.clear()
+                merged = _persist_pool(path, sources_file, pool, rank=rank, patch=patch)
                 print(f"  · checkpoint @ {i}/{len(puuids)} → silver={len(merged)} games", file=sys.stderr)
 
         # Flush final
         if pool:
-            merged = rl.merge_jsonl(path, pool)
-            existing_players = 0
-            if sources_file.exists():
-                try:
-                    existing_players = json.loads(sources_file.read_text()).get("n_players", 0)
-                except json.JSONDecodeError:
-                    pass
-            sources_file.write_text(json.dumps({
-                "rank": rank, "patch": patch,
-                "collected_at": time.strftime("%Y-%m-%d %H:%M"),
-                "n_players": existing_players, "n_games": len(merged),
-            }, indent=2))
-            
+            merged = _persist_pool(path, sources_file, pool, rank=rank, patch=patch)
             # Mettre à jour la couche Gold
             gold_base = rl.gold_base(rl.KIND_REF, rank)
             rl.write_gold(gold_base, merged, SCOPES, rank=rank, patch=patch)

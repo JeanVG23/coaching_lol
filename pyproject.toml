@@ -31,7 +31,7 @@ exclude = ["web/backend", ".venv"]
 [tool.ruff.lint]
 # On garde les règles qui attrapent des bugs (F : imports morts, variables non
 # utilisées, redéfinitions) et on écarte celles qui ne jugent que le style maison.
-select = ["E4", "E7", "E9", "F"]
+select = ["E4", "E7", "E9", "F", "C901"]
 ignore = [
     "E401",  # imports groupés sur une ligne, style assumé
     "E402",  # convention flat-import : sys.path.insert avant `import riotlib`
@@ -40,6 +40,9 @@ ignore = [
     "E731",  # lambda affectée à un nom
     "E741",  # noms courts type `l` dans les boucles de calcul
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
 
 [tool.poetry.group.analysis.dependencies]
 scipy = ">=1.16"

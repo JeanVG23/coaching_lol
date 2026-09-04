@@ -144,6 +144,87 @@ def _gank_score_for_game(game: dict) -> float | None:
 _LANE_ZONES = ("TOP", "MID", "BOT")
 
 
+def _kill_events_by_minute(timeline: dict, max_minute: int) -> dict[int, list]:
+    kills: dict[int, list] = defaultdict(list)
+    for frame in timeline.get("info", {}).get("frames", []):
+        minute = round(frame["timestamp"] / 60000)
+        if minute > max_minute + 3:
+            break
+        kills[minute].extend(
+            event for event in frame.get("events", [])
+            if event.get("type") == "CHAMPION_KILL"
+        )
+    return kills
+
+
+def _lane_frame_status(timeline: dict, my_idx: int, enemy_idxs: set[int],
+                       max_minute: int) -> list[tuple[int, bool, bool]]:
+    from riotlib import approx_zone
+
+    statuses = []
+    for frame in timeline.get("info", {}).get("frames", []):
+        minute = round(frame["timestamp"] / 60000)
+        if minute > max_minute:
+            statuses.append((minute, False, False))
+            continue
+        participant_frames = frame.get("participantFrames", {})
+        my_position = participant_frames.get(str(my_idx), {}).get("position") or {}
+        if not my_position.get("x"):
+            statuses.append((minute, False, False))
+            continue
+        my_zone = approx_zone(my_position["x"], my_position["y"])
+        in_lane = my_zone in _LANE_ZONES
+        enemy_in_zone = in_lane and any(
+            (position := participant_frames.get(str(enemy_idx), {}).get("position") or {}).get("x")
+            and approx_zone(position["x"], position["y"]) == my_zone
+            for enemy_idx in enemy_idxs
+        )
+        statuses.append((minute, in_lane, bool(enemy_in_zone)))
+    return statuses
+
+
+def _involved_in_kill(event: dict, participant_idx: int) -> bool:
+    return event.get("killerId") == participant_idx or participant_idx in (
+        event.get("assistingParticipantIds") or [])
+
+
+def _count_lane_visit_metrics(statuses: list[tuple[int, bool, bool]],
+                              kills_by_minute: dict[int, list], my_idx: int,
+                              max_minute: int) -> dict:
+    lane_visits = gank_frames = gank_kills = gank_kills_v2 = 0
+    real_gank_frames = early_deaths = 0
+    gank_minutes = {minute for minute, in_lane, enemy in statuses if in_lane and enemy}
+
+    for minute, in_lane, enemy_in_zone in statuses:
+        if not in_lane or minute > max_minute:
+            continue
+        lane_visits += 1
+        if enemy_in_zone:
+            gank_frames += 1
+            neighbors = range(max(0, minute - 2), minute + 3)
+            if any(other != minute and other in gank_minutes for other in neighbors):
+                real_gank_frames += 1
+
+        events = kills_by_minute.get(minute, [])
+        gank_kills += sum(_involved_in_kill(event, my_idx) for event in events)
+        early_deaths += sum(
+            event.get("victimId") == my_idx and minute <= 14 for event in events)
+
+        for kill_minute in range(minute, min(minute + 3, max_minute + 1)):
+            if any(_involved_in_kill(event, my_idx)
+                   for event in kills_by_minute.get(kill_minute, [])):
+                gank_kills_v2 += 1
+
+    return {
+        "lane_visits": lane_visits,
+        "gank_frames": gank_frames,
+        "gank_kills": gank_kills,
+        "gank_kills_v2": gank_kills_v2,
+        "real_gank_frames": real_gank_frames,
+        "early_deaths": early_deaths,
+    }
+
+
 def _detect_lane_visits(match: dict, timeline: dict, target_puuid: str,
                         max_minute: int = 15) -> dict:
     """Pour UN joueur, compte les visites de lane pendant les N premières minutes.
@@ -177,94 +258,9 @@ def _detect_lane_visits(match: dict, timeline: dict, target_puuid: str,
     my_team = 100 if my_idx <= 5 else 200
     enemy_idxs = set(range(1, 11)) - set(range(1, 6) if my_team == 100 else range(6, 11))
 
-    from riotlib import approx_zone
-
-    # Pré-indexe les CHAMPION_KILL events par minute (pour amélioration 1)
-    kills_by_minute: dict[int, list] = defaultdict(list)
-    for fr in timeline.get("info", {}).get("frames", []):
-        minute = round(fr["timestamp"] / 60000)
-        if minute > max_minute + 3:
-            break
-        for ev in fr.get("events", []):
-            if ev.get("type") == "CHAMPION_KILL":
-                kills_by_minute[minute].append(ev)
-
-    # Passe 1 : collecte les (minute, in_lane, enemy_in_zone) pour chaque frame
-    # In_lane = True si la frame est en zone lane.
-    # enemy_in_zone = True si un ennemi est dans la même zone.
-    per_frame_status: list[tuple[int, bool, bool]] = []
-    for fr in timeline.get("info", {}).get("frames", []):
-        minute = round(fr["timestamp"] / 60000)
-        if minute > max_minute:
-            per_frame_status.append((minute, False, False))  # au-delà, pas en lane
-            continue
-        pf = fr.get("participantFrames", {})
-        my_pf = pf.get(str(my_idx), {})
-        my_pos = my_pf.get("position") or {}
-        if not my_pos.get("x"):
-            per_frame_status.append((minute, False, False))
-            continue
-        my_zone = approx_zone(my_pos["x"], my_pos["y"])
-        in_lane = my_zone in _LANE_ZONES
-        enemy_in_zone = False
-        if in_lane:
-            for eidx in enemy_idxs:
-                epf = pf.get(str(eidx), {})
-                epos = epf.get("position") or {}
-                if not epos.get("x"):
-                    continue
-                if approx_zone(epos["x"], epos["y"]) == my_zone:
-                    enemy_in_zone = True
-                    break
-        per_frame_status.append((minute, in_lane, enemy_in_zone))
-
-    # Passe 2 : compte les métriques finales.
-    lane_visits = gank_frames_v1 = gank_kills_v1 = gank_kills_v2 = 0
-    real_gank_frames = early_deaths = 0
-    # Précalcule : minutes où le jungler est en lane avec ennemi.
-    gank_minutes = {m for m, in_lane, e in per_frame_status if in_lane and e}
-
-    for minute, in_lane, enemy_in_zone in per_frame_status:
-        if not in_lane or minute > max_minute:
-            continue
-        lane_visits += 1
-        if enemy_in_zone:
-            gank_frames_v1 += 1
-            # Amélioration 2 : frame "vrai gank" = une AUTRE frame en lane
-            # avec ennemi existe dans [minute-2, minute+2] (séjour prolongé).
-            has_neighbor = any(
-                m != minute and m in gank_minutes
-                for m in range(max(0, minute - 2), minute + 3)
-            )
-            if has_neighbor:
-                real_gank_frames += 1
-
-        # v1 kill counter (inchangé pour rétro-compat) : kill dans ce frame
-        # où jungler est killer/assist.
-        for ev in kills_by_minute.get(minute, []):
-            assisting = ev.get("assistingParticipantIds") or []
-            if ev.get("killerId") == my_idx or my_idx in assisting:
-                gank_kills_v1 += 1
-            if ev.get("victimId") == my_idx and minute <= 14:
-                early_deaths += 1
-
-        # Amélioration 1 : kill dans les 3 minutes après cette frame,
-        # où le jungler est killer/assist.
-        for kmin in range(minute, min(minute + 3, max_minute + 1)):
-            for ev in kills_by_minute.get(kmin, []):
-                assisting = ev.get("assistingParticipantIds") or []
-                if ev.get("killerId") == my_idx or my_idx in assisting:
-                    gank_kills_v2 += 1
-                    break  # 1 kill max par frame de visite
-
-    return {
-        "lane_visits": lane_visits,
-        "gank_frames": gank_frames_v1,
-        "gank_kills": gank_kills_v1,
-        "gank_kills_v2": gank_kills_v2,
-        "real_gank_frames": real_gank_frames,
-        "early_deaths": early_deaths,
-    }
+    kills_by_minute = _kill_events_by_minute(timeline, max_minute)
+    statuses = _lane_frame_status(timeline, my_idx, enemy_idxs, max_minute)
+    return _count_lane_visit_metrics(statuses, kills_by_minute, my_idx, max_minute)
 
 
 def compute_gank_stats_from_raw(
@@ -640,6 +636,34 @@ def validate_champion_axis(
 
 # ---------- Main ----------
 
+def _load_and_describe(ranks: list[str] | None, min_games: int) \
+        -> tuple[list[dict], dict[tuple[str, str], list[dict]]]:
+    print("=== validate_traits — Phase 1 (squelette + chargement) ===")
+    print(f"Loading silver referentials from {SILVER_REF_DIR}…")
+    games = load_silver_referentials(ranks)
+    print(f"  → {len(games)} games chargées")
+    if ranks:
+        print(f"  → filtrées sur ranks: {ranks}")
+
+    print("Indexing par (champion, role)…")
+    index = index_games_by_champ_role(games)
+    print(f"  → {len(index)} combos (champion, role) distincts")
+    n_above = sum(1 for values in index.values() if len(values) >= min_games)
+    print(f"  → {n_above} combos avec >= {min_games} games")
+
+    coverage = game_count_per_axis(index)
+    print("\nCouverture par axe (games où l'axe a du sens) :")
+    for axis, count in sorted(coverage.items()):
+        roles = ", ".join(_AXE_ROLES[axis])
+        print(f"  • {axis:<14} {count:>6} games   (rôles: {roles})")
+
+    top = sorted(index.items(), key=lambda item: -len(item[1]))[:10]
+    print("\nTop 10 combos (champion, role) par nombre de games :")
+    for (champion, role), values in top:
+        print(f"  • {champion:<18} {role:<8} {len(values)} games")
+    return games, index
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description="Validation data-driven de champion_traits.json (0 API)."
@@ -652,34 +676,7 @@ def main() -> int:
                     help=f"sortie JSON (défaut: {DEFAULT_OUT}).")
     args = ap.parse_args()
 
-    print("=== validate_traits — Phase 1 (squelette + chargement) ===")
-    print(f"Loading silver referentials from {SILVER_REF_DIR}…")
-    games = load_silver_referentials(args.ranks)
-    print(f"  → {len(games)} games chargées")
-
-    if args.ranks:
-        print(f"  → filtrées sur ranks: {args.ranks}")
-
-    print("Indexing par (champion, role)…")
-    idx = index_games_by_champ_role(games)
-    print(f"  → {len(idx)} combos (champion, role) distincts")
-
-    # Combos au-dessus du seuil
-    n_above = sum(1 for gs in idx.values() if len(gs) >= args.min_games)
-    print(f"  → {n_above} combos avec >= {args.min_games} games")
-
-    # Couverture par axe
-    coverage = game_count_per_axis(idx)
-    print("\nCouverture par axe (games où l'axe a du sens) :")
-    for axis, n in sorted(coverage.items()):
-        roles = ", ".join(_AXE_ROLES[axis])
-        print(f"  • {axis:<14} {n:>6} games   (rôles: {roles})")
-
-    # Top combos par nombre de games (debug)
-    top = sorted(idx.items(), key=lambda kv: -len(kv[1]))[:10]
-    print("\nTop 10 combos (champion, role) par nombre de games :")
-    for (champ, role), gs in top:
-        print(f"  • {champ:<18} {role:<8} {len(gs)} games")
+    games, idx = _load_and_describe(args.ranks, args.min_games)
 
     # --- Phase 2 : gank stats (raw timelines) ---
     print("\n=== Phase 2 — Stats gank (junglers, raw timelines) ===")
@@ -871,6 +868,81 @@ def _nearest_label(value: float, label_dists: dict) -> str | None:
     return best_label
 
 
+def _proposal_candidates(traits: dict, min_games: int,
+                         per_champ_gank: dict, per_champ_roam: dict,
+                         per_champ_lp: dict, per_champ_pc: dict) -> list[tuple[str, str, int]]:
+    champions = set().union(
+        per_champ_gank, per_champ_roam, per_champ_lp, per_champ_pc)
+    role_sources = (
+        ("JUNGLE", per_champ_gank),
+        ("MIDDLE", per_champ_roam),
+        ("BOTTOM", per_champ_lp),
+        ("UTILITY", per_champ_roam),
+    )
+    candidates = []
+    for champion in champions:
+        if traits.get(champion, {}):
+            continue
+        for role, source in role_sources:
+            n_games = source.get(champion, {}).get("n", 0)
+            if n_games >= min_games:
+                candidates.append((champion, role, n_games))
+                break
+    return candidates
+
+
+def _add_nearest_axis(proposed: dict, evidence: dict, *, axis: str,
+                      value: float | None, label_dists: dict) -> None:
+    if value is None:
+        return
+    nearest = _nearest_label(value, label_dists)
+    if not nearest:
+        return
+    proposed[axis] = nearest
+    evidence[axis] = {
+        "value": value,
+        "nearest_label": nearest,
+        "group_median": label_dists[nearest].get("score_median"),
+    }
+
+
+def _axes_for_candidate(champion: str, role: str, *,
+                        per_champ_gank: dict, per_champ_roam: dict,
+                        per_champ_lp: dict, per_champ_pc: dict,
+                        by_label_gank: dict, by_label_roam: dict,
+                        by_label_lp: dict, by_label_pc: dict) -> tuple[dict, dict]:
+    proposed, evidence = {}, {}
+    if role == "JUNGLE":
+        stats = per_champ_gank.get(champion, {})
+        value = stats.get("gank_kills_v2_mean", stats.get("gank_kills_mean"))
+        for axis in ("playstyle", "gank_threat"):
+            distributions = {
+                key.split("=")[1]: distribution
+                for key, distribution in by_label_gank.items()
+                if key.startswith(f"{axis}=")
+            }
+            _add_nearest_axis(
+                proposed, evidence, axis=axis, value=value, label_dists=distributions)
+        return proposed, evidence
+
+    if role in ("MIDDLE", "UTILITY"):
+        roam_value = per_champ_roam.get(champion, {}).get("roam_mean")
+        _add_nearest_axis(
+            proposed, evidence, axis="roam", value=roam_value,
+            label_dists=by_label_roam)
+    elif role == "BOTTOM":
+        lane_value = per_champ_lp.get(champion, {}).get("early_kp_mean")
+        _add_nearest_axis(
+            proposed, evidence, axis="lane_pattern", value=lane_value,
+            label_dists=by_label_lp)
+
+    power_value = per_champ_pc.get(champion, {}).get("winrate_long")
+    _add_nearest_axis(
+        proposed, evidence, axis="power_curve", value=power_value,
+        label_dists=by_label_pc)
+    return proposed, evidence
+
+
 def build_proposals(
     traits: dict,
     per_champ_gank: dict,
@@ -895,98 +967,16 @@ def build_proposals(
           "evidence": {axis: {"value": ..., "nearest_label": ..., "group_median": ...}}
         }, ...]
     """
+    candidates = _proposal_candidates(
+        traits, min_games, per_champ_gank, per_champ_roam, per_champ_lp, per_champ_pc)
     proposals: list[dict] = []
-    # Set de tous les champions dans le dataset
-    champs_in_data: set[str] = set()
-    for d in (per_champ_gank, per_champ_roam, per_champ_lp, per_champ_pc):
-        champs_in_data.update(d.keys())
-    # Filtre : ceux sans axes curés (= pas dans traits OU traits[champ] vide)
-    candidates = []
-    for c in champs_in_data:
-        t = traits.get(c, {})
-        if t:  # a déjà des axes
-            continue
-        # Trouve le rôle principal (premier trouvé)
-        role = None
-        n_games = 0
-        for r, per_champ_map in (("JUNGLE", per_champ_gank), ("MIDDLE", per_champ_roam),
-                                  ("BOTTOM", per_champ_lp), ("UTILITY", per_champ_roam)):
-            if c in per_champ_map and per_champ_map[c].get("n", 0) >= min_games:
-                role = r
-                n_games = per_champ_map[c]["n"]
-                break
-        if not role or n_games < min_games:
-            continue
-        candidates.append((c, role, n_games))
-
     for champ, role, n_games in candidates:
-        proposed: dict = {}
-        evidence: dict = {}
-        if role == "JUNGLE":
-            data = per_champ_gank.get(champ, {})
-            v = data.get("gank_kills_v2_mean", data.get("gank_kills_mean"))
-            if v is not None:
-                for axis in ("playstyle", "gank_threat"):
-                    label_dists = {k.split("=")[1]: v for k, v in by_label_gank.items()
-                                   if k.startswith(f"{axis}=")}
-                    nearest = _nearest_label(v, label_dists)
-                    if nearest:
-                        proposed[axis] = nearest
-                        evidence[axis] = {
-                            "value": v,
-                            "nearest_label": nearest,
-                            "group_median": label_dists[nearest].get("score_median"),
-                        }
-        elif role in ("MIDDLE", "UTILITY"):
-            data = per_champ_roam.get(champ, {})
-            v = data.get("roam_mean")
-            if v is not None:
-                nearest = _nearest_label(v, by_label_roam)
-                if nearest:
-                    proposed["roam"] = nearest
-                    evidence["roam"] = {
-                        "value": v,
-                        "nearest_label": nearest,
-                        "group_median": by_label_roam[nearest].get("score_median"),
-                    }
-            # Et power_curve si ADC/mid
-            if role in ("MIDDLE", "BOTTOM", "UTILITY"):
-                pc_data = per_champ_pc.get(champ, {})
-                v_pc = pc_data.get("winrate_long")
-                if v_pc is not None:
-                    nearest_pc = _nearest_label(v_pc, by_label_pc)
-                    if nearest_pc:
-                        proposed["power_curve"] = nearest_pc
-                        evidence["power_curve"] = {
-                            "value": v_pc,
-                            "nearest_label": nearest_pc,
-                            "group_median": by_label_pc[nearest_pc].get("score_median"),
-                        }
-        elif role == "BOTTOM":
-            # ADC : lane_pattern + power_curve
-            data_lp = per_champ_lp.get(champ, {})
-            v = data_lp.get("early_kp_mean")
-            if v is not None:
-                nearest = _nearest_label(v, by_label_lp)
-                if nearest:
-                    proposed["lane_pattern"] = nearest
-                    evidence["lane_pattern"] = {
-                        "value": v,
-                        "nearest_label": nearest,
-                        "group_median": by_label_lp[nearest].get("score_median"),
-                    }
-            pc_data = per_champ_pc.get(champ, {})
-            v_pc = pc_data.get("winrate_long")
-            if v_pc is not None:
-                nearest_pc = _nearest_label(v_pc, by_label_pc)
-                if nearest_pc:
-                    proposed["power_curve"] = nearest_pc
-                    evidence["power_curve"] = {
-                        "value": v_pc,
-                        "nearest_label": nearest_pc,
-                        "group_median": by_label_pc[nearest_pc].get("score_median"),
-                    }
-
+        proposed, evidence = _axes_for_candidate(
+            champ, role, per_champ_gank=per_champ_gank,
+            per_champ_roam=per_champ_roam, per_champ_lp=per_champ_lp,
+            per_champ_pc=per_champ_pc, by_label_gank=by_label_gank,
+            by_label_roam=by_label_roam, by_label_lp=by_label_lp,
+            by_label_pc=by_label_pc)
         if proposed:
             proposals.append({
                 "champion": champ,

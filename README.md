@@ -8,7 +8,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Worker-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **Un coach IA personnalisé centré sur les décisions du joueur, le macro-positionnement et la chaîne causale des événements, benchmarké par rapport aux données réelles de joueurs Challenger / Master.**
+> **Un coach IA personnalisé centré sur les décisions du joueur, le macro-positionnement et l’enchaînement temporel des événements, benchmarké par rapport aux données réelles de joueurs Challenger / Master.**
 
 ---
 
@@ -51,7 +51,7 @@ Les outils d'analyse traditionnels de League of Legends (OP.GG, U.GG, Porofessor
 1. **Positionnement > Stats brutes** : Une analyse temporelle précise (à partir de la timeline Riot Match-V5) des déplacements, du timing de recall, de la proximité aux objectifs et de l'isolement apporte un signal bien plus déterminant qu'un simple score KDA.
 2. **Respect strict de l'asymétrie d'information** : Le coach ne reproche **JAMAIS** une décision sur la base d'une information que le joueur n'avait pas (fog of war). Les features sont scindées entre métriques fiables pour le coaching (`COACHING_SAFE`) et proxies de vision réservés au ML (`ML_ONLY`).
 3. **Benchmarks comparatifs High-Elo** : Tout diagnostic est contextualisé par rapport à des dizaines de milliers de parties Challenger et Master à issue équivalente (victoire vs défaite, matchup botlane, exposition aux ganks).
-4. **Analyse causale post-mort** : Chaque mort est reliée mécaniquement à ses conséquences objectives (bâtiments perdus, drakes/barons cédés, swing de gold d'équipe dans les 60 à 90 secondes suivantes).
+4. **Analyse temporelle post-mort** : Chaque mort est rapprochée mécaniquement des événements objectifs observés ensuite (bâtiments perdus, drakes/barons cédés, swing de gold d'équipe dans les 60 à 90 secondes suivantes), sans prétendre démontrer qu'elle les a causés.
 5. **Restitution structurée par LLM** : Le modèle de langage ne fait pas de calculs "au doigt mouillé" ; il reçoit un **payload pré-agrégé et vérifié**, et produit une analyse narrative structurée (forces, erreurs étayées par des preuves chiffrées, habitudes à corriger, focus prioritaire).
 
 ---
@@ -293,6 +293,10 @@ Ces quatre commandes sont exactement celles que joue la CI GitHub Actions
 (`.github/workflows/ci.yml`) à chaque push et chaque pull request. La CI installe le
 socle sans `torch` (`poetry install --without deep`) : les tests du transformer
 séquentiel se sautent alors d'eux-mêmes.
+
+Ruff applique aussi un garde-fou de complexité cyclomatique (`C901`) : toute fonction
+dépassant un score McCabe de 20 fait échouer la CI. Le seuil porte sur tout le dépôt et
+n'utilise aucune exemption locale.
 
 Les tests qui ont besoin d'une pile de données complète, eux, ne se sautent plus :
 ils la construisent depuis `tests/fixtures/demo/` (fixture `demo_data`). Les sept

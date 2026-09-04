@@ -205,6 +205,39 @@ def test_detect_lane_visits_returns_dict():
     pytest.skip("no jungler game with raw data found")
 
 
+def test_detect_lane_visits_counts_sustained_gank_and_followup_kill():
+    match = {"metadata": {"participants": [f"p{i}" for i in range(1, 11)]}}
+
+    def frame(minute, events=()):
+        participant_frames = {
+            "1": {"position": {"x": 13000, "y": 2000}},
+            "6": {"position": {"x": 13000, "y": 2000}},
+        }
+        return {
+            "timestamp": minute * 60000,
+            "participantFrames": participant_frames,
+            "events": list(events),
+        }
+
+    kill = {
+        "type": "CHAMPION_KILL", "timestamp": 2 * 60000,
+        "killerId": 1, "victimId": 6, "assistingParticipantIds": [],
+    }
+    followup_kill = kill | {"timestamp": 3 * 60000, "victimId": 7}
+    off_lane_frame = frame(3, [followup_kill])
+    off_lane_frame["participantFrames"] = {}
+    timeline = {"info": {"frames": [frame(1), frame(2, [kill]), off_lane_frame]}}
+
+    assert vt._detect_lane_visits(match, timeline, "p1") == {
+        "lane_visits": 2,
+        "gank_frames": 2,
+        "gank_kills": 1,
+        "gank_kills_v2": 4,
+        "real_gank_frames": 2,
+        "early_deaths": 0,
+    }
+
+
 # ---------- Tests Phase 6/7 (rapport + proposals) ----------
 
 def test_verdict_from_value_validated():
@@ -313,6 +346,51 @@ def test_build_proposals_finds_champions_without_axes():
     assert "KnownChamp" not in champs_proposed  # déjà curé
     p = next(p for p in proposals if p["champion"] == "NewChamp")
     assert p["proposed_axes"]["playstyle"] == "ganking"  # 2.7 plus proche de 3.0 que 2.0
+
+
+@pytest.mark.parametrize(
+    ("champion", "inputs", "expected"),
+    [
+        (
+            "Roamer",
+            {"per_champ_roam": {"Roamer": {"n": 30, "roam_mean": 0.7}},
+             "per_champ_pc": {"Roamer": {"n": 30, "winrate_long": 0.6}}},
+            {"roam": "high", "power_curve": "late"},
+        ),
+        (
+            "Carry",
+            {"per_champ_lp": {"Carry": {"n": 30, "early_kp_mean": 0.8}},
+             "per_champ_pc": {"Carry": {"n": 30, "winrate_long": 0.6}}},
+            {"lane_pattern": "all_in", "power_curve": "late"},
+        ),
+    ],
+)
+def test_build_proposals_preserves_role_specific_axes(champion, inputs, expected):
+    proposals = vt.build_proposals(
+        traits={},
+        per_champ_gank=inputs.get("per_champ_gank", {}),
+        per_champ_roam=inputs.get("per_champ_roam", {}),
+        per_champ_lp=inputs.get("per_champ_lp", {}),
+        per_champ_pc=inputs.get("per_champ_pc", {}),
+        by_label_gank={},
+        by_label_roam={
+            "low": {"score_median": 0.1},
+            "high": {"score_median": 0.8},
+        },
+        by_label_lp={
+            "poke": {"score_median": 0.2},
+            "all_in": {"score_median": 0.9},
+        },
+        by_label_pc={
+            "early": {"score_median": 0.4},
+            "late": {"score_median": 0.65},
+        },
+        min_games=20,
+    )
+
+    assert len(proposals) == 1
+    assert proposals[0]["champion"] == champion
+    assert proposals[0]["proposed_axes"] == expected
 
 
 def test_render_text_includes_summary():
