@@ -45,6 +45,24 @@ function routeOf(path) {
   return { name: "home" };
 }
 
+// Lien profond : /c/<slug>?tab=coaching&view=games&review=<match_id>.
+// Un lien externe (page CV, partage) doit tomber sur une analyse de partie précise,
+// pas sur la page d'accueil du compte qui n'explique rien. `review` implique l'onglet
+// coaching et la vue par-partie : un seul paramètre suffit côté appelant.
+const ACCOUNT_TABS = ["history", "coaching", "shap"];
+const COACHING_VIEWS = ["overall", "games"];
+
+function deepLinkOf(search) {
+  const q = new URLSearchParams(search || "");
+  const review = q.get("review") || null;
+  let tab = q.get("tab");
+  let view = q.get("view");
+  if (review) { tab = "coaching"; view = "games"; }
+  if (!ACCOUNT_TABS.includes(tab)) tab = null;
+  if (!COACHING_VIEWS.includes(view)) view = null;
+  return { tab, view, review };
+}
+
 // Une analyse d'une partie ne permet pas d'inférer des habitudes : son format est
 // volontairement différent et elle ne doit pas remplacer le coaching global dans cet
 // onglet. La séparation est portée par l'API (`?kind=aggregate` vs `?kind=game`,
@@ -95,10 +113,12 @@ function homePage() {
     },
   };
 }
-function accountPage(slug) {
+function accountPage(slug, search) {
+  const deep = deepLinkOf(search === undefined ? location.search : search);
   return {
     slug,
-    tab: "history",
+    tab: deep.tab || "history",
+    pendingReviewId: deep.review,
     games: [], page: 1, size: 20, total: 0,
     gamesLoading: true, gamesError: null,
     job: null, // {type, status, progress, error}
@@ -109,13 +129,18 @@ function accountPage(slug) {
     reviews: [], review: null, aggregateReviewsTotal: 0,
     gameReviews: [], selectedGameReview: null, gameReviewsPage: 1, gameReviewsLoading: false,
     gameReviewLoading: false, gameReviewError: null,
-    coachingView: "overall", gameReviewsCount: 0, reviewsLoading: true,
+    coachingView: deep.view || "overall", gameReviewsCount: 0, reviewsLoading: true,
     fbMap: {}, fbBusy: {}, noteDraft: {}, feedbackError: null,
     coachOpen: false,
     // shap (F5)
     shap: null, shapLoading: false, shapSort: "abs", chart: null,
 
-    init() { this.loadGames(); this.loadRank(); this.loadPredictedRank(); },
+    init() {
+      this.loadGames(); this.loadRank(); this.loadPredictedRank();
+      // setTab porte déjà le chargement paresseux de chaque onglet : on le rejoue
+      // pour l'onglet ouvert par le lien profond plutôt que de dupliquer la logique.
+      if (this.tab !== "history") this.setTab(this.tab);
+    },
 
     // Charge une URL dans un champ, avec drapeau de chargement et valeur de repli :
     // loadRank / loadPredictedRank / loadShap avaient le même corps recopié.
@@ -238,10 +263,31 @@ function accountPage(slug) {
         this.gameReviews = gamePage.items || [];
         this.gameReviewsPage = gamePage.page || 1;
         this.gameReviewsCount = gamePage.total || 0;
-        if (this.gameReviews.length) await this.selectGameReview(this.gameReviews[0], false);
-        if (this.review) await this.loadFeedback(this.review);
+        const target = await this.resolvePendingReview();
+        const selected = target || this.gameReviews[0];
+        if (selected) await this.selectGameReview(selected, false);
+        const active = this.activeFeedbackReview();
+        if (active) await this.loadFeedback(active);
       } catch (e) { /* keep reviews empty */ }
       finally { this.reviewsLoading = false; }
+    },
+
+    // Le lien profond porte un `match_id`, alors que l'API identifie une review par son
+    // `ts` : on pagine la liste jusqu'à le trouver. Introuvable (review supprimée, lien
+    // périmé) : repli silencieux sur la plus récente, un lien mort ne doit pas casser
+    // la page pour un visiteur venu du CV.
+    async resolvePendingReview() {
+      const wanted = this.pendingReviewId;
+      this.pendingReviewId = null;
+      if (!wanted) return null;
+      for (;;) {
+        const hit = this.gameReviews.find(r => this.gameMatchId(r) === wanted);
+        if (hit) return hit;
+        const before = this.gameReviews.length;
+        if (before >= this.gameReviewsCount) return null;
+        await this.loadMoreGameReviews();
+        if (this.gameReviews.length === before) return null;
+      }
     },
 
     async loadMoreGameReviews() {

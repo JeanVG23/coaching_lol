@@ -64,6 +64,19 @@ def test_app_js_has_router_and_helpers():
     assert "location.pathname" in js
 
 
+def test_deep_link_to_a_game_review_wired():
+    """?review=<match_id> doit ouvrir l'onglet coaching sur la vue par-partie.
+
+    Le lien depuis le CV pointe une analyse precise : sans ce cablage il retombe sur
+    la page du compte, qui n'explique rien a un visiteur exterieur.
+    """
+    js = _client().get("/static/app.js").text
+    assert "function deepLinkOf(" in js
+    assert 'q.get("review")' in js
+    assert "resolvePendingReview" in js
+    assert "gameMatchId(r) === wanted" in js
+
+
 def test_home_page_wired():
     body = _client().get("/").text
     js = _client().get("/static/app.js").text
