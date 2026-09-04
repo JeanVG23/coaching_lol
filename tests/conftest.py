@@ -1,4 +1,21 @@
+import os
 import sys
+
+# macOS (Apple Silicon) : torch et scikit-learn embarquent CHACUN leur libomp.dylib (xgboost
+# en lie une 3e via Homebrew). Deux runtimes OpenMP initialisés dans le même processus →
+# SIGSEGV ou deadlock dès la première opération parallélisée du second runtime. Reproduit :
+# la suite plantait dans train_sequence_model._train_one_task juste après les fits
+# sklearn/xgboost de test_train_player_ensemble. OMP_NUM_THREADS=1 supprime la collision,
+# KMP_DUPLICATE_LIB_OK autorise la cohabitation (le flag SEUL ne suffit pas : vérifié, le
+# processus se bloque avec des threads multiples). Ces lignes doivent précéder tout import
+# qui charge libomp (il lit son environnement à son initialisation). setdefault : un export
+# explicite de l'utilisateur gagne. Rien dans ~/.zshrc : c'est un défaut du dépôt, pas de la
+# machine, et un export global plafonnerait les threads de tous les autres projets.
+# Canary de non-régression : tests/test_openmp_coexistence.py.
+if sys.platform == "darwin":
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parent.parent / "src"

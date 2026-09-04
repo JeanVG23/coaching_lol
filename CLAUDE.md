@@ -528,9 +528,16 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
   `delta_ssl = -0.0195` (≈0) : le prétexte MSE mask-and-reconstruct est faible sur signaux lisses
   (gold monotone, position continue → quasi-interpolation) — **pas un verdict sur le SSL en
   général**, un prétexte prédictif (future-event) reste à tester en étape 3. ⚠ **Caveat env Mac** :
-  torch+xgboost ne cohabitent pas (double-load libomp → SIGSEGV) → baseline tabulaire RF+EBM
-  (xgb exclu) ; MPS n'implémente pas le nested-tensor de `src_key_padding_mask` → run CPU
-  (`--device cpu`). 0 API (relit `_read_raw`).
+  torch, scikit-learn et xgboost embarquent chacun leur `libomp.dylib` ; deux runtimes OpenMP
+  initialisés dans le même processus → SIGSEGV/deadlock (reproduit : la suite plantait dans
+  `train_sequence_model._train_one_task` après les fits sklearn/xgboost d'un test antérieur).
+  La suite pytest est immunisée par le garde-fou en tête de `tests/conftest.py`
+  (`OMP_NUM_THREADS=1` + `KMP_DUPLICATE_LIB_OK=TRUE`, darwin seulement, avant tout import ; le
+  flag seul NE suffit PAS, vérifié) + canary `tests/test_openmp_coexistence.py`. Les runs
+  manuels restent dans la configuration documentée : baseline tabulaire RF+EBM (xgb exclu) ;
+  en cas de blocage pareil, préfixer `OMP_NUM_THREADS=1 KMP_DUPLICATE_LIB_OK=TRUE`. Pas
+  d'export `~/.zshrc` (plafonnerait les threads de tous les projets). MPS n'implémente pas le
+  nested-tensor de `src_key_padding_mask` → run CPU (`--device cpu`). 0 API (relit `_read_raw`).
 - **Protocole d'éval gold standard (per-player)** ✅ — 2026-07-18. Split canonique unique
   `data/04_dataset/split.json` (par joueur, stratifié, graine fixe, 70/15/15, cf.
   `src/core/dataset_split.py` + `src/01_data_engineering/build_split.py`). Sélection des
