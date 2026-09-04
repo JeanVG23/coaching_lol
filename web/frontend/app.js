@@ -49,6 +49,23 @@ function routeOf(path) {
 // Un lien externe (page CV, partage) doit tomber sur une analyse de partie précise,
 // pas sur la page d'accueil du compte qui n'explique rien. `review` implique l'onglet
 // coaching et la vue par-partie : un seul paramètre suffit côté appelant.
+// Le bloc « Mettre à jour mes données » demande de lancer une commande dans un
+// terminal : il n'a de sens que pour le propriétaire du compte, alors que la page est
+// publique et sert de démonstration. `?admin=1` l'active et le mémorise, `?admin=0` le
+// coupe ; le stockage peut être indisponible (navigation privée), d'où le try/catch.
+const OWNER_FLAG = "coachlol:owner";
+
+function ownerViewFrom(search) {
+  const asked = new URLSearchParams(search || "").get("admin");
+  try {
+    if (asked === "1") { localStorage.setItem(OWNER_FLAG, "1"); return true; }
+    if (asked === "0") { localStorage.removeItem(OWNER_FLAG); return false; }
+    return localStorage.getItem(OWNER_FLAG) === "1";
+  } catch (e) {
+    return asked === "1";
+  }
+}
+
 const ACCOUNT_TABS = ["history", "coaching", "shap"];
 const COACHING_VIEWS = ["overall", "games"];
 
@@ -117,6 +134,7 @@ function accountPage(slug, search) {
   const deep = deepLinkOf(search === undefined ? location.search : search);
   return {
     slug,
+    ownerView: ownerViewFrom(search === undefined ? location.search : search),
     tab: deep.tab || "history",
     pendingReviewId: deep.review,
     games: [], page: 1, size: 20, total: 0,
@@ -130,6 +148,8 @@ function accountPage(slug, search) {
     gameReviews: [], selectedGameReview: null, gameReviewsPage: 1, gameReviewsLoading: false,
     gameReviewLoading: false, gameReviewError: null,
     coachingView: deep.view || "overall", gameReviewsCount: 0, reviewsLoading: true,
+    reviewsInFlight: false,
+    evalReport: null, evalLoading: false,
     fbMap: {}, fbBusy: {}, noteDraft: {}, feedbackError: null,
     coachOpen: false,
     // shap (F5)
@@ -188,6 +208,7 @@ function accountPage(slug, search) {
       if (t === "coaching" && this.reviews.length === 0 && this.reviewsLoading) {
         this.loadReviews();
       }
+      if (t === "coaching" && this.evalReport === null) { this.loadEval(); }
       if (t === "shap" && this.shap === null) { this.loadShap(); }
     },
 
@@ -195,6 +216,14 @@ function accountPage(slug, search) {
       this.coachingView = view;
       await this.loadFeedback(this.activeFeedbackReview());
     },
+
+    // Taux d'utilite du coaching : la boucle d'evaluation du projet, affichee
+    // meme quand elle est mauvaise. Un conseil LLM non evalue n'est qu'une opinion.
+    loadEval() {
+      return this.loadInto("evalReport", "evalLoading", `/api/c/${this.slug}/eval`);
+    },
+
+    pct(v) { return v === null || v === undefined ? "—" : `${Math.round(v * 100)} %`; },
 
     loadShap() {
       return this.loadInto("shap", "shapLoading", `/api/c/${this.slug}/shap`,
@@ -251,6 +280,11 @@ function accountPage(slug, search) {
     },
 
     async loadReviews() {
+      // Alpine initialise le composant deux fois (x-data dans un template x-if
+      // re-rendu) : sans ce garde, le second appel concurrent rejouait la selection
+      // par defaut et ecrasait la review ciblee par le lien profond.
+      if (this.reviewsInFlight) return;
+      this.reviewsInFlight = true;
       this.reviewsLoading = true;
       try {
         const [aggregatePage, gamePage] = await Promise.all([
@@ -269,7 +303,7 @@ function accountPage(slug, search) {
         const active = this.activeFeedbackReview();
         if (active) await this.loadFeedback(active);
       } catch (e) { /* keep reviews empty */ }
-      finally { this.reviewsLoading = false; }
+      finally { this.reviewsLoading = false; this.reviewsInFlight = false; }
     },
 
     // Le lien profond porte un `match_id`, alors que l'API identifie une review par son
@@ -278,7 +312,6 @@ function accountPage(slug, search) {
     // la page pour un visiteur venu du CV.
     async resolvePendingReview() {
       const wanted = this.pendingReviewId;
-      this.pendingReviewId = null;
       if (!wanted) return null;
       for (;;) {
         const hit = this.gameReviews.find(r => this.gameMatchId(r) === wanted);
@@ -424,6 +457,7 @@ function accountPage(slug, search) {
           body: JSON.stringify({ slug: this.slug, ts: review.ts, responses }),
         });
         this.fbMap = newMap;
+        this.loadEval();          // le taux publie inclut ce vote
       } catch (e) {
         this.feedbackError = /\b429\b/.test(String(e))
           ? "Trop de votes en peu de temps. Réessaie dans une heure."
@@ -436,6 +470,9 @@ function accountPage(slug, search) {
 
     async selectGameReview(review, loadFeedback = true) {
       if (!review?.ts) return;
+      // Un clic prend le pas sur le lien profond : la cible n'est conservee que pour
+      // les selections automatiques (loadFeedback = false), pas apres un choix humain.
+      if (loadFeedback) this.pendingReviewId = null;
       this.gameReviewLoading = true; this.gameReviewError = null;
       try {
         this.selectedGameReview = await api(`/api/c/${this.slug}/reviews/${encodeURIComponent(review.ts)}`);

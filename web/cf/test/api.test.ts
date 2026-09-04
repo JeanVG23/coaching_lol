@@ -122,6 +122,17 @@ describe("GET /api/c/{slug}/reviews|feedback|shap", () => {
       .toEqual({ available: false, drivers: [] });
   });
 
+  it("eval expose la métrique de la boucle d'éval", async () => {
+    // Le taux publie est calcule a la lecture : une annotation laissee depuis le
+    // site compte immediatement, sans attendre un sync depuis le poste local.
+    const { env } = await seed();
+    const report = await (await handle(new Request("http://x/api/c/spadzze/eval"), env))
+      .json() as { n_game_reviews: number; objective: Record<string, unknown>; target_met: boolean };
+    expect(report.n_game_reviews).toBe(1);
+    expect(report.objective).toMatchObject({ target_n: 10, target_rate: 0.7 });
+    expect(report.target_met).toBe(false);
+  });
+
   it("sépare la liste légère des analyses de parties et leur détail", async () => {
     const { env } = await seed();
     const page = await handle(new Request("http://x/api/c/spadzze/reviews?kind=game&page=1&size=1"), env);

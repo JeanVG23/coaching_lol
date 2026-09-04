@@ -1,5 +1,6 @@
 import { ACCOUNTS } from "./accounts";
 import { apiCoach } from "./coach";
+import { readEval } from "./evaluation";
 import { apiFeedback } from "./feedback";
 import {
   methodNotAllowed,
@@ -141,6 +142,7 @@ const ACCOUNT_ROUTES: Record<
   reviews: (env, slug, params) => apiReviews(env, slug, params),
   feedback: async (env, slug) => Response.json(await readJsonl(env.DATA, KEYS.feedback(slug))),
   shap: async (env, slug) => Response.json(await readShap(env.DATA, slug)),
+  eval: async (env, slug) => Response.json(await readEval(env.DATA, slug)),
 };
 
 export async function handle(request: Request, env: Env): Promise<Response> {

@@ -795,6 +795,49 @@ button, select, textarea { font:inherit; }
 .game-reviews-heading h2 { color:var(--text); font-size:20px; letter-spacing:-.03em; }
 .game-reviews-heading p { max-width:680px; margin:5px 0 0; color:var(--text-dim); font-size:13px; }
 
+/* Encart de cadrage : un visiteur venu d'un lien externe doit comprendre ce qu'il
+   regarde et sur quelle contrainte le coach s'interdit certains reproches. */
+.eval-strip {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #23262d;
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.eval-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.eval-head strong { font-size: 16px; }
+.eval-kicker { font-size: 11px; letter-spacing: .08em; color: var(--gold); }
+.eval-meta { font-size: 12px; color: #8b949e; font-variant-numeric: tabular-nums; }
+.eval-badge {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.eval-badge.met { color: var(--win); }
+.eval-badge.pending { color: #8b949e; }
+.eval-note { margin: 8px 0 0; font-size: 12px; color: #8b949e; line-height: 1.5; }
+.eval-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  border-radius: 4px; background: #1c1f26; color: #c9d1d9;
+}
+
+.review-primer {
+  margin:0 0 18px;
+  padding:14px 16px;
+  border:1px solid var(--border-soft);
+  border-left:3px solid var(--gold);
+  border-radius:var(--radius);
+  background:var(--gold-soft);
+}
+.review-primer p {
+  max-width:820px;
+  margin:0;
+  color:var(--text-dim);
+  font-size:13px;
+}
+.review-primer p + p { margin-top:8px; }
+.review-primer strong { color:var(--text); font-weight:600; }
+
 .game-review-layout {
   display:grid;
   grid-template-columns:minmax(210px, 270px) minmax(0, 1fr);

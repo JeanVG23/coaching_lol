@@ -4,10 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Coach LoL — analyse de parties</title>
+  <meta name="description" content="Un coach League of Legends qui analyse une partie réelle : morts, retours en base et timers d'objectifs horodatés, comparés à un référentiel challenger.">
+  <!-- Aperçu de lien : la page est une SPA sans rendu serveur, un partage sur LinkedIn
+       ou par courriel n'affichait qu'une coquille vide sans ces balises statiques. -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://coaching-lol.jeanvg.fr/">
+  <meta property="og:site_name" content="Coach LoL">
+  <meta property="og:title" content="Coach LoL : l'analyse d'une partie, moment par moment">
+  <meta property="og:description" content="Chaque force et chaque erreur porte sa cause, son horodatage et sa preuve chiffrée, comparées à un référentiel challenger. Aucun reproche fondé sur une information que le joueur n'avait pas.">
+  <meta property="og:image" content="https://coaching-lol.jeanvg.fr/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:alt" content="Analyse d'une partie : KDA, durée, patch, confiance et focus pour la prochaine partie.">
+  <meta property="og:locale" content="fr_FR">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="/style.css">
   <script defer src="/vendor/alpine.min.js"></script>
 </head>
-<body x-data="app()" x-init="init()" x-cloak>
+<body x-data="app()" x-cloak>
   <nav class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="/" @click.prevent="go('/')" aria-label="Retour aux comptes">
@@ -35,7 +50,7 @@
 
   <main class="container">
     <template x-if="route.name === 'home'">
-      <div x-data="homePage()" x-init="init()">
+      <div x-data="homePage()">
         <section class="page-intro home-intro">
           <p class="eyebrow">ANALYSE DE PARTIES</p>
           <h1>Ton coaching, fondé sur tes parties.</h1>
@@ -74,7 +89,7 @@
       </div>
     </template>
     <template x-if="route.name === 'account'">
-      <div x-data="accountPage(route.slug)" x-init="init()">
+      <div x-data="accountPage(route.slug)">
   <section class="profile-hero">
     <div class="profile-main">
       <p class="eyebrow">TABLEAU DE BORD</p>
@@ -99,7 +114,7 @@
     </div>
   </section>
 
-  <details class="sync-help">
+  <details class="sync-help" x-show="ownerView">
     <summary>Mettre à jour mes données</summary>
     <p>Depuis ton terminal, lance <code>poetry run python src/collection/refresh_cloudflare.py</code>. Les nouvelles parties sont ensuite publiées automatiquement sur ce site.</p>
   </details>
@@ -186,6 +201,33 @@
                 :aria-selected="(coachingView === 'games').toString()"
                 @click="setCoachingView('games')">Analyses de parties <span class="coach-tab-count" x-show="gameReviewsCount" x-text="gameReviewsCount"></span></button>
       </div>
+
+      <!-- Boucle d'evaluation : le taux est affiche meme mauvais, avec son n et
+           sa cible. Un conseil de LLM non evalue n'est qu'une opinion plausible. -->
+      <section class="eval-strip" x-show="evalReport && evalReport.objective">
+        <div class="eval-head">
+          <span class="eval-kicker">BOUCLE D’ÉVALUATION</span>
+          <strong>
+            <span x-text="pct(evalReport?.objective?.mistake_useful_rate)"></span>
+            des erreurs jugées utiles
+          </strong>
+          <span class="eval-meta"
+                x-text="`sur ${evalReport?.objective?.n_game_reviews_annotated ?? 0} analyses de parties annotées (cible : ≥${Math.round((evalReport?.objective?.target_rate ?? 0.7) * 100)} % sur ≥${evalReport?.objective?.target_n ?? 10})`"></span>
+          <span class="eval-badge" :class="evalReport?.target_met ? 'met' : 'pending'"
+                x-text="evalReport?.target_met ? 'objectif atteint' : 'objectif non atteint'"></span>
+        </div>
+        <p class="eval-note">
+          Chaque insight ci-dessous est notable utile/faux : le taux se recalcule à
+          chaque vote. Il est mesuré sur les erreurs des analyses de parties, la
+          seule section dont l’utilité est vérifiable partie par partie.
+          <span x-show="evalReport?.top_tags?.length">
+            Motifs de rejet les plus fréquents :
+            <template x-for="t in (evalReport?.top_tags || []).slice(0, 3)" :key="t.tag">
+              <span class="eval-tag" x-text="`${t.tag} ×${t.n}`"></span>
+            </template>
+          </span>
+        </p>
+      </section>
 
       <div x-show="coachingView === 'overall'">
       <section class="coach-builder" aria-labelledby="coach-builder-title">
@@ -383,6 +425,11 @@
             </div>
           </div>
 
+          <aside class="review-primer">
+            <p><strong>D’où sort cette analyse.</strong> La partie est récupérée via l’API Riot (match et timeline), puis convertie en journal structuré : morts, retours en base, or non dépensé et timers d’objectifs, tous horodatés. Un modèle de langage à sortie contrainte par schéma en tire des forces et des erreurs, chacune avec sa cause et sa preuve chiffrée.</p>
+            <p><strong>Ce qu’il ne dira jamais.</strong> Aucun reproche fondé sur une information que le joueur n’avait pas à l’instant de sa décision. Les variables reconstruites après coup sont marquées comme réservées au modèle : une vérification au chargement fait échouer le programme si l’une d’elles atteint le coaching.</p>
+          </aside>
+
           <template x-if="reviewsLoading"><div class="state">Chargement des analyses de parties…</div></template>
           <template x-if="!reviewsLoading && gameReviews.length === 0">
             <div class="state empty-state"><strong>Aucune analyse de partie disponible.</strong><span>Les prochaines analyses individuelles apparaîtront ici.</span></div>
@@ -557,7 +604,7 @@
 </div>
     </template>
     <template x-if="route.name === 'readme'">
-      <div x-data="readmePage()" x-init="init()" class="readme">
+      <div x-data="readmePage()" class="readme">
   <h1 style="font-size:28px;margin-bottom:6px">Comment fonctionne le coaching</h1>
   <p class="muted" style="margin:0 0 20px">Le projet de bout en bout : de la récupération des données à la boucle de feedback. Les recos sont benchmarkées, vérifiables, et respectent ce que tu savais vraiment.</p>
 
@@ -723,6 +770,28 @@
       </div>
 
       <div class="card">
+        <h2>Model card : les chiffres, le protocole et ce qui ne marche pas</h2>
+        <p>Un chiffre sans son protocole ne prouve rien. Les deux modèles servis sont évalués sur un <strong>test held-out</strong>, jamais sur du out-of-fold optimiste :</p>
+        <div style="overflow-x:auto">
+        <table class="readme-table">
+          <tr><th>Modèle</th><th>Unité</th><th>Sélection (CV purgée sur le train)</th><th>Test held-out</th></tr>
+          <tr><td>Rang (binaire high-elo)</td><td>1 joueur, ≥15 games ADC</td><td>AUC 0.591 (n=687)</td><td><strong>AUC 0.677</strong> (n=147)</td></tr>
+          <tr><td>Régression LP</td><td>1 joueur apex</td><td>Spearman 0.493 (n=805)</td><td><strong>Spearman 0.537</strong> (n=170)</td></tr>
+        </table>
+        </div>
+        <p style="margin-top:10px"><strong>Purged CV.</strong> Environ 37 % des parties des joueurs du dataset opposent <em>deux</em> joueurs du dataset : leurs features sont en miroir, ce qui fait fuir de l'information entre folds. À chaque fold, les agrégats d'entraînement sont recalculés en excluant ces parties. La fuite a été <strong>mesurée, pas supposée</strong> : ≈ +0,005 d'AUC.</p>
+        <p><strong>Ce que le modèle regarde vraiment.</strong> Les statistiques de dispersion (écart-type, p10, p90) concentrent <strong>65 %</strong> du signal SHAP, contre 20 % pour la moyenne. Autrement dit : le rang tient au <em>plancher</em>, pas à la moyenne. Ce n'est pas la bonne partie qui distingue un joueur, c'est la mauvaise.</p>
+        <p><strong>Résultats négatifs, assumés.</strong> Les taire donnerait une image fausse du projet :</p>
+        <ul>
+          <li>Le pré-entraînement auto-supervisé (mask-and-reconstruct) <strong>n'apporte rien</strong> : delta −0,019, et −0,025 pour une v2 censée l'améliorer.</li>
+          <li>La frontière Master / Grandmaster <strong>plafonne à ≈ 0,589</strong> : la calibration place master à 0,489 et grandmaster à 0,487, un ordre inversé. Ces deux tiers sont confondus sur des features macro.</li>
+          <li>Augmenter le nombre de parties par joueur <strong>n'aide pas au-delà de ~30</strong> (0,635 au pic, 0,599 à N=50).</li>
+          <li>Le modèle par-partie a été <strong>déprécié</strong> : trop instable pour être affiché.</li>
+        </ul>
+        <p class="faint">Limites documentées : un seul patch (16.13) et une seule région (EUW) ; rang transféré aux deux ADC du lobby ; Grandmaster sous-représenté (16 joueurs dans le test) donc métriques GM non interprétables ; drift connu entre le modèle servi et le dataset courant. Détail complet dans la <a href="https://github.com/JeanVG23/coaching_lol/blob/master/docs/MODEL_CARD.md" target="_blank" rel="noopener">model card</a>.</p>
+      </div>
+
+      <div class="card">
         <h2>Du score au rang affiché</h2>
         <p>Le modèle de classification est binaire (élo haut vs bas), donc pas directement un rang. Une étape de calibration transforme la probabilité moyenne de l'ensemble en un rang précis : on mesure comment cette probabilité se distribue par rang réel sur le référentiel, puis on place un joueur au rang calibré le plus proche de sa probabilité moyenne sur ses dernières games. Le niveau de confiance est toujours affiché explicitement à côté du rang estimé — jamais présenté comme une certitude.</p>
       </div>
@@ -792,6 +861,11 @@
       <div class="card">
         <h2>Le tag, la note, et pourquoi les deux comptent</h2>
         <p>Un jugement négatif (✗) impose de choisir un tag parmi une liste fermée : <em>asymétrie</em>, <em>stat inventée</em>, <em>profondeur en faute</em>, <em>trop vague</em>, <em>non actionnable</em>, <em>autre</em>. Chaque tag correspond à une façon typique dont un coaching automatisé peut se planter. Mais le tag dit seulement <strong>quoi</strong> est faux ; la note libre associée dit <strong>pourquoi</strong> — c'est elle qui guide la correction du prompt ou des features sans avoir à deviner à partir du seul tag.</p>
+      </div>
+
+      <div class="card">
+        <h2>Le critère de succès, chiffré et publié</h2>
+        <p>La boucle n'a de valeur que si elle porte un seuil décidé <strong>avant</strong> de regarder les résultats : <strong>≥70 % d'erreurs jugées utiles sur au moins 10 analyses de parties annotées</strong>. La métrique ne retient que les erreurs des analyses par-partie, parce que ce sont les seules vérifiables moment par moment (une habitude multi-games ne l'est pas). Le taux courant est affiché en haut de l'onglet Coaching d'un compte, atteint ou non : un chiffre qu'on ne publierait que s'il est bon ne prouve rien. Chaque analyse persistée porte aussi la trace de son run (version de prompt, modèle, latence, tokens), sans quoi une variation du taux ne serait attribuable ni au prompt ni au modèle.</p>
       </div>
 
       <div class="card">
