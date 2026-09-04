@@ -825,13 +825,14 @@
         <h2>Sortie strictement typée</h2>
         <p>Le LLM ne répond pas en texte libre : la sortie est contrainte par un schéma JSON (validé par Pydantic) pour éviter les résumés qui partent en vrille. La structure imposée :</p>
         <ul>
-          <li><span class="mono">strengths[3]</span> — 3 points forts</li>
+          <li><span class="mono">strengths[1..3]</span> — 1 à 3 points forts</li>
           <li><span class="mono">mistakes[3]</span> — 3 erreurs prioritaires</li>
           <li><span class="mono">habits[2]</span> — 2 habitudes à corriger</li>
           <li><span class="mono">next_focus[1]</span> — 1 seul focus pour la prochaine game</li>
           <li><span class="mono">confidence</span> — niveau de confiance du modèle sur sa propre analyse</li>
         </ul>
         <p>Chaque force et chaque erreur porte son <span class="mono">evidence</span> — la preuve chiffrée qui la justifie, fusionnée dans le même objet plutôt que laissée en annexe.</p>
+        <p>La borne basse des forces est passée de 3 à 1 après lecture des annotations : exiger exactement trois forces poussait le modèle au remplissage, et c'était la cause des retours « trop vague ». Les erreurs restent à 3 (le compte-rendu doit trancher), les habitudes à 2.</p>
       </div>
 
       <div class="card">

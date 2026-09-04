@@ -233,3 +233,21 @@ def test_readme_exposes_the_model_card():
     # les resultats negatifs doivent rester affiches, pas seulement les bons
     assert "auto-supervisé" in body or "auto-supervise" in body
     assert "déprécié" in body
+
+
+def test_readme_states_the_real_schema_bounds():
+    """La page decrivait `strengths[3]` alors que le schema impose 1 a 3 depuis
+    le correctif issu des annotations. Le defaut a survecu parce que rien ne
+    reliait la page au code : la borne est lue dans schema.py, pas recopiee."""
+    import re
+
+    schema = (Path(__file__).resolve().parents[2] / "src" / "04_coaching"
+              / "schema.py").read_text()
+    review = schema.split("class Review")[1].split("class ")[0]
+    body = _read("index.html")
+    for field in ("strengths", "mistakes", "habits"):
+        line = next(ln for ln in review.splitlines() if ln.strip().startswith(field))
+        lo = int(re.search(r"min_length=(\d+)", line).group(1))
+        hi = int(re.search(r"max_length=(\d+)", line).group(1))
+        expected = f"{field}[{lo}]" if lo == hi else f"{field}[{lo}..{hi}]"
+        assert expected in body, f"la page n'annonce pas {expected}"
