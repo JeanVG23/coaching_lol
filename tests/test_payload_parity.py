@@ -39,11 +39,17 @@ def _aggregate(kind: str, name: str, scope: str):
 
 
 @pytest.mark.parametrize(("scope", "outcome"), CASES)
-def test_payload_parity_golden(scope, outcome):
+def test_payload_parity_golden(scope, outcome, demo_data):
+    """Contrat entre les deux runtimes, mesuré sur le jeu de démo.
+
+    Les goldens dérivaient auparavant des agrégats locaux, absents du dépôt : en
+    CI le test se sautait, donc il ne protégeait que le poste qui collecte. Et il
+    cassait à chaque densification, pour une divergence de DONNÉES et non de code.
+    Adossé aux fixtures, il ne bouge que si `payload.py` bouge.
+    """
     me = _aggregate("personal", PLAYER, scope)
     ref = _aggregate("referentiel", TARGET, scope)
-    if me is None or ref is None:
-        pytest.skip(f"agrégats absents en local : {scope}/{outcome}")
+    assert me is not None and ref is not None, "fixtures démo non construites"
     expected_file = GOLDEN_DIR / f"payload_{scope}_{outcome}.json"
     built = payload_mod.build(PLAYER, scope, TARGET, outcome)
     if os.environ.get("GOLDEN_REGEN") == "1" or not expected_file.exists():
