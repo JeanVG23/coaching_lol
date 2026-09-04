@@ -244,15 +244,20 @@ def _death_features(timeline: dict, snaps: list, pid: int, allies: list,
 
 
 def positioning_features(timeline: dict, participant_id: int,
-                         pid_team: dict, my_role: str) -> dict:
+                         pid_team: dict, my_role: str, snaps: list | None = None) -> dict:
     """Orchestrateur : construit les snaps une fois et fusionne tous les helpers.
+
+    `snaps` est injectable : `_build_snaps` est un travail PAR MATCH (positions des 10
+    joueurs), pas par joueur, et était reconstruit à chaque extraction — soit 10 fois
+    par game via `riotlib.extract_all_games`.
 
     Returns a flat dict with exactly the 17 keys of ALL_FEATURES.
     """
     my_team = pid_team[participant_id]
     allies = [p for p, t in pid_team.items() if t == my_team]
     enemies = [p for p, t in pid_team.items() if t != my_team]
-    snaps = _build_snaps(timeline)
+    if snaps is None:
+        snaps = _build_snaps(timeline)
     out = {}
     out.update(_zone_presence(snaps, participant_id, my_role))
     out.update(_territory(snaps, participant_id, my_team))

@@ -50,7 +50,7 @@
 
 > Infrastructure de production déployée sur **Cloudflare Worker** (`web/cf/`) + Cloudflare KV (`DATA`) + SPA Alpine.js (`web/frontend/`) sur `https://coaching-lol.jeanvg.fr`.
 > Migration complète depuis Fly.io effectuée le 2026-08-31 (voir `docs/superpowers/specs/2026-08-30-cloudflare-migration-design.md` et `web/README.md`).
-> Le backend FastAPI (`web/backend/`) reste disponible comme référence locale.
+> L'ancien backend FastAPI (`web/backend/`) est archivé (remplacé par le Worker TypeScript).
 
 - [x] **Cadrage fonctionnel V1** — un compte = un slug (`spadzze`...), endpoints `/api/accounts`, `/api/c/{slug}/games`, `/api/c/{slug}/rank`, `/api/c/{slug}/predicted-rank`, `/api/c/{slug}/reviews`, `/api/c/{slug}/shap`.
 - [x] **Streaming SSE** — streaming temps réel du coaching Ollama via SSE (`POST /api/coach`).

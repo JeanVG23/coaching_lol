@@ -28,100 +28,101 @@ import torch
 import riotlib as rl
 import sequence_model as sm
 import sequence_data as sd
+import ranks as rank_defs
 
 MODEL_DIR = rl.DATA / "05_model"
 TABULAR = rl.DATA / "04_dataset" / "adc_dataset.parquet"
 SEED = 42
 
 
+# Colonnes méta du parquet tabulaire : tout le reste est feature.
+_META_COLS = ("match_id", "puuid", "source", "rank", "champion", "win",
+              "patch", "game_ts", "rank_ord", "high_elo")
+
+
+def _baseline(task, folds, idx, y, data, fit_predict, seed=SEED):
+    """CV commune aux baselines tabulaires : MÊME fold partition joueur + purge miroir
+    que le transformer, mêmes rangs retenus et même label (via `ranks.TARGETS`).
+
+    `fit_predict(Xt, yt, Xv, seed) -> list[np.ndarray]` fournit une proba par modèle ;
+    la moyenne des modèles donne l'OOF ensemble. Facteur commun extrait pour que
+    l'équité de la comparaison ne repose plus sur deux boucles recopiées à la main.
+    """
+    from sklearn.metrics import roc_auc_score
+    df = pd.read_parquet(TABULAR)
+    feat_cols = [c for c in df.columns if c not in _META_COLS]
+    spec = rank_defs.TARGETS[task]
+    allowed, positive = set(spec["ranks"]), spec["pos"]
+    oof = None
+    for tr_i, va_i in folds:
+        tr_puuids = set(data["puuid"][idx][tr_i]); va_puuids = set(data["puuid"][idx][va_i])
+        tr_df = df[df["puuid"].isin(tr_puuids)
+                   & ~df["match_id"].isin(set(data["match_id"][idx][va_i]))]
+        va_df = df[df["puuid"].isin(va_puuids)]
+        tr_df = tr_df[tr_df["rank"].isin(allowed)]
+        va_df = va_df[va_df["rank"].isin(allowed)]
+        yt = tr_df["rank"].isin(positive).astype(int)
+        yv = va_df["rank"].isin(positive).astype(int)
+        if len(set(yv)) < 2:
+            continue
+        probas = fit_predict(tr_df[feat_cols], yt, va_df[feat_cols], seed)
+        if oof is None:
+            oof = [np.full(len(idx), np.nan) for _ in probas]
+        va_map = {(r["match_id"], r["puuid"]): tuple(pr[k] for pr in probas)
+                  for k, (_, r) in enumerate(va_df.iterrows())}
+        for j in va_i:
+            v = va_map.get((data["match_id"][idx[j]], data["puuid"][idx[j]]))
+            if v is not None:
+                for slot, val in zip(oof, v):
+                    slot[j] = val
+    if oof is None:
+        return None
+    stacked = np.vstack(oof)
+    ens = np.where(np.isnan(stacked).any(axis=0), np.nan, stacked.mean(axis=0))
+    mask = ~np.isnan(ens)
+    return float(roc_auc_score(y[mask], ens[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
+
+
 def _baseline_tabular(task, folds, idx, y, data, seed=SEED):
-    """Ensemble RF+EBM sur adc_dataset.parquet (features agrégées), MÊME fold partition
-    joueur + purge miroir que le transformer. Donne à l'agrégat son meilleur coup (pas un
-    modèle sous-tuné qui offrirait une victoire facile au transformer). NB : les
-    0.724/0.589 de CLAUDE.md viennent d'un autre protocole (ensemble 3-modèles, CV per-game
-    non purgée) -> notre baseline est le comparatif propre, PAS une reproduction de ces
-    chiffres.
+    """Ensemble RF+EBM sur adc_dataset.parquet (features agrégées). Donne à l'agrégat son
+    meilleur coup (pas un modèle sous-tuné qui offrirait une victoire facile au
+    transformer). NB : les 0.724/0.589 de CLAUDE.md viennent d'un autre protocole
+    (ensemble 3-modèles, CV per-game non purgée) -> notre baseline est le comparatif
+    propre, PAS une reproduction de ces chiffres.
 
     Note : EBM (interpret.glassbox) remplace xgboost ici — contrainte macOS libomp :
     torch + xgboost cohabitent mal dans le même process (double-load libomp.dylib ->
     SIGSEGV). EBM est un baseline glass-box GA²M légitime et coexiste proprement avec torch.
     """
-    # EBM au lieu de xgboost (contrainte macOS libomp — cf. docstring).
     from interpret.glassbox import ExplainableBoostingClassifier
     from sklearn.ensemble import RandomForestClassifier
-    from sklearn.metrics import roc_auc_score
-    df = pd.read_parquet(TABULAR)
-    feat_cols = [c for c in df.columns if c not in
-                 ("match_id", "puuid", "source", "rank", "champion", "win",
-                  "patch", "game_ts", "rank_ord", "high_elo")]
-    oof_ebm = np.full(len(idx), np.nan)
-    oof_rf = np.full(len(idx), np.nan)
-    for tr_i, va_i in folds:
-        tr_puuids = set(data["puuid"][idx][tr_i]); va_puuids = set(data["puuid"][idx][va_i])
-        tr_df = df[df["puuid"].isin(tr_puuids)
-                   & ~df["match_id"].isin(set(data["match_id"][idx][va_i]))]
-        va_df = df[df["puuid"].isin(va_puuids)]
-        if task == "dia_chall":
-            tr_df = tr_df[tr_df["rank"].isin(sd.DIA_CHALL)]
-            va_df = va_df[va_df["rank"].isin(sd.DIA_CHALL)]
-        yt = tr_df["rank"].isin(sd.HIGH_ELO if task == "high_elo" else {"challenger"}).astype(int)
-        yv = va_df["rank"].isin(sd.HIGH_ELO if task == "high_elo" else {"challenger"}).astype(int)
-        if len(set(yv)) < 2:
-            continue
+
+    def fit_predict(Xt, yt, Xv, seed):
         me = ExplainableBoostingClassifier(random_state=seed)
         mr = RandomForestClassifier(n_estimators=400, max_depth=6, min_samples_leaf=4,
                                     max_features="sqrt", n_jobs=-1, random_state=seed)
-        Xt = tr_df[feat_cols]; Xv = va_df[feat_cols]
         me.fit(Xt.fillna(0), yt)
         mr.fit(Xt.fillna(Xt.median(numeric_only=True)), yt)
-        p_e = me.predict_proba(Xv.fillna(0))[:, 1]
-        p_r = mr.predict_proba(Xv.fillna(Xv.median(numeric_only=True)))[:, 1]
-        va_map = {(r["match_id"], r["puuid"]): (pe, pr)
-                  for (_, r), pe, pr in zip(va_df.iterrows(), p_e, p_r)}
-        for j in va_i:
-            v = va_map.get((data["match_id"][idx[j]], data["puuid"][idx[j]]))
-            if v is not None:
-                oof_ebm[j], oof_rf[j] = v
-    ens = np.where(np.isnan(oof_ebm) | np.isnan(oof_rf), np.nan, (oof_ebm + oof_rf) / 2.0)
-    mask = ~np.isnan(ens)
-    return float(roc_auc_score(y[mask], ens[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
+        return [me.predict_proba(Xv.fillna(0))[:, 1],
+                mr.predict_proba(Xv.fillna(Xv.median(numeric_only=True)))[:, 1]]
+
+    return _baseline(task, folds, idx, y, data, fit_predict, seed)
 
 
 def _baseline_mlp(task, folds, idx, y, data, seed=SEED):
+    """Baseline de contrôle : MLP sur les mêmes features agrégées et les mêmes folds."""
     from sklearn.neural_network import MLPClassifier
-    from sklearn.metrics import roc_auc_score
-    df = pd.read_parquet(TABULAR)
-    feat_cols = [c for c in df.columns if c not in
-                 ("match_id", "puuid", "source", "rank", "champion", "win",
-                  "patch", "game_ts", "rank_ord", "high_elo")]
-    oof = np.full(len(idx), np.nan)
-    for tr_i, va_i in folds:
-        tr_puuids = set(data["puuid"][idx][tr_i]); va_puuids = set(data["puuid"][idx][va_i])
-        tr_df = df[df["puuid"].isin(tr_puuids)
-                   & ~df["match_id"].isin(set(data["match_id"][idx][va_i]))]
-        va_df = df[df["puuid"].isin(va_puuids)]
-        if task == "dia_chall":
-            tr_df = tr_df[tr_df["rank"].isin(sd.DIA_CHALL)]
-            va_df = va_df[va_df["rank"].isin(sd.DIA_CHALL)]
-        yt = tr_df["rank"].isin(sd.HIGH_ELO if task == "high_elo" else {"challenger"}).astype(int)
-        yv = va_df["rank"].isin(sd.HIGH_ELO if task == "high_elo" else {"challenger"}).astype(int)
-        if len(set(yv)) < 2:
-            continue
+
+    def fit_predict(Xt, yt, Xv, seed):
         m = MLPClassifier(hidden_layer_sizes=(64,), max_iter=80, random_state=seed)
-        Xt = tr_df[feat_cols].fillna(0).values; Xv = va_df[feat_cols].fillna(0).values
-        m.fit(Xt, yt)
-        proba = m.predict_proba(Xv)[:, 1]
-        key = lambda i: (data["match_id"][idx[i]], data["puuid"][idx[i]])
-        va_map = {(r["match_id"], r["puuid"]): p for (_, r), p in zip(va_df.iterrows(), proba)}
-        for j in va_i:
-            oof[j] = va_map.get(key(j), np.nan)
-    mask = ~np.isnan(oof)
-    return float(roc_auc_score(y[mask], oof[mask])) if mask.sum() and len(set(y[mask])) > 1 else None
+        m.fit(Xt.fillna(0).values, yt)
+        return [m.predict_proba(Xv.fillna(0).values)[:, 1]]
+
+    return _baseline(task, folds, idx, y, data, fit_predict, seed)
 
 
 def _train_one_task(task, data, device, epochs, batch, seed, d_in):
     from sklearn.metrics import roc_auc_score
-    import copy
     idx, y = sd.task_subset(data, task)
     if len(set(y)) < 2 or len(idx) < 30:
         return ({"auc_mean": None, "auc_std": None, "n_rows": int(len(idx)),

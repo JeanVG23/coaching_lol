@@ -1,4 +1,4 @@
-"""Tests de câblage du frontend statique (servi par FastAPI).
+"""Tests de câblage du frontend statique (via TestClient local).
 
 Pas de test d'interactivité Alpine (pas de Playwright) — on verrouille le câblage :
 assets vendored servis, index.html référence les assets et porte les hooks clés,
@@ -117,8 +117,10 @@ def test_coaching_tab_wired():
     assert "/api/c/" in js and "/reviews" in js
     assert "/api/feedback" in js
     assert "NEG_TAGS" in js
-    assert "isAggregateReview" in js
-    assert "isGameReview" in js
+    # La séparation agrégé/par-game est portée par le filtre `kind` de l'API,
+    # pas par des type-guards côté client (retirés : rien ne les appelait).
+    assert "kind=aggregate" in js
+    assert "kind=game" in js
     assert "gameReviewsCount" in js
     assert "insight-card" in body or "evidence-chip" in body
     assert 'class="coach-builder"' in body

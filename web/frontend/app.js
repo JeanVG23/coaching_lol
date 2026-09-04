@@ -2,8 +2,17 @@
 
 const NEG_TAGS = ["asymetrie", "stat-inventee", "profondeur-en-faute",
   "trop-vague", "non-actionnable", "autre"];
+// Étapes purement informatives du flux SSE (les 2 autres events changent le statut).
+const SSE_PROGRESS = { payload: "payload construit", llm: "génération LLM…" };
 const DDRAGON = (patch, champ) =>
   `https://ddragon.leagueofgraphs.com/cdn/${patch}.1/img/champion/${champ}.png`;
+
+// Un seul casing de tier : `rank.tier` arrive en MAJUSCULES de l'API Riot et
+// `predicted_rank` en minuscules du modèle ML — deux implémentations coexistaient.
+function titleCase(value) {
+  const s = String(value || "");
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+}
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -36,24 +45,11 @@ function routeOf(path) {
   return { name: "home" };
 }
 
-// Une analyse d'une partie ne permet pas d'inférer des habitudes. Elle possède
-// donc un format volontairement différent et ne doit pas remplacer le coaching
-// global dans cet onglet.
-function isAggregateReview(record) {
-  const review = record?.review;
-  return record?.kind !== "game"
-    && Array.isArray(review?.strengths)
-    && Array.isArray(review?.mistakes)
-    && Array.isArray(review?.habits);
-}
-
-function isGameReview(record) {
-  const review = record?.review;
-  return record?.kind === "game"
-    && Array.isArray(review?.strengths)
-    && Array.isArray(review?.mistakes)
-    && typeof review?.next_focus === "string";
-}
+// Une analyse d'une partie ne permet pas d'inférer des habitudes : son format est
+// volontairement différent et elle ne doit pas remplacer le coaching global dans cet
+// onglet. La séparation est portée par l'API (`?kind=aggregate` vs `?kind=game`,
+// cf. loadReviews) et non plus par des type-guards qui redevinaient le type depuis
+// la forme du payload alors que chaque record porte déjà son `kind`.
 
 function coachErrorMessage(error) {
   const raw = typeof error === "string" ? error : String(error || "");
@@ -121,6 +117,17 @@ function accountPage(slug) {
 
     init() { this.loadGames(); this.loadRank(); this.loadPredictedRank(); },
 
+    // Charge une URL dans un champ, avec drapeau de chargement et valeur de repli :
+    // loadRank / loadPredictedRank / loadShap avaient le même corps recopié.
+    async loadInto(field, flag, url, fallback = null, after = null) {
+      this[flag] = true;
+      try {
+        this[field] = await api(url);
+        if (after) after();
+      } catch (e) { this[field] = fallback; }
+      finally { this[flag] = false; }
+    },
+
     async loadGames() {
       this.gamesLoading = true; this.gamesError = null;
       try {
@@ -130,29 +137,21 @@ function accountPage(slug) {
       finally { this.gamesLoading = false; }
     },
 
-    async loadRank() {
-      this.rankLoading = true;
-      try { this.rank = await api(`/api/c/${this.slug}/rank`); }
-      catch (e) { this.rank = null; }
-      finally { this.rankLoading = false; }
+    loadRank() {
+      return this.loadInto("rank", "rankLoading", `/api/c/${this.slug}/rank`);
     },
 
     rankLabel() {
       if (!this.rank || !this.rank.tier) return "Non renseigné";
-      const tier = this.rank.tier.charAt(0) + this.rank.tier.slice(1).toLowerCase();
-      return `${tier} ${this.rank.division} · ${this.rank.league_points} LP`;
+      return `${titleCase(this.rank.tier)} ${this.rank.division} · ${this.rank.league_points} LP`;
     },
 
-    async loadPredictedRank() {
-      this.predictedRankLoading = true;
-      try { this.predictedRank = await api(`/api/c/${this.slug}/predicted-rank`); }
-      catch (e) { this.predictedRank = null; }
-      finally { this.predictedRankLoading = false; }
+    loadPredictedRank() {
+      return this.loadInto("predictedRank", "predictedRankLoading",
+                           `/api/c/${this.slug}/predicted-rank`);
     },
 
-    rankTierLabel(tier) {
-      return tier.charAt(0).toUpperCase() + tier.slice(1);
-    },
+    rankTierLabel: titleCase,
 
     async prevPage() { if (this.page > 1) { this.page--; this.loadGames(); } },
     async nextPage() {
@@ -172,13 +171,12 @@ function accountPage(slug) {
       await this.loadFeedback(this.activeFeedbackReview());
     },
 
-    async loadShap() {
-      this.shapLoading = true;
-      try {
-        this.shap = await api(`/api/c/${this.slug}/shap`);
-        if (this.shap.available) this.$nextTick(() => this.renderChart());
-      } catch (e) { this.shap = { available: false, drivers: [] }; }
-      finally { this.shapLoading = false; }
+    loadShap() {
+      return this.loadInto("shap", "shapLoading", `/api/c/${this.slug}/shap`,
+                           { available: false, drivers: [] },
+                           () => {
+                             if (this.shap.available) this.$nextTick(() => this.renderChart());
+                           });
     },
 
     sortedDrivers() {
@@ -288,10 +286,8 @@ function accountPage(slug) {
             const raw = /^data: (.+)$/m.exec(frame)?.[1];
             if (!event || !raw) continue;
             const data = JSON.parse(raw);
-            if (event === "payload") {
-              this.job = { type: "coach", status: "running", progress: "payload construit" };
-            } else if (event === "llm") {
-              this.job = { type: "coach", status: "running", progress: "génération LLM…" };
+            if (event in SSE_PROGRESS) {
+              this.job = { type: "coach", status: "running", progress: SSE_PROGRESS[event] };
             } else if (event === "review") {
               this.job = { type: "coach", status: "done" };
               this.loadReviews();

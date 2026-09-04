@@ -24,6 +24,7 @@ for module_path in (ROOT / "src" / "core", ROOT / "web" / "backend"):
         sys.path.insert(0, str(module_path))
 
 import riotlib as rl  # noqa: E402
+from kv_keys import key as kv_key  # noqa: E402
 
 ACCOUNTS_FILE = ROOT / "web" / "backend" / "accounts.json"
 KV_URL = (
@@ -44,13 +45,16 @@ def _match_seq(match_id: str) -> int:
         return 0
 
 
-def read_games(slug: str) -> list[dict[str, Any]]:
-    """Lit les games silver et les trie par séquence décroissante."""
-    path = rl.DATA / "02_silver" / "personal" / slug / "games.jsonl"
-    if not path.exists():
-        return []
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+def parse_games(raw: str) -> list[dict[str, Any]]:
+    """Parse un JSONL silver déjà lu et trie par séquence de match décroissante."""
+    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
     return sorted(rows, key=lambda row: _match_seq(row.get("match_id", "")), reverse=True)
+
+
+def read_games(slug: str) -> list[dict[str, Any]]:
+    """Lit les games silver d'un joueur et les trie par séquence décroissante."""
+    path = rl.silver_games(rl.KIND_PERSONAL, slug)
+    return parse_games(path.read_text()) if path.exists() else []
 
 
 class KV:
@@ -120,23 +124,25 @@ def put_json(kv: KV, key: str, value: Any) -> None:
 
 
 def sync_account(kv: KV, slug: str, *, seed_reviews: bool = False) -> None:
-    games = read_games(slug)
-    silver = rl.DATA / "02_silver" / "personal" / slug
-    games_file = silver / "games.jsonl"
-    rank_file = silver / "rank.json"
-    if games_file.exists():
-        kv.put(f"silver:{slug}:games", games_file.read_text())
+    # Une seule lecture du JSONL : le texte brut part tel quel dans KV et sert aussi
+    # de source au parse local (il était lu deux fois : read_games + read_text).
+    games_file = rl.silver_games(rl.KIND_PERSONAL, slug)
+    games_raw = games_file.read_text() if games_file.exists() else None
+    games = parse_games(games_raw) if games_raw is not None else []
+    if games_raw is not None:
+        kv.put(kv_key("games", slug=slug), games_raw)
+    rank_file = games_file.parent / "rank.json"
     if rank_file.exists():
-        kv.put(f"silver:{slug}:rank", rank_file.read_text())
+        kv.put(kv_key("rank", slug=slug), rank_file.read_text())
 
-    gold = rl.DATA / "03_gold" / "personal" / slug
+    gold = rl.gold_base(rl.KIND_PERSONAL, slug)
     if gold.is_dir():
         for scope_dir in sorted(path for path in gold.iterdir() if path.is_dir()):
             aggregate = scope_dir / "aggregate.json"
             if aggregate.exists():
                 put_json(
                     kv,
-                    f"gold:{slug}:{scope_dir.name}",
+                    kv_key("gold", slug=slug, scope=scope_dir.name),
                     json.loads(aggregate.read_text()),
                 )
 
@@ -144,21 +150,21 @@ def sync_account(kv: KV, slug: str, *, seed_reviews: bool = False) -> None:
 
     prediction = ml_rank.predict_rank(games[:20])
     if prediction is not None:
-        put_json(kv, f"pred:{slug}", prediction)
+        put_json(kv, kv_key("pred", slug=slug), prediction)
 
     shap = rl.DATA / "06_shap" / f"{slug}_drivers.json"
     if shap.exists():
-        kv.put(f"shap:{slug}:drivers", shap.read_text())
+        kv.put(kv_key("shap", slug=slug), shap.read_text())
 
     if seed_reviews:
         reviews = rl.DATA / "07_coaching" / slug / "reviews.jsonl"
-        review_key = f"coaching:{slug}:reviews"
+        review_key = kv_key("reviews", slug=slug)
         if reviews.exists() and kv.get(review_key) is None:
             kv.put(review_key, reviews.read_text())
 
 
 def sync_referential(kv: KV) -> None:
-    referential = rl.DATA / "03_gold" / "referentiel"
+    referential = rl.gold_dir() / rl.KIND_REF
     if not referential.is_dir():
         return
     for rank_dir in sorted(path for path in referential.iterdir() if path.is_dir()):
@@ -167,7 +173,7 @@ def sync_referential(kv: KV) -> None:
             if aggregate.exists():
                 put_json(
                     kv,
-                    f"ref:{rank_dir.name}:{scope_dir.name}",
+                    kv_key("ref", rank=rank_dir.name, scope=scope_dir.name),
                     json.loads(aggregate.read_text()),
                 )
 

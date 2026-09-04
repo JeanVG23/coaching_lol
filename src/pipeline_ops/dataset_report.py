@@ -23,11 +23,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import pandas as pd
 import riotlib as rl
+from ranks import HIGH_ELO
 import ml_features as mf
 
 DATASET_DIR = rl.DATA / "04_dataset"
 MODEL_DIR = rl.DATA / "05_model"
-HIGH_ELO = {"grandmaster", "challenger"}          # même définition que le train
 THRESHOLDS = (5, 10, 15, 20, 30)
 MIN_PLAYER_GAMES = 15                             # aligné build_player_dataset
 

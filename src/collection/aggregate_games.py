@@ -19,12 +19,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import riotlib as rl
+from cli import arg
 
 SCOPES = ["all", "adc", "zeri", "smolder", "jinx", "caitlyn", "ezreal", "aphelios", "kaisa"]
-
-
-def arg(flag: str, default=None):
-    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
 
 
 def main() -> int:
@@ -71,15 +68,15 @@ def main() -> int:
         return 1
 
     # silver
-    merged_games = rl.merge_jsonl(rl.SILVER_DIR / "personal" / player / "games.jsonl", games)
+    merged_games = rl.merge_jsonl(rl.silver_games(rl.KIND_PERSONAL, player), games)
     # gold
-    gold_base = rl.GOLD_DIR / "personal" / player
-    rl.write_gold(gold_base, merged_games, SCOPES, player=player)
+    gold_base = rl.gold_base(rl.KIND_PERSONAL, player)
+    aggs = rl.write_gold(gold_base, merged_games, SCOPES, player=player)
 
-    # récap console (scope dominant = le rôle principal joué)
+    # récap console (réutilise les agrégats déjà calculés par write_gold)
     roles = collections.Counter(g["role"] for g in merged_games)
     champs = collections.Counter(g["champion"] for g in merged_games)
-    agg_all = rl.aggregate(merged_games, "all", player=player)
+    agg_all = aggs["all"]
     print("\n" + "=" * 60)
     print(f"  {player.upper()} — {agg_all['n_games']} games  |  "
           f"WR {agg_all['winrate']:.0%}  |  {agg_all['overall']['deaths_per_game']} morts/game")
@@ -87,7 +84,7 @@ def main() -> int:
     print(f"  Champions : {dict(champs.most_common(5))}")
     print("=" * 60)
     for scope in SCOPES:
-        a = rl.aggregate(merged_games, scope, player=player)
+        a = aggs[scope]
         f = a["overall"]
         if a["n_games"]:
             top = sorted(f["by_zone_phase"].items(), key=lambda x: -x[1])[:3]

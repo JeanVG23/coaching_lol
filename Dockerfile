@@ -1,4 +1,4 @@
-# coaching_lol — image backend FastAPI (sert aussi le frontend statique).
+# coaching_lol — [ARCHIVE / LEGACY] Ancienne image backend FastAPI Fly.io (la production tourne sur Cloudflare Worker).
 FROM python:3.13-slim
 
 WORKDIR /app

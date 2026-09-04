@@ -190,7 +190,7 @@ def test_detect_lane_visits_returns_dict():
                 timeline = _read_raw(f'{game["match_id"]}_timeline')
                 if not match or not timeline:
                     continue
-                res = vt._detect_lane_visits(match, timeline, game["puuid"], "JUNGLE")
+                res = vt._detect_lane_visits(match, timeline, game["puuid"])
                 # v2 : 6 clés (gank_kills_v2 + real_gank_frames ajoutées)
                 expected_keys = {"lane_visits", "gank_frames", "gank_kills",
                                  "gank_kills_v2", "real_gank_frames", "early_deaths"}

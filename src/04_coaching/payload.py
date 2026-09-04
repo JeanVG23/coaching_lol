@@ -112,8 +112,8 @@ def _gold_state_signals(mf: dict, rf: dict) -> list[dict]:
     return out
 
 
-def _load(gold_dir: Path, *parts) -> dict:
-    path = gold_dir.joinpath(*parts) / "aggregate.json"
+def _load(gold_dir: Path, kind: str, name: str, scope: str) -> dict:
+    path = gold_dir / kind / name / scope / "aggregate.json"
     if not path.exists():
         raise FileNotFoundError(f"gold manquant : {path}")
     return json.loads(path.read_text())
@@ -121,9 +121,9 @@ def _load(gold_dir: Path, *parts) -> dict:
 
 def build(player: str, scope: str = "adc", target: str = "challenger",
           outcome: str = "loss", gold_dir=None) -> dict:
-    gold_dir = Path(gold_dir) if gold_dir is not None else rl.GOLD_DIR
-    me = _load(gold_dir, "personal", player, scope)
-    ref = _load(gold_dir, "referentiel", target, scope)
+    gold_dir = Path(gold_dir) if gold_dir is not None else rl.gold_dir()
+    me = _load(gold_dir, rl.KIND_PERSONAL, player, scope)
+    ref = _load(gold_dir, rl.KIND_REF, target, scope)
     mf, rf = me[outcome], ref[outcome]
 
     meta = {
@@ -150,9 +150,6 @@ def build(player: str, scope: str = "adc", target: str = "challenger",
 
 # --- Payload par-game : journal ancré + repères référentiel -------------------
 
-_SCOPE_ROLE = {"adc": "BOTTOM"}   # scope champion (ex. zeri) = filtre sur le nom
-
-
 def _resolve_recall_items(recall: dict, catalog: dict) -> dict:
     """item_ids bruts -> items {nom, coût} ; ids bruts jamais exposés au LLM."""
     out = {k: v for k, v in recall.items() if k != "item_ids"}
@@ -163,20 +160,20 @@ def _resolve_recall_items(recall: dict, catalog: dict) -> dict:
 
 
 def filter_scope(records: list[dict], scope: str) -> list[dict]:
-    """Sous-liste des records du scope, ordre du fichier préservé."""
-    role = _SCOPE_ROLE.get(scope)
-    if role:
-        return [r for r in records if r.get("role") == role]
-    if scope == "all":
-        return list(records)
-    return [r for r in records if (r.get("champion") or "").lower() == scope.lower()]
+    """Sous-liste des records du scope, ordre du fichier préservé.
+
+    Délègue à `rl.filter_scope` (table `ROLE_SCOPES`, les 5 rôles) : la table locale
+    `_SCOPE_ROLE = {"adc": "BOTTOM"}` gelait le coaching par-game sur l'ADC, et un
+    `--scope mid` retombait silencieusement sur le filtre « nom de champion ».
+    """
+    return rl.filter_scope(records, scope)
 
 
 def _personal_records(player: str, silver_dir: Path) -> list[dict]:
-    path = silver_dir / "personal" / player / "games.jsonl"
+    path = silver_dir / rl.KIND_PERSONAL / player / "games.jsonl"
     if not path.exists():
         raise FileNotFoundError(f"silver perso manquant : {path}")
-    return [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
+    return rl.read_jsonl(path)
 
 
 def _select_game(records: list[dict], scope: str, match_id: str | None) -> dict:
@@ -193,13 +190,20 @@ def _select_game(records: list[dict], scope: str, match_id: str | None) -> dict:
 
 def build_game(player: str, match_id: str | None = None, scope: str = "adc",
                target: str = "challenger", gold_dir=None, silver_dir=None,
-               load_raw=None) -> dict:
-    """Journal d'UNE game + repères référentiel à issue égale -> payload par-game."""
-    gold_dir = Path(gold_dir) if gold_dir is not None else rl.GOLD_DIR
-    silver_dir = Path(silver_dir) if silver_dir is not None else rl.SILVER_DIR
+               load_raw=None, records=None, ref=None) -> dict:
+    """Journal d'UNE game + repères référentiel à issue égale -> payload par-game.
+
+    `records` et `ref` sont injectables : en lot (`coach.py --game-batch N`) le silver
+    perso et l'agrégat référentiel sont identiques pour toutes les games, les relire
+    par game coûtait N parses redondants (même motif que `load_raw`).
+    """
+    gold_dir = Path(gold_dir) if gold_dir is not None else rl.gold_dir()
+    silver_dir = Path(silver_dir) if silver_dir is not None else rl.silver_dir()
     load_raw = load_raw if load_raw is not None else rl._read_raw
 
-    rec = _select_game(_personal_records(player, silver_dir), scope, match_id)
+    if records is None:
+        records = _personal_records(player, silver_dir)
+    rec = _select_game(records, scope, match_id)
     mid = rec["match_id"]
     match, timeline = load_raw(f"{mid}_match"), load_raw(f"{mid}_timeline")
     if match is None or timeline is None:
@@ -208,7 +212,8 @@ def build_game(player: str, match_id: str | None = None, scope: str = "adc",
     if journal is None:
         raise FileNotFoundError(f"game {mid} hors Faille de l'invocateur")
 
-    ref = _load(gold_dir, "referentiel", target, scope)
+    if ref is None:
+        ref = _load(gold_dir, rl.KIND_REF, target, scope)
     outcome = "win" if journal["win"] else "loss"
     rf = ref[outcome]
     meta = {"player": player, "scope": scope, "target": target, "kind": "game",

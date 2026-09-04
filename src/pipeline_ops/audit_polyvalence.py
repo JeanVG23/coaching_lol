@@ -139,25 +139,26 @@ def parse_positions(recs: list, id_to_alias: dict[int, str],
 
 # ---------- Audit ----------
 
-def _axe_attendu_pour_position(pos: str) -> tuple[str, ...]:
-    return _ROLE_TO_AXIS.get(pos, ())
+def _coherence_check(alias: str, positions: set[str],
+                     traits: dict) -> list[tuple[str, str]]:
+    """Alertes de CE champion, en (type, détail).
 
-
-def _coherence_check(alias: str, positions: set[str], traits: dict) -> list[str]:
-    """Renvoie la liste des messages d'alerte pour CE champion."""
-    alerts: list[str] = []
+    Le type est explicite : `audit` les classait en testant
+    `msg.startswith("polyvalence")` sur un texte destiné à l'utilisateur —
+    reformuler un message reclassait silencieusement toutes les alertes.
+    """
+    alerts: list[tuple[str, str]] = []
     trait = traits.get(alias, {})
 
     # 1) Polyvalence : 2+ positions distinctes (hors axes vides, sans filtre
     # "default"). On l'affiche, c'est au curateur de juger si c'est OK.
     if len(positions) >= 2:
-        alerts.append(f"polyvalence: positions SR = {sorted(positions)}")
+        alerts.append(("polyvalence", f"polyvalence: positions SR = {sorted(positions)}"))
 
     # 2) Cohérence axe/rôle : pour chaque axe curé non-unknown, on vérifie qu'il
     # existe au moins UNE position SR où cet axe est censé s'appliquer.
     axes_curés = {k: v for k, v in trait.items()
-                  if k in ("playstyle", "gank_threat", "roam", "lane_pattern", "power_curve")
-                  and v not in (None, "unknown", "")}
+                  if k in _AXE_PORTEUSES and v not in (None, "unknown", "")}
 
     for axe, val in axes_curés.items():
         porteuses = _AXE_PORTEUSES.get(axe, ())
@@ -166,10 +167,9 @@ def _coherence_check(alias: str, positions: set[str], traits: dict) -> list[str]
         # Ex. lane_pattern sans BOTTOM/UTILITY, roam sans MIDDLE,
         # gank_threat/playstyle sans JUNGLE. Le curateur tranchera.
         if not positions_qui_porte_l_axe:
-            alerts.append(
-                f"axe '{axe}={val}' sans position SR cohérente "
-                f"(positions SR = {sorted(positions) or '∅'})"
-            )
+            alerts.append(("axe_orphelin",
+                           f"axe '{axe}={val}' sans position SR cohérente "
+                           f"(positions SR = {sorted(positions) or '∅'})"))
 
     return alerts
 
@@ -186,20 +186,13 @@ def audit(traits: dict, positions_by_alias: dict[str, set[str]]) -> dict:
             alias_introuvable.append(alias)
             continue
         positions = positions_by_alias[alias_lc]
-        alerts = _coherence_check(alias, positions, traits)
-        for msg in alerts:
-            if msg.startswith("polyvalence"):
-                polyvalence.append({
-                    "champion": alias,
-                    "positions": sorted(positions),
-                    "detail": msg,
-                })
-            else:
-                axe_orphelin.append({
-                    "champion": alias,
-                    "positions": sorted(positions),
-                    "detail": msg,
-                })
+        buckets = {"polyvalence": polyvalence, "axe_orphelin": axe_orphelin}
+        for kind, msg in _coherence_check(alias, positions, traits):
+            buckets[kind].append({
+                "champion": alias,
+                "positions": sorted(positions),
+                "detail": msg,
+            })
 
     return {
         "summary": {

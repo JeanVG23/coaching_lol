@@ -13,19 +13,16 @@ Usage : poetry run python3 src/02_data_science/calibrate_player_rank.py
 from __future__ import annotations
 
 import json
-import pickle
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # (cohérent avec les autres scripts du pipeline, cf. Task 3/4)
-import numpy as np
 import pandas as pd
 import riotlib as rl
+from ranks import RANKS
 
 DATASET = rl.DATA / "04_dataset" / "adc_player_dataset.parquet"
 MODEL_DIR = rl.DATA / "05_model"
-RANKS = ["diamond", "master", "grandmaster", "challenger"]
 
 
 def main() -> int:

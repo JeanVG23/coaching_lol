@@ -47,7 +47,8 @@ from sklearn.model_selection import StratifiedKFold
 from interpret.glassbox import ExplainableBoostingRegressor
 
 from lp_metrics import _safe_spearman, spearman_report
-from train_player_ensemble import purged_train_features, dispersion_share_analysis
+from cv_common import purged_train_features
+from train_player_ensemble import dispersion_share_analysis
 import dataset_split as ds
 
 DATASET = rl.DATA / "04_dataset" / "adc_player_lp_dataset.parquet"

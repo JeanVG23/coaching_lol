@@ -31,12 +31,14 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # ml_features
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # cv_common
 import numpy as np
 import pandas as pd
 import riotlib as rl
+from ranks import HIGH_ELO
 import ml_features as mf
+from cv_common import make_models, purged_train_features
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 import xgboost as xgb
@@ -45,25 +47,8 @@ from interpret.glassbox import ExplainableBoostingClassifier
 
 DATASET_PER_GAME = rl.DATA / "04_dataset" / "adc_dataset.parquet"
 MODEL_DIR = rl.DATA / "05_model"
-HIGH_ELO = {"grandmaster", "challenger"}
 FEATURES = mf.player_feature_names(mf.FEATURES)
 SEED = 42
-
-
-def make_models() -> dict:
-    return {
-        "xgb": xgb.XGBClassifier(
-            n_estimators=300, max_depth=3, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.8, min_child_weight=5,
-            reg_lambda=1.0, eval_metric="logloss", tree_method="hist",
-            random_state=SEED,
-        ),
-        "rf": RandomForestClassifier(
-            n_estimators=300, max_depth=5, min_samples_leaf=5,
-            max_features="sqrt", bootstrap=True, n_jobs=-1, random_state=SEED,
-        ),
-        "ebm": ExplainableBoostingClassifier(interactions=0, random_state=SEED),
-    }
 
 
 def cap_player_games(ref: pd.DataFrame, n_cap: int | None,
@@ -71,26 +56,32 @@ def cap_player_games(ref: pd.DataFrame, n_cap: int | None,
                      seed: int = SEED) -> pd.DataFrame:
     """Cappe chaque joueur à n_cap games (échantillonnage aléatoire, seed fixe).
     n_cap=None -> tout l'historique disponible. Optionnellement restreint au pool."""
-    rng = np.random.RandomState(seed)
-    parts = []
     sub = ref if pool_puuids is None else ref[ref["puuid"].isin(pool_puuids)]
-    for puuid, g in sub.groupby("puuid"):
-        if n_cap is not None and len(g) > n_cap:
-            idx = rng.choice(g.index, size=n_cap, replace=False)
-            g = g.loc[idx]
-        parts.append(g)
-    return pd.concat(parts) if parts else sub.iloc[0:0]
+    if n_cap is None:
+        return sub
+    # Index accumulés puis un seul .loc : le pd.concat par joueur construisait
+    # ~1 000 petits DataFrames par appel, et l'appelant boucle sur les caps.
+    rng = np.random.RandomState(seed)
+    keep = []
+    for _puuid, idx in sub.groupby("puuid").indices.items():
+        positions = sub.index[idx]
+        if len(positions) > n_cap:
+            positions = rng.choice(positions, size=n_cap, replace=False)
+        keep.extend(positions)
+    return sub.loc[keep]
 
 
 def build_player_rows(ref: pd.DataFrame, min_games: int,
                       n_cap: int | None = None,
-                      seed: int = SEED) -> pd.DataFrame:
+                      seed: int = SEED,
+                      counts: pd.Series | None = None) -> pd.DataFrame:
     """Agrège ref (per-game) par joueur. Qualifie >= min_games games sur l'historique
     COMPLET. Rang résolu sur l'historique COMPLET (label fixe = vrai rang du joueur,
     sémantique production) — SEULES les features sont cappées à n_cap games. Isole
     proprement 'qualité des features à profondeur N' sans confondre avec la stabilité
     du label. Balance les classes (undersampling seed)."""
-    counts = ref.groupby("puuid").size()
+    if counts is None:
+        counts = ref.groupby("puuid").size()
     qualified = set(counts[counts >= min_games].index)
     capped = cap_player_games(ref, n_cap, pool_puuids=qualified, seed=seed)
     by_puuid_cap = dict(tuple(capped.groupby("puuid")))
@@ -114,27 +105,6 @@ def build_player_rows(ref: pd.DataFrame, min_games: int,
     return pd.concat([pos, neg]).sample(frac=1, random_state=seed).reset_index(drop=True)
 
 
-def purged_train_features(ref: pd.DataFrame, train_puuids, val_puuids,
-                          base_features: list[str] = mf.FEATURES) -> pd.DataFrame:
-    """Agrégats des joueurs de train recalculés SANS les matchs joués par un joueur
-    de val (purge exacte de la fuite par games partagées). base_features = noms de
-    features BRUTES (csm10, ...), PAS les noms agrégés (csm10__mean) — aggregate_player
-    _features produit lui-même les suffixes __{stat}."""
-    val_matches = set(ref.loc[ref["puuid"].isin(set(val_puuids)), "match_id"])
-    sub = ref[ref["puuid"].isin(set(train_puuids))
-              & ~ref["match_id"].isin(val_matches)]
-    by_puuid = dict(tuple(sub.groupby("puuid")))
-    rows = []
-    for puuid in train_puuids:
-        g = by_puuid.get(puuid)
-        if g is None or g.empty:
-            continue
-        rec = {"puuid": puuid}
-        rec.update(mf.aggregate_player_features(g, base_features))
-        rows.append(rec)
-    return pd.DataFrame(rows)
-
-
 def run_cv(df: pd.DataFrame, ref: pd.DataFrame) -> dict:
     """Purged CV (5 folds) sur df (1 ligne/joueur, déjà balancé). ref = per-game CAPPÉ
     correspondant (pour la purge). Retourne AUC ensemble purgée + naïve + par modèle."""
@@ -147,7 +117,7 @@ def run_cv(df: pd.DataFrame, ref: pd.DataFrame) -> dict:
         X_val = X.iloc[val_idx]
         train_puuids = df["puuid"].iloc[train_idx].tolist()
         val_puuids = set(df["puuid"].iloc[val_idx])
-        Xtr_p = purged_train_features(ref, train_puuids, val_puuids)
+        Xtr_p, _ = purged_train_features(ref, train_puuids, val_puuids)
         for name, model in make_models().items():
             model.fit(Xtr_p.reindex(columns=FEATURES),
                       Xtr_p["puuid"].map(y_of).astype(int))
@@ -161,6 +131,32 @@ def run_cv(df: pd.DataFrame, ref: pd.DataFrame) -> dict:
             "n_players": len(df), "n_pos": int(y.sum()), "n_neg": int((1 - y).sum())}
 
 
+def run_curve(ref_all: pd.DataFrame, ns: list[int],
+              min_games) -> list[dict]:
+    """Balaie les caps N pour une règle de qualification donnée.
+
+    `min_games` : int fixe (courbe pool fixe) ou callable(n) (courbe qualify=N).
+    Les deux courbes étaient deux boucles identiques au `min_games` près.
+    """
+    out = []
+    print(f"  {'N':>4} {'joueurs':>8} {'pos/neg':>10} {'AUC purgée':>11} {'AUC naïve':>11}")
+    for n in ns:
+        qualify = min_games(n) if callable(min_games) else min_games
+        df_n = build_player_rows(ref_all, min_games=qualify, n_cap=n)
+        if df_n.empty or df_n["high_elo"].nunique() < 2:
+            out.append({"n_games": n, "skipped": "no balanced classes"})
+            print(f"  {n:>4} {'-':>8} (classes insuffisantes)")
+            continue
+        # ref cappé au même N pour la purge (pool = qualifiés)
+        ref_cap = cap_player_games(ref_all, n, pool_puuids=set(df_n["puuid"]))
+        r = run_cv(df_n, ref_cap)
+        out.append(r | {"n_games": n})
+        cls = f"{r['n_pos']}/{r['n_neg']}"
+        print(f"  {n:>4} {r['n_players']:>8} {cls:>10} "
+              f"{r['auc_purged']:>11.4f} {r['auc_naive']:>11.4f}")
+    return out
+
+
 def main() -> int:
     ref_all = pd.read_parquet(DATASET_PER_GAME)
     ref_all = ref_all[ref_all["source"] == "referentiel"].copy()
@@ -171,43 +167,14 @@ def main() -> int:
           f"≥50={int((counts>=50).sum())} ≥75={int((counts>=75).sum())}")
 
     # --- Courbe 1 : qualify=N, cap=N (tradeoff réaliste) ---
-    Ns_curve1 = [15, 20, 25, 30, 40, 50, 75]
-    curve1 = []
     print("\n  Courbe 1 : qualify=N, cap=N (pool rétrécit quand N grandit)")
-    print(f"  {'N':>4} {'joueurs':>8} {'pos/neg':>10} {'AUC purgée':>11} {'AUC naïve':>11}")
-    for n in Ns_curve1:
-        df_n = build_player_rows(ref_all, min_games=n, n_cap=n)
-        if df_n.empty or df_n["high_elo"].nunique() < 2:
-            curve1.append({"n_games": n, "skipped": "no balanced classes"})
-            print(f"  {n:>4} {'-':>8} (classes insuffisantes)")
-            continue
-        # ref cappé au même N pour la purge (pool = qualifiés)
-        ref_cap = cap_player_games(ref_all, n, pool_puuids=set(df_n["puuid"]))
-        r = run_cv(df_n, ref_cap)
-        curve1.append(r | {"n_games": n})
-        cls = f"{r['n_pos']}/{r['n_neg']}"
-        print(f"  {n:>4} {r['n_players']:>8} {cls:>10} "
-              f"{r['auc_purged']:>11.4f} {r['auc_naive']:>11.4f}")
+    curve1 = run_curve(ref_all, [15, 20, 25, 30, 40, 50, 75], min_games=lambda n: n)
 
     # --- Courbe 2 : pool fixe ≥50, cap=N (effet pur de la profondeur) ---
     pool50 = set(counts[counts >= 50].index)
-    Ns_curve2 = [15, 20, 25, 30, 40, 50]
-    curve2 = []
     print(f"\n  Courbe 2 : pool fixe ≥50 ({len(pool50)} joueurs), cap=N "
           f"(effet pur de la profondeur d'agrégation)")
-    print(f"  {'N':>4} {'joueurs':>8} {'pos/neg':>10} {'AUC purgée':>11} {'AUC naïve':>11}")
-    for n in Ns_curve2:
-        df_n = build_player_rows(ref_all, min_games=50, n_cap=n)
-        if df_n.empty or df_n["high_elo"].nunique() < 2:
-            curve2.append({"n_games": n, "skipped": "no balanced classes"})
-            print(f"  {n:>4} {'-':>8} (classes insuffisantes)")
-            continue
-        ref_cap = cap_player_games(ref_all, n, pool_puuids=set(df_n["puuid"]))
-        r = run_cv(df_n, ref_cap)
-        curve2.append(r | {"n_games": n})
-        cls = f"{r['n_pos']}/{r['n_neg']}"
-        print(f"  {n:>4} {r['n_players']:>8} {cls:>10} "
-              f"{r['auc_purged']:>11.4f} {r['auc_naive']:>11.4f}")
+    curve2 = run_curve(ref_all, [15, 20, 25, 30, 40, 50], min_games=50)
 
     # --- Référence : production actuelle (qualify=15, cap=all) ---
     df_ref = build_player_rows(ref_all, min_games=15, n_cap=None)

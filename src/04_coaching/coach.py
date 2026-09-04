@@ -86,12 +86,18 @@ def run_batch(player: str, scope: str, target: str, model: str, n: int,
               root=None, silver_dir=None) -> int:
     """Génère jusqu'à n reviews par-game sur les games du scope pas encore
     reviewées (kind=game). Continue sur échec d'une game ; bilan final."""
-    silver = Path(silver_dir) if silver_dir is not None else rl.SILVER_DIR
+    silver = Path(silver_dir) if silver_dir is not None else rl.silver_dir()
     records = payload_mod._personal_records(player, silver)
     reviews = feedback_mod.list_reviews(player, root)
     already = len({r.get("match_id") for r in reviews if r.get("kind") == "game"}
                   & {r.get("match_id") for r in payload_mod.filter_scope(records, scope)})
     pending = pending_game_matches(records, reviews, scope, n)
+    # Agrégat référentiel lu une fois pour tout le lot (identique à chaque game).
+    # S'il manque, on laisse `build_game` échouer game par game (bilan inchangé).
+    try:
+        ref = payload_mod._load(rl.gold_dir(), rl.KIND_REF, target, scope) if pending else None
+    except FileNotFoundError:
+        ref = None
     done, failed = 0, 0
     seen_ts: set[str] = set()
     for mid in pending:
@@ -101,7 +107,8 @@ def run_batch(player: str, scope: str, target: str, model: str, n: int,
         seen_ts.add(ts)
         try:
             pl = payload_mod.build_game(player, match_id=mid, scope=scope,
-                                        target=target, silver_dir=silver)
+                                        target=target, silver_dir=silver,
+                                        records=records, ref=ref)
             review = generate_game_review(pl, model)
         except FileNotFoundError as e:
             print(f"✗ {mid} : {e}", file=sys.stderr)

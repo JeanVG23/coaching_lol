@@ -160,7 +160,8 @@ agrégation contextuelle. Lancer : `poetry run pytest tests/`.
 
 ```
 src/
-  core/           riotlib.py, positioning.py, champion_profiles.py, game_journal.py, ml_features.py
+  core/           riotlib.py, positioning.py, champion_profiles.py, game_journal.py, ml_features.py,
+                  ranks.py, cli.py, kv_keys.py, dataset_split.py
   collection/     build_referential.py, aggregate_games.py, live_capture.py, sync_cloudflare.py,
                   densify_targets.py, densify_sweet_spot.py, densify_players.py, fetch_apex_lp.py
   pipeline_ops/   reextract_silver.py, rebuild_gold.py, compress_raw.py,
@@ -173,7 +174,7 @@ src/
                         train_player_lp.py, calibrate_player_rank.py, analyze_auc_vs_ngames.py,
                         lp_metrics.py, audit_leakage.py, poc/per_player_hypothesis.py,
                         sequence_model.py, sequence_data.py, train_sequence_model.py,
-                        pretrain_sequence_model.py
+                        pretrain_sequence_model.py, cv_common.py
   03_data_analyse/      shap_analysis.py, plot_custom_shap.py
   04_coaching/          payload.py, prompt.py, schema.py, llm_client.py, coach.py, feedback.py
 data/
@@ -189,8 +190,9 @@ data/
   07_coaching/<player>/reviews.jsonl + feedback.jsonl
 web/
   cf/             Worker TypeScript de production : API, assets, KV, Ollama SSE
+                  (src/http.ts = réponses d'erreur + pagination partagées)
   frontend/       SPA statique servie par le Worker
-  backend/        FastAPI de référence, non servi en production
+  backend/        Ancien backend FastAPI (archivé / legacy Fly.io, non utilisé)
 ```
 ⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : config source).
 ⚠️ Les chemins des couches sont définis dans `src/core/riotlib.py` (`RAW_DIR`/`SILVER_DIR`/`GOLD_DIR`).
@@ -198,7 +200,11 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
 
 ### Modules `core/`
 
-- **`riotlib.py`** — socle : `RiotClient` (routing régional account/match vs plateforme league ;
+- **`riotlib.py`** — socle (helpers de chemins médaillon `silver_games`/`gold_base`/
+  `gold_aggregate`/`silver_roots` + `KIND_REF`/`KIND_PERSONAL` — ⚠️ résolus depuis `DATA` À
+  L'APPEL, les tests substituant `rl.DATA` ; primitives publiques `participant_id`/`find_pid`/
+  `frames_by_minute`/`iter_events`/`cs_of` ; `MatchCache` = travail par-match partagé par
+  `extract_all_games`) : `RiotClient` (routing régional account/match vs plateforme league ;
   rate-limiter ~1.3s/appel ; `entries_by_puuid` = rang courant via league-v4, frais pour le
   coach web), helpers (`approx_zone`, `phase_of`, `patch_of`), `get_match_timeline` (cache raw
   compressé zstd), `extract_game` (silver + benchmark de lane + sous-objet `comp` des 6 champions
@@ -230,7 +236,17 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   `load_items` — même pattern one-shot pour le catalogue d'items Data Dragon (`item.json` →
   `data/00_static/ddragon/<version>/`, `{id: {name, cost}}`).
 - **`ml_features.py`** — FEATURES canonique (partagé train/serve) + `aggregate_player_features`
-  (mean/std/p10/p50/p90 + `win_rate`) + `resolve_rank` (mode, tie-break rang le plus bas).
+  (mean/std/p10/p50/p90 dérivés de la table unique `AGG_FUNCS` + `win_rate`) + `resolve_rank`
+  (mode, tie-break rang le plus bas). Réexporte `RANK_ORD` depuis `ranks`.
+- **`ranks.py`** — source unique des rangs et des cibles binaires (`RANKS`, `RANK_ORD`,
+  `HIGH_ELO`, `APEX`, `COLLECT_ORDER`, `TARGETS` = `high_elo`/`dia_chall`). Stdlib-only pour
+  rester importable par la collecte. ⚠️ La frontière de rang est un paramètre de recherche
+  actif : la déplacer se fait ICI, ces constantes étaient recopiées dans ~11 scripts.
+- **`cli.py`** — `arg`/`flag`/`int_arg`/`csv_arg` : parseur argv des scripts de collecte
+  (recopié à l'identique dans 7 fichiers). `live_capture.py` garde sa copie (stdlib-only assumé).
+- **`kv_keys.py`** — gabarits des clés Cloudflare KV côté Python (`key("gold", slug=…, scope=…)`).
+  Miroir de `KEYS` dans `web/cf/src/readers.ts`, verrouillé par `tests/test_kv_keys_parity.py`
+  (deux runtimes = deux tables, mais toute divergence de nom/gabarit fait échouer le test).
 
 ### Modules `collection/`
 

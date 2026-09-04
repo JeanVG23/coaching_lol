@@ -40,15 +40,8 @@ DEFAULT_OUT = DERIVED_DIR / "champion_axis_validation.json"
 # Axes curés + leur rôle "porteur" (où l'axe a du sens).
 # Symétrique de _AXE_PORTEUSES dans audit_polyvalence, mais avec
 # un rôle **attendu** unique (le rôle principal où l'axe s'applique).
-_AXE_ROLE = {
-    "playstyle": "JUNGLE",
-    "gank_threat": "JUNGLE",
-    "roam": "MIDDLE",      # mid roam OU support roam
-    "lane_pattern": "BOTTOM",  # ADC + support de botlane
-    "power_curve": "BOTTOM",   # ADC + mid + support
-}
-
-# Rôles additionnels acceptés par axe (pour le calcul de stats par rôle_effectif).
+# Rôles acceptés par axe (calcul des stats par rôle effectif). Le premier de chaque
+# tuple est le rôle canonique de l'axe.
 _AXE_ROLES = {
     "playstyle": ("JUNGLE",),
     "gank_threat": ("JUNGLE",),
@@ -77,14 +70,7 @@ def load_silver_referentials(ranks: list[str] | None = None) -> list[dict]:
             continue
         if ranks and rank_dir.name not in ranks:
             continue
-        games_path = rank_dir / "games.jsonl"
-        if not games_path.exists():
-            continue
-        with open(games_path) as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                games.append(json.loads(line))
+        games.extend(rl.read_jsonl(rank_dir / "games.jsonl"))
     return games
 
 
@@ -159,7 +145,7 @@ _LANE_ZONES = ("TOP", "MID", "BOT")
 
 
 def _detect_lane_visits(match: dict, timeline: dict, target_puuid: str,
-                        target_role: str, max_minute: int = 15) -> dict:
+                        max_minute: int = 15) -> dict:
     """Pour UN joueur, compte les visites de lane pendant les N premières minutes.
 
     v2 (post data-driven validation) : sépare les "vraies" tentatives de gank
@@ -312,7 +298,7 @@ def compute_gank_stats_from_raw(
         timeline = _read_raw(f"{mid}_timeline")
         if not match or not timeline:
             continue
-        info = _detect_lane_visits(match, timeline, game["puuid"], "JUNGLE")
+        info = _detect_lane_visits(match, timeline, game["puuid"])
         per_game[champ].append(info)
         n_done += 1
         if progress and n_total and n_done % 500 == 0:
@@ -367,6 +353,56 @@ def compute_roam_stats(
     return out
 
 
+def _label_stats(by_label: dict[str, list[float]], counts: dict[str, int],
+                 n_games: str | None = "scores") -> dict[str, dict]:
+    """{label: bloc de stats} depuis des scores déjà groupés par label.
+
+    Facteur commun des 4 `group_*_by_label` : ils ne différaient que par l'axe de
+    traits lu, la clé de valeur, et la présence/source de `n_games`.
+    `n_games` : "scores" = nombre de scores, "champions" = nombre de champions,
+    None = clé omise (cas power_curve, une valeur agrégée par champion).
+    """
+    out: dict[str, dict] = {}
+    for label, scores in by_label.items():
+        if not scores:
+            continue
+        block = {"n_champions": counts[label]}
+        if n_games == "scores":
+            block["n_games"] = len(scores)
+        elif n_games == "champions":
+            block["n_games"] = counts[label]
+        block.update({
+            "score_median": median(scores),
+            "score_mean": fmean(scores),
+            "score_p25": _percentile(scores, 25),
+            "score_p75": _percentile(scores, 75),
+        })
+        out[label] = block
+    return out
+
+
+def _group_by_label(per_champ: dict[str, dict], traits: dict, axis: str,
+                    values_key: str | None = None,
+                    value_key: str | None = None) -> tuple[dict, dict]:
+    """Groupe les scores par label curé de `axis`. `values_key` = liste de scores
+    par champion (extend) ; `value_key` = scalaire par champion (append)."""
+    by_label: dict[str, list[float]] = defaultdict(list)
+    counts: dict[str, int] = defaultdict(int)
+    for champ, data in per_champ.items():
+        label = traits.get(champ, {}).get(axis)
+        if not label or label == "unknown":
+            continue
+        if values_key is not None:
+            by_label[label].extend(data[values_key])
+        else:
+            value = data.get(value_key)
+            if value is None:
+                continue
+            by_label[label].append(value)
+        counts[label] += 1
+    return by_label, counts
+
+
 def group_roam_stats_by_label(
     per_champ: dict[str, dict],
     traits: dict,
@@ -375,27 +411,8 @@ def group_roam_stats_by_label(
 
     Returns: {label: {"n_champions", "n_games", "score_median", "score_p25", "score_p75"}}
     """
-    by_label: dict[str, list[float]] = defaultdict(list)
-    counts: dict[str, int] = defaultdict(int)
-    for champ, data in per_champ.items():
-        label = traits.get(champ, {}).get("roam")
-        if not label or label == "unknown":
-            continue
-        by_label[label].extend(data["roam_values"])
-        counts[label] += 1
-    out: dict[str, dict] = {}
-    for label, scores in by_label.items():
-        if not scores:
-            continue
-        out[label] = {
-            "n_champions": counts[label],
-            "n_games": len(scores),
-            "score_median": median(scores),
-            "score_mean": fmean(scores),
-            "score_p25": _percentile(scores, 25),
-            "score_p75": _percentile(scores, 75),
-        }
-    return out
+    return _label_stats(*_group_by_label(per_champ, traits, "roam",
+                                         values_key="roam_values"))
 
 
 # === Lane pattern stats (ADC + support) ===
@@ -448,27 +465,8 @@ def group_lane_pattern_stats_by_label(
 
     Returns: {label: {n_champions, n_games, score_median, score_p25, score_p75}}
     """
-    by_label: dict[str, list[float]] = defaultdict(list)
-    counts: dict[str, int] = defaultdict(int)
-    for champ, data in per_champ.items():
-        label = traits.get(champ, {}).get("lane_pattern")
-        if not label or label == "unknown":
-            continue
-        by_label[label].extend(data["csd10_values"])
-        counts[label] += 1
-    out: dict[str, dict] = {}
-    for label, scores in by_label.items():
-        if not scores:
-            continue
-        out[label] = {
-            "n_champions": counts[label],
-            "n_games": len(scores),
-            "score_median": median(scores),
-            "score_mean": fmean(scores),
-            "score_p25": _percentile(scores, 25),
-            "score_p75": _percentile(scores, 75),
-        }
-    return out
+    return _label_stats(*_group_by_label(per_champ, traits, "lane_pattern",
+                                         values_key="csd10_values"))
 
 
 # === Power curve stats (ADC + mid + support) ===
@@ -557,52 +555,9 @@ def group_power_curve_stats_by_label(
     Args:
         bucket: "short" / "mid" / "long" / "overall"
     """
-    key = f"winrate_{bucket}"
-    by_label: dict[str, list[float]] = defaultdict(list)
-    counts: dict[str, int] = defaultdict(int)
-    for champ, data in per_champ.items():
-        label = traits.get(champ, {}).get("power_curve")
-        if not label or label == "unknown":
-            continue
-        v = data.get(key)
-        if v is None:
-            continue
-        by_label[label].append(v)
-        counts[label] += 1
-    out: dict[str, dict] = {}
-    for label, scores in by_label.items():
-        if not scores:
-            continue
-        out[label] = {
-            "n_champions": counts[label],
-            "score_median": median(scores),
-            "score_mean": fmean(scores),
-            "score_p25": _percentile(scores, 25),
-            "score_p75": _percentile(scores, 75),
-        }
-    return out
-
-
-def compute_gank_stats(idx: dict[tuple[str, str], list[dict]]) -> dict[str, dict]:
-    """Stats gank par champion (rôle JUNGLE) : score moyen + n_games.
-
-    Returns:
-        {champion: {"n": int, "score_mean": float, "scores": list[float]}}
-    """
-    out: dict[str, dict] = {}
-    for (champ, role), games in idx.items():
-        if role != "JUNGLE":
-            continue
-        scores = [s for g in games if (s := _gank_score_for_game(g)) is not None]
-        if not scores:
-            continue
-        out[champ] = {
-            "n": len(scores),
-            "score_mean": fmean(scores),
-            "score_median": median(scores),
-            "scores": scores,  # brut, pour calcul de verdicts plus tard
-        }
-    return out
+    grouped = _group_by_label(per_champ, traits, "power_curve",
+                              value_key=f"winrate_{bucket}")
+    return _label_stats(*grouped, n_games=None)
 
 
 def group_gank_stats_by_label(
@@ -618,6 +573,8 @@ def group_gank_stats_by_label(
     les 3min après une visite de lane) — c'est le signal le plus discriminant.
     Fallback sur `gank_kills_mean` (v1) si v2 absent.
     """
+    # Deux axes par champion et label composite -> groupage propre à ce cas ;
+    # l'émission des stats passe par le facteur commun `_label_stats`.
     by_label: dict[str, list[float]] = defaultdict(list)
     counts: dict[str, int] = defaultdict(int)
     for champ, data in per_champ.items():
@@ -631,19 +588,8 @@ def group_gank_stats_by_label(
                 continue
             by_label[f"{axis}={label}"].append(value)
             counts[f"{axis}={label}"] += 1
-    out: dict[str, dict] = {}
-    for label, scores in by_label.items():
-        if not scores:
-            continue
-        out[label] = {
-            "n_champions": counts[label],
-            "n_games": counts[label],  # placeholder, n_games == n_champions
-            "score_median": median(scores),
-            "score_mean": fmean(scores),
-            "score_p25": _percentile(scores, 25),
-            "score_p75": _percentile(scores, 75),
-        }
-    return out
+    # n_games == n_champions ici (une valeur agrégée par champion).
+    return _label_stats(by_label, counts, n_games="champions")
 
 
 def _percentile(values: list[float], p: int) -> float:
@@ -1097,22 +1043,6 @@ def _verdict_from_value(
     if abs(value - med) < 0.3 * (p75 - p25 + 0.01):
         return "validated"
     return "neutral"
-
-
-def _champ_value(
-    champ: str,
-    axis: str,
-    per_champ_gank: dict,
-    per_champ_roam: dict,
-    per_champ_lp: dict,
-    per_champ_pc: dict,
-) -> tuple[float | None, int, dict | None]:
-    """Renvoie (value, n_games, group_dist) pour un champion × axe.
-
-    group_dist est dérivée du label curé.
-    """
-    traits = {}  # hack : sera passé par l'appelant — géré dans build_report
-    return None, 0, None
 
 
 def _build_champions_block(

@@ -20,8 +20,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import positioning as pos
 import riotlib as rl
+from ranks import RANKS
+from cli import arg
 
-RANKS = ["diamond", "master", "grandmaster", "challenger"]
 MIN_N = 5  # seuil d'effectif sous lequel on prévient
 MIN_CONTEXT_N = 8  # sous ce seuil de games référentiel dans le bucket, on retombe sur global
 
@@ -88,18 +89,13 @@ def context_benchmark(me_agg, ref_agg, axis, outcome):
             "gd10_ref": ref_b.get("lane", {}).get("gd10"), "fallback": False, "reason": None}
 
 
-def arg(flag, default=None):
-    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
-
-
 def load(path):
     return json.loads(path.read_text()) if path.exists() else None
 
 
 def dpg(agg, outcome):
-    f = agg.get(outcome, {})
-    n = f.get("n_games", 0)
-    return f.get("deaths_per_game", 0), n
+    """Morts par game d'une facette (le compteur d'effectif n'était lu par personne)."""
+    return agg.get(outcome, {}).get("deaths_per_game", 0)
 
 
 def main() -> int:
@@ -108,11 +104,11 @@ def main() -> int:
     outcome = arg("--outcome", "loss")
     target = arg("--target", "challenger")
 
-    me = load(rl.GOLD_DIR / "personal" / player / scope / "aggregate.json")
+    me = load(rl.gold_aggregate(rl.KIND_PERSONAL, player, scope))
     if not me or not me["n_games"]:
         print(f"✗ Pas de données perso pour {player}/{scope}.", file=sys.stderr)
         return 1
-    refs = {r: load(rl.GOLD_DIR / "referentiel" / r / scope / "aggregate.json")
+    refs = {r: load(rl.gold_aggregate(rl.KIND_REF, r, scope))
             for r in RANKS}
     refs = {r: a for r, a in refs.items() if a and a["n_games"]}
     if not refs:
@@ -137,47 +133,46 @@ def main() -> int:
                                    + ("" if a[oc]["n_games"] >= MIN_N else "*")))
     print("  (* effectif faible <5 games — prudence)")
 
-    # --- benchmark de lane (issue choisie, médianes) ---
-    def lane_cell(a, key):
-        v = a.get(outcome, {}).get("lane", {}).get(key)
-        return (f"{v:+d}" if v is not None else "—")
+    # --- tables de benchmark (une seule mécanique d'impression) --------------
+    # Les 3 sections ci-dessous partageaient le même imprimeur recopié : lire
+    # a[outcome][section][clé], formater, poser TOI + une colonne par rang.
+    # Ajouter une ligne se payait en 2 endroits (la table ET son imprimeur).
+    def section_table(title, section, rows, width=16, footer=None):
+        def cell(a, key, fmt):
+            v = a.get(outcome, {}).get(section, {}).get(key)
+            if v is None:
+                return "—"
+            if fmt == "pct":
+                return f"{v:.0%}"
+            if fmt == "signed":
+                return f"{v:+d}"
+            return f"{v:.1f}"
 
-    def lane_row(label, key):
-        print(f"    {label:<16}{lane_cell(me, key):>9}"
-              + "".join(f"{lane_cell(refs[r], key):>11}" for r in cols))
+        print(f"\n  {title}")
+        print(f"    {'':<{width}}{'TOI':>9}" + "".join(f"{r[:9]:>11}" for r in cols))
+        for lbl, key, fmt in rows:
+            print(f"    {lbl:<{width}}{cell(me, key, fmt):>9}"
+                  + "".join(f"{cell(refs[r], key, fmt):>11}" for r in cols))
+        if footer:
+            print(footer)
 
-    print(f"\n  Benchmark de lane vs adversaire — {outcome.upper()} (médianes) :")
-    print(f"    {'':<16}{'TOI':>9}" + "".join(f"{r[:9]:>11}" for r in cols))
-    for lbl, key in [("gold diff @10", "gd10"), ("gold diff @14", "gd14"),
-                     ("cs diff @10", "csd10"), ("cs diff @14", "csd14"),
-                     ("gold diff @20", "gd20")]:
-        lane_row(lbl, key)
+    section_table(
+        f"Benchmark de lane vs adversaire — {outcome.upper()} (médianes) :", "lane",
+        [("gold diff @10", "gd10", "signed"), ("gold diff @14", "gd14", "signed"),
+         ("cs diff @10", "csd10", "signed"), ("cs diff @14", "csd14", "signed"),
+         ("gold diff @20", "gd20", "signed")])
 
-    # --- benchmark positionnement (timeline, 0 CV ; COACHING_SAFE uniquement) ---
-    def pos_cell(a, key, fmt):
-        v = a.get(outcome, {}).get("positioning", {}).get(key)
-        if v is None:
-            return "—"
-        return f"{v:.0%}" if fmt == "pct" else f"{v:.1f}"
+    # positionnement : timeline, 0 CV ; COACHING_SAFE uniquement (cf. assert POS_ROWS)
+    section_table(
+        f"Benchmark positionnement — {outcome.upper()} (médianes) :", "positioning",
+        POS_ROWS, width=18,
+        footer="  (profondeur ↑ = plus diamond/risqué, PAS un objectif — cf. note compare.py)")
 
-    print(f"\n  Benchmark positionnement — {outcome.upper()} (médianes) :")
-    print(f"    {'':<18}{'TOI':>9}" + "".join(f"{r[:9]:>11}" for r in cols))
-    for lbl, key, fmt in POS_ROWS:
-        print(f"    {lbl:<18}{pos_cell(me, key, fmt):>9}"
-              + "".join(f"{pos_cell(refs[r], key, fmt):>11}" for r in cols))
-    print("  (profondeur ↑ = plus diamond/risqué, PAS un objectif — cf. note compare.py)")
-
-    # --- contexte économique des morts ---
-    def gs_cell(a, key):
-        v = a.get(outcome, {}).get("death_gold_state", {}).get(key)
-        return f"{v:.0%}" if v is not None else "—"
-
-    print(f"\n  Contexte éco. des morts — {outcome.upper()} (part des morts) :")
-    print(f"    {'':<16}{'TOI':>9}" + "".join(f"{r[:9]:>11}" for r in cols))
-    for lbl, key in [("mort en avance", "ahead"), ("mort à égalité", "even"),
-                     ("mort en retard", "behind")]:
-        print(f"    {lbl:<16}{gs_cell(me, key):>9}"
-              + "".join(f"{gs_cell(refs[r], key):>11}" for r in cols))
+    section_table(
+        f"Contexte éco. des morts — {outcome.upper()} (part des morts) :",
+        "death_gold_state",
+        [("mort en avance", "ahead", "pct"), ("mort à égalité", "even", "pct"),
+         ("mort en retard", "behind", "pct")])
 
     # --- écarts ZONE×PHASE pour l'issue choisie ---
     if target not in refs:
@@ -213,8 +208,8 @@ def main() -> int:
 
     # --- verdict ---
     print("\n  ⚑ Verdict :")
-    mo, _ = dpg(me, outcome)
-    ro, _ = dpg(refs[target], outcome)
+    mo = dpg(me, outcome)
+    ro = dpg(refs[target], outcome)
     if mo - ro > 0.5:
         print(f"    • En {outcome}, tu meurs {mo - ro:.1f} de plus/game qu'un {target} "
               f"({mo} vs {ro}) → marge réelle, biais d'issue neutralisé.")

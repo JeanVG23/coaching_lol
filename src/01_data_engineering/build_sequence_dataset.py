@@ -53,22 +53,22 @@ def frame_state(pf: dict) -> list[float]:
 
 
 def participant_pid(match: dict, puuid: str) -> int:
-    """puuid -> participantId (1-indexé)."""
-    return match["metadata"]["participants"].index(puuid) + 1
+    """puuid -> participantId (1-indexé). Délègue à riotlib.participant_id."""
+    return rl.participant_id(match, puuid)
 
 
 def opponent_pid(match: dict, target_puuid: str) -> int | None:
-    """participantId de l'adversaire de même rôle (BOTTOM), équipe opposée. None si introuvable."""
-    meta = match["metadata"]
-    parts = match["info"]["participants"]
-    pidx = meta["participants"].index(target_puuid)
-    me = parts[pidx]
-    my_team = me["teamId"]
+    """participantId de l'adversaire de même rôle, équipe opposée. None si introuvable.
+
+    Délègue aux primitives riotlib (`find_pid`/`enemy_team_of`) : cette résolution y
+    était recopiée à l'identique, à l'ordre des conditions près.
+    """
+    pidx = match["metadata"]["participants"].index(target_puuid)
+    me = match["info"]["participants"][pidx]
     my_role = me.get("teamPosition") or ""
-    for i, p in enumerate(parts):
-        if p["teamId"] != my_team and (p.get("teamPosition") or "") == my_role and my_role:
-            return i + 1
-    return None
+    if not my_role:
+        return None
+    return rl.find_pid(match, team=rl.enemy_team_of(me["teamId"]), role=my_role)
 
 
 def _diffs(self_state: list[float], opp_state: list[float]) -> list[float]:
@@ -90,7 +90,8 @@ def _obj_up(obj_kills: dict, name: str, t_ms: int) -> bool:
 
 
 def _event_channels(timeline: dict, pid: int, opp_pid: int,
-                    enemy_jungle_pid: int | None) -> np.ndarray:
+                    enemy_jungle_pid: int | None,
+                    obj_kills: dict | None = None) -> np.ndarray:
     """-> [40, 7] float32. Canaux events binaires par minute, COACHING_SAFE (info que le
     joueur avait : sa mort, l'annonce de la mort adverse, timers objectifs = HUD public).
     Ordre : self_death_m, opp_death_m, self_recall_m, drake_up, baron_up, is_ganked,
@@ -98,7 +99,9 @@ def _event_channels(timeline: dict, pid: int, opp_pid: int,
     — version allégée : on ne calcule que le bucket minute + gank/solo, PAS gold_state/
     consequences (coût inutile sur 43-95k games × 2 ADC)."""
     ch = np.zeros((MAX_LEN, 7), dtype=np.float32)
-    obj_kills = gj._objective_kills(timeline)
+    # obj_kills injectable : identique pour les 2 ADC d'une même game.
+    if obj_kills is None:
+        obj_kills = gj._objective_kills(timeline)
     for m in range(MAX_LEN):
         t_end = (m + 1) * 60000 - 1                       # fin de la minute m
         if _obj_up(obj_kills, "DRAGON", t_end):
@@ -122,30 +125,31 @@ def _event_channels(timeline: dict, pid: int, opp_pid: int,
                     ch[m, 6] = 1.0                        # is_solo_death
             elif vid == opp_pid:
                 ch[m, 1] = 1.0                            # opp_death_m
-    for rec in gj._recalls(timeline, pid, obj_kills):     # visites de shop (clusters d'achats)
+    for rec in gj.recalls_for(timeline, pid, obj_kills):  # visites de shop (clusters d'achats)
         m = rec["t_ms"] // 60000
         if m < MAX_LEN:
             ch[m, 2] = 1.0                               # self_recall_m
     return ch
 
 
-def build_sequence(match: dict, timeline: dict,
-                   target_puuid: str) -> tuple[np.ndarray, np.ndarray] | None:
+def build_sequence(match: dict, timeline: dict, target_puuid: str,
+                   obj_kills: dict | None = None) -> tuple[np.ndarray, np.ndarray] | None:
     """Une game -> (seq[40,27] float32, mask[40] bool). None si pas d'opponent ou 0 frame.
-    Frame = self(8) + opp(8) + diffs(4) + event_channels(7) = 27-d."""
+    Frame = self(8) + opp(8) + diffs(4) + event_channels(7) = 27-d.
+
+    `obj_kills` est injectable : les timers d'objectifs sont propres à la game, pas au
+    joueur, et étaient recalculés à l'identique pour chacun des 2 ADC.
+    """
     pid = participant_pid(match, target_puuid)
     opp = opponent_pid(match, target_puuid)
     if opp is None:
         return None
-    parts = match["info"]["participants"]
     pidx = match["metadata"]["participants"].index(target_puuid)
-    my_team = parts[pidx]["teamId"]
-    enemy_jungle_pid = next((i + 1 for i, p in enumerate(parts)
-                             if p["teamId"] != my_team
-                             and (p.get("teamPosition") or "") == "JUNGLE"), None)
-    my_fr = rl._frames_by_minute(timeline, pid)
-    opp_fr = rl._frames_by_minute(timeline, opp)
-    ev = _event_channels(timeline, pid, opp, enemy_jungle_pid)
+    my_team = match["info"]["participants"][pidx]["teamId"]
+    enemy_jungle_pid = rl.find_pid(match, team=rl.enemy_team_of(my_team), role="JUNGLE")
+    my_fr = rl.frames_by_minute(timeline, pid)
+    opp_fr = rl.frames_by_minute(timeline, opp)
+    ev = _event_channels(timeline, pid, opp, enemy_jungle_pid, obj_kills)
     seq = np.zeros((MAX_LEN, 27), dtype=np.float32)
     mask = np.zeros(MAX_LEN, dtype=bool)
     for minute, pf in my_fr.items():
@@ -179,8 +183,9 @@ def main() -> int:
             raw_miss += 1
             continue
         match, timeline = raw
+        obj_kills = gj._objective_kills(timeline)   # une fois par game, pas par ADC
         for puuid in build_dataset.adc_puuids(match):
-            out = build_sequence(match, timeline, puuid)
+            out = build_sequence(match, timeline, puuid, obj_kills)
             if out is None:
                 continue
             seq, mask = out

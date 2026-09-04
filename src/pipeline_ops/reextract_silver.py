@@ -49,10 +49,7 @@ def _reextract_dir(d, rank):
 
 def main() -> int:
     total, missing = 0, 0
-    for kind, root in (("referentiel", rl.SILVER_DIR / "referentiel"),
-                       ("personal", rl.SILVER_DIR / "personal")):
-        if not root.exists():
-            continue
+    for kind, root in rl.silver_roots():
         for d in sorted(root.iterdir()):
             if not d.is_dir():
                 continue

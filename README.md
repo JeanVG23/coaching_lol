@@ -3,7 +3,6 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Poetry](https://img.shields.io/badge/Poetry-Package%20Manager-60A5FA?style=flat&logo=poetry&logoColor=white)](https://python-poetry.org/)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%2B%20KV-F38020?style=flat&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![XGBoost](https://img.shields.io/badge/ML-XGBoost%20%7C%20LightGBM-EB5424?style=flat)](https://xgboost.readthedocs.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Worker-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -27,7 +26,7 @@ Les outils d'analyse traditionnels de League of Legends (OP.GG, U.GG, Porofessor
 
 ## 🏗️ Architecture Globale
 
-Le projet repose sur une **architecture Médaillon** en Python (pour l'extraction, l'ingénierie des données et le ML) couplée à une **application de production Cloudflare Worker** (TypeScript + KV + Alpine.js) pour la restitution web en temps réel.
+Le projet repose sur une **architecture Médaillon** en Python (pour l'extraction, l'ingénierie des données et le ML) couplée à une **application web Cloudflare Worker** (TypeScript + KV + Alpine.js) pour la restitution web en temps réel. **Aucun backend FastAPI ne tourne en production** : le calcul lourd est fait en amont en Python local et synchronisé dans Cloudflare KV, ce qui permet au Worker de servir l'API et les pages avec une empreinte CPU minimale (< 10 ms).
 
 ```mermaid
 flowchart TD
@@ -72,9 +71,9 @@ coaching_lol/
 │   ├── 05_model/              # Modèles entraînés (.pkl) et métriques de calibration
 │   └── 06_shap/               # Explications SHAP locales et globales
 ├── web/
-│   ├── cf/                    # Cloudflare Worker TypeScript de production (API + SSE)
-│   ├── frontend/              # Interface SPA statique (Alpine.js, Chart.js, Vanilla CSS)
-│   └── backend/               # Serveur FastAPI de référence locale
+│   ├── cf/                    # Cloudflare Worker TypeScript (API, KV & SSE de production)
+│   ├── frontend/              # Interface SPA statique servie par le Worker
+│   └── backend/               # [Archivé/Legacy] Ancien backend FastAPI pré-Cloudflare (Fly.io)
 └── tests/                     # Suite de tests automatisés pytest & vitest
 ```
 
@@ -179,20 +178,18 @@ poetry run python src/02_data_science/train_player_ensemble.py
 
 ### Lancement de l'Application Web
 
-#### Option A : Cloudflare Worker (Stack de production)
+L'application web s'exécute via le **Worker Cloudflare TypeScript** (`web/cf/`) qui sert l'API sous `/api/*`, le binding KV (`DATA`) et les assets statiques du frontend Alpine.js (`web/frontend/`) :
 
 ```bash
 cd web/cf
-# Lancement en local avec lecture des données KV distantes
+
+# Lancement en local avec lecture des données Cloudflare KV distantes :
 npx wrangler dev --remote
 ```
 
-#### Option B : Serveur FastAPI de développement local
+L'application est accessible en local sur `http://localhost:8787` (et déployée en production sur `https://coaching-lol.jeanvg.fr`).
 
-```bash
-poetry run uvicorn main:app --app-dir web/backend --reload --port 8000
-```
-L'interface est accessible sur `http://localhost:8000`.
+> ℹ️ **Note d'architecture** : L'ancien backend Python/FastAPI (`web/backend/`) hérité de l'ancien hébergement Fly.io a été retiré de la chaîne active et archivé. Le site et l'API tournent exclusivement sur Cloudflare Worker TypeScript.
 
 ---
 

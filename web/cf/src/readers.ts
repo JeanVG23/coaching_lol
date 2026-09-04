@@ -1,4 +1,6 @@
 /** Lectures KV — portage de web/backend/readers.py (mêmes sémantiques). */
+import { paginate, type Page } from "./http";
+
 export interface KVLike {
   get(key: string): Promise<string | null>;
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
@@ -21,12 +23,7 @@ export function matchSeq(matchId: string): number {
   return Number.isFinite(n) && tail !== "" ? n : 0;
 }
 
-export interface GamesPage {
-  items: Record<string, unknown>[];
-  page: number;
-  size: number;
-  total: number;
-}
+export type GamesPage = Page<Record<string, unknown>>;
 
 export async function readGames(
   kv: KVLike,
@@ -38,8 +35,7 @@ export async function readGames(
   const items = [...rows].sort(
     (a, b) => matchSeq(String(b.match_id ?? "")) - matchSeq(String(a.match_id ?? "")),
   );
-  const start = (page - 1) * size;
-  return { items: items.slice(start, start + size), page, size, total: items.length };
+  return paginate(items, { page, size });
 }
 
 export async function readRank(
@@ -91,6 +87,14 @@ export async function readJson<T = unknown>(
   }
 }
 
+export async function writeJsonl(
+  kv: KVLike,
+  key: string,
+  rows: Record<string, unknown>[],
+): Promise<void> {
+  await kv.put(key, rows.map((row) => JSON.stringify(row)).join("\n"));
+}
+
 export async function appendJsonl(
   kv: KVLike,
   key: string,
@@ -98,5 +102,21 @@ export async function appendJsonl(
 ): Promise<void> {
   const lines = await readJsonl<Record<string, unknown>>(kv, key);
   lines.push(record);
-  await kv.put(key, lines.map((line) => JSON.stringify(line)).join("\n"));
+  await writeJsonl(kv, key, lines);
+}
+
+/**
+ * Remplace la ligne portant la même valeur de `idKey` (sinon ajoute).
+ * `feedback.ts` refaisait ce read-modify-write à la main.
+ */
+export async function upsertJsonl(
+  kv: KVLike,
+  key: string,
+  record: Record<string, unknown>,
+  idKey = "ts",
+): Promise<void> {
+  const existing = await readJsonl<Record<string, unknown>>(kv, key);
+  const kept = existing.filter((line) => line[idKey] !== record[idKey]);
+  kept.push(record);
+  await writeJsonl(kv, key, kept);
 }

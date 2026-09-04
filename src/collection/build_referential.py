@@ -20,14 +20,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import riotlib as rl
+from ranks import COLLECT_ORDER as ALL_RANKS
+from cli import arg
 
 APEX = {"challenger", "grandmaster", "master"}
-ALL_RANKS = ["challenger", "grandmaster", "master", "diamond"]
 SCOPES = ["all", "adc", "zeri", "smolder", "jinx", "caitlyn", "ezreal", "aphelios", "kaisa"]
-
-
-def arg(flag: str, default=None):
-    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
 
 
 def has_flag(flag: str) -> bool:
@@ -37,8 +34,8 @@ def has_flag(flag: str) -> bool:
 def known_puuids(rank: str) -> set[str]:
     """Puuids déjà présents dans le silver du rang (évite le re-échantillonnage
     des mêmes top joueurs à chaque run — densification réelle par deeper paging)."""
-    path = rl.SILVER_DIR / "referentiel" / rank / "games.jsonl"
-    seen_path = rl.SILVER_DIR / "referentiel" / rank / "seen_puuids.txt"
+    path = rl.silver_games(rl.KIND_REF, rank)
+    seen_path = rl.SILVER_DIR / rl.KIND_REF / rank / "seen_puuids.txt"
     known = set()
     
     if path.exists():
@@ -221,7 +218,7 @@ def main() -> int:
 
     # Check for patch mismatch before collecting
     for rank in ranks:
-        sources_file = rl.SILVER_DIR / "referentiel" / rank / "sources.json"
+        sources_file = rl.SILVER_DIR / rl.KIND_REF / rank / "sources.json"
         if sources_file.exists():
             try:
                 existing = json.loads(sources_file.read_text())
@@ -238,7 +235,7 @@ def main() -> int:
         if skip is not None:
             print(f"  [{rank}] skip-known: {len(skip)} puuids déjà en silver → "
                   f"échantillonnage plus profond", file=sys.stderr)
-        silver_base = rl.SILVER_DIR / "referentiel" / rank
+        silver_base = rl.SILVER_DIR / rl.KIND_REF / rank
         pool = collect_rank(client, rank, n_players, n_games, patch,
                             skip=skip, max_pages=max_pages, start_page=start_page,
                             silver_base=silver_base, target_role=target_role,
@@ -263,12 +260,12 @@ def main() -> int:
         }, indent=2))
         
         # gold
-        gold_base = rl.GOLD_DIR / "referentiel" / rank
-        rl.write_gold(gold_base, merged_pool, SCOPES, rank=rank, patch=patch)
+        gold_base = rl.gold_base(rl.KIND_REF, rank)
+        aggs = rl.write_gold(gold_base, merged_pool, SCOPES, rank=rank, patch=patch)
 
-        # récap console
+        # récap console (réutilise les agrégats déjà calculés par write_gold)
         for scope in SCOPES:
-            agg = rl.aggregate(merged_pool, scope, rank=rank, patch=patch)
+            agg = aggs[scope]
             print(f"  {rank}/{scope:<4} : {agg['n_games']:>3} games, "
                   f"{agg['overall']['deaths_per_game']} morts/game, WR {agg['winrate']:.0%}")
 

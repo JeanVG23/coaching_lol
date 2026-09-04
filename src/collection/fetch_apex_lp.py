@@ -23,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import riotlib as rl
+from cli import arg
 
 OUTPUT = rl.DATA / "04_dataset" / "apex_lp.json"
 TIERS = ("challenger", "grandmaster", "master")
@@ -30,10 +31,6 @@ TIERS = ("challenger", "grandmaster", "master")
 # l'API (non confirmé). On loggue un warning si ça se reproduit, sans bloquer :
 # ~89 % des qualifiés master matchaient quand même (churn normal de tier).
 SUSPECT_MASTER_COUNT = 10_000
-
-
-def arg(flag: str, default=None):
-    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
 
 
 def build_lp_lookup(entries_by_tier: dict[str, list[dict]]) -> dict[str, dict]:

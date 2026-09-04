@@ -29,15 +29,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # ml_features
 import pandas as pd
 import riotlib as rl
+from ranks import HIGH_ELO
 import ml_features as mf
 
 DATASET_DIR = rl.DATA / "04_dataset"
 MIN_PLAYER_GAMES = 15
-HIGH_ELO = {"grandmaster", "challenger"}
 
 
 def build_player_rows(df: pd.DataFrame, min_games: int = MIN_PLAYER_GAMES) -> pd.DataFrame:

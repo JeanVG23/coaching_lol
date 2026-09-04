@@ -14,16 +14,20 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
-import json
 import numpy as np
 import pandas as pd
 import riotlib as rl
+import ml_features
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import roc_auc_score
 import xgboost as xgb
 
 DATASET = rl.DATA / "04_dataset" / "adc_dataset.parquet"
-FEATURES = json.loads((rl.DATA / "05_model" / "features.json").read_text())
+# Liste canonique (src/core/ml_features.py) et non data/05_model/features.json : cet
+# artefact est écrit par le pipeline per-game déprécié. L'audit ré-entraîne ses propres
+# modèles (aucun .pkl chargé), il n'a donc pas à s'aligner sur un modèle figé — et plus
+# de lecture disque bloquante à l'import.
+FEATURES = ml_features.FEATURES
 
 RATES = ["csm10", "csm14", "gpm10", "gpm14", "xppm10",
          "frac_behind", "frac_ahead", "avg_dragon_prox",

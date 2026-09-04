@@ -1,5 +1,6 @@
 import { accountFor } from "./accounts";
-import { KEYS, readJsonl } from "./readers";
+import { jsonError, notFound, unprocessable } from "./http";
+import { KEYS, readJsonl, upsertJsonl } from "./readers";
 import { NEG_TAGS, validateGameReview, validateReview, type Review } from "./schema";
 import type { Env } from "./index";
 
@@ -38,16 +39,16 @@ async function feedbackRateLimited(request: Request, env: Env): Promise<boolean>
 }
 
 function badKey(key: string): Response {
-  return Response.json(
-    { detail: `clé de réponse invalide : '${key}' (attendu 'kind,index')` },
-    { status: 422 },
-  );
+  return unprocessable(`clé de réponse invalide : '${key}' (attendu 'kind,index')`);
+}
+
+/** Les 4 validations par réponse ne différaient que par le motif d'invalidité. */
+function badResponse(key: string, why: string): Response {
+  return unprocessable(`réponse invalide pour '${key}' : ${why}`);
 }
 
 export async function apiFeedback(request: Request, env: Env): Promise<Response> {
-  if (foreignOrigin(request)) {
-    return Response.json({ detail: "origine non autorisée" }, { status: 403 });
-  }
+  if (foreignOrigin(request)) return jsonError(403, "origine non autorisée");
   const body = await request.json().catch(() => null) as {
     slug?: unknown;
     ts?: unknown;
@@ -56,27 +57,21 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
   if (!body || typeof body.slug !== "string" || typeof body.ts !== "string"
       || typeof body.responses !== "object" || body.responses === null
       || Array.isArray(body.responses)) {
-    return Response.json({ detail: "requête feedback invalide" }, { status: 422 });
+    return unprocessable("requête feedback invalide");
   }
   const slug = body.slug;
-  if (!accountFor(slug)) {
-    return Response.json({ detail: "compte inconnu" }, { status: 404 });
-  }
+  if (!accountFor(slug)) return notFound("compte inconnu");
 
   const reviews = await readJsonl<{ ts: string; model: string; kind?: string; review: unknown }>(
     env.DATA,
     KEYS.reviews(slug),
   );
   const found = reviews.find((review) => review.ts === body.ts);
-  if (!found) {
-    return Response.json({ detail: "review introuvable" }, { status: 404 });
-  }
+  if (!found) return notFound("review introuvable");
   const review = found.kind === "game"
     ? validateGameReview(found.review)
     : validateReview(found.review);
-  if (!review) {
-    return Response.json({ detail: "review stockée non conforme" }, { status: 500 });
-  }
+  if (!review) return jsonError(500, "review stockée non conforme");
 
   const sections: [string, unknown[]][] = [
     ["strength", review.strengths],
@@ -95,45 +90,28 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
     const section = allowedSections.get(kind);
     if (!section || index >= section.length) return badKey(key);
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-      return Response.json(
-        { detail: `réponse invalide pour '${key}' : objet requis` },
-        { status: 422 },
-      );
+      return badResponse(key, "objet requis");
     }
     const value = raw as Record<string, unknown>;
     if (typeof value.useful !== "boolean") {
-      return Response.json(
-        { detail: `réponse invalide pour '${key}' : useful booléen requis` },
-        { status: 422 },
-      );
+      return badResponse(key, "useful booléen requis");
     }
     const tag = value.tag ?? null;
     const note = value.note ?? null;
     if (tag !== null
         && (typeof tag !== "string" || !(NEG_TAGS as readonly string[]).includes(tag))) {
-      return Response.json(
-        { detail: `réponse invalide pour '${key}' : tag inconnu` },
-        { status: 422 },
-      );
+      return badResponse(key, "tag inconnu");
     }
     if (note !== null && typeof note !== "string") {
-      return Response.json(
-        { detail: `réponse invalide pour '${key}' : note doit être une chaîne` },
-        { status: 422 },
-      );
+      return badResponse(key, "note doit être une chaîne");
     }
-    responses.set(`${kind},${index}`, {
-      useful: value.useful,
-      tag,
-      note,
-    });
+    // Clé normalisée (index numérique) : `key` brut peut porter des zéros non
+    // significatifs, la lecture plus bas reconstruit `${kind},${index}`.
+    responses.set(`${kind},${index}`, { useful: value.useful, tag, note });
   }
 
   if (await feedbackRateLimited(request, env)) {
-    return Response.json(
-      { detail: "trop de votes en peu de temps ; réessaie dans une heure" },
-      { status: 429 },
-    );
+    return jsonError(429, "trop de votes en peu de temps ; réessaie dans une heure");
   }
 
   const items: Array<{
@@ -150,10 +128,7 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
     });
   }
   if (items.some((item) => !item.useful && item.tag === null)) {
-    return Response.json(
-      { detail: "feedback invalide (tag requis si useful=False)" },
-      { status: 422 },
-    );
+    return unprocessable("feedback invalide (tag requis si useful=False)");
   }
 
   const feedback = {
@@ -164,15 +139,6 @@ export async function apiFeedback(request: Request, env: Env): Promise<Response>
     overall_useful: null,
     items,
   };
-  const existing = await readJsonl<Record<string, unknown>>(
-    env.DATA,
-    KEYS.feedback(slug),
-  );
-  const kept = existing.filter((line) => line.ts !== feedback.ts);
-  kept.push(feedback);
-  await env.DATA.put(
-    KEYS.feedback(slug),
-    kept.map((line) => JSON.stringify(line)).join("\n"),
-  );
+  await upsertJsonl(env.DATA, KEYS.feedback(slug), feedback);
   return Response.json({ ok: true });
 }

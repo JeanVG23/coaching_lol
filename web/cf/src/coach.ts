@@ -2,6 +2,7 @@ import { accountFor } from "./accounts";
 import { generateJson } from "./llm_client";
 import { buildPayload, type Outcome } from "./payload";
 import { render } from "./prompt";
+import { jsonError, notFound } from "./http";
 import { appendJsonl, KEYS, readJson, type KVLike } from "./readers";
 import { reviewJsonSchema, validateReview, type Review } from "./schema";
 import type { Env } from "./index";
@@ -34,14 +35,11 @@ export async function* coachFlow(
   deps: { kv: KVLike; generate: GenerateFn; now: () => string },
   params: CoachParams,
 ): AsyncGenerator<SseEvent> {
-  const me = await readJson<Record<string, any>>(
-    deps.kv,
-    KEYS.gold(params.slug, params.scope),
-  );
-  const ref = await readJson<Record<string, any>>(
-    deps.kv,
-    KEYS.ref(params.target, params.scope),
-  );
+  // Lectures indépendantes : en parallèle, un seul aller-retour KV avant le 1er event SSE.
+  const [me, ref] = await Promise.all([
+    readJson<Record<string, any>>(deps.kv, KEYS.gold(params.slug, params.scope)),
+    readJson<Record<string, any>>(deps.kv, KEYS.ref(params.target, params.scope)),
+  ]);
   if (!me || !ref) {
     const missing = !me
       ? `agrégat perso ${params.slug}/${params.scope}`
@@ -115,12 +113,8 @@ export async function apiCoach(request: Request, env: Env): Promise<Response> {
     model?: string;
   } | null;
   const slug = body?.slug ?? "";
-  if (!accountFor(slug)) {
-    return Response.json({ detail: "compte inconnu" }, { status: 404 });
-  }
-  if (!env.OLLAMA_API_KEY) {
-    return Response.json({ detail: "OLLAMA_API_KEY non configuré" }, { status: 500 });
-  }
+  if (!accountFor(slug)) return notFound("compte inconnu");
+  if (!env.OLLAMA_API_KEY) return jsonError(500, "OLLAMA_API_KEY non configuré");
   const params: CoachParams = {
     slug,
     scope: body?.scope ?? "adc",

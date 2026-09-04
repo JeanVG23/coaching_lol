@@ -15,11 +15,11 @@ import riotlib as rl
 
 def main():
     # Déterminer le patch actuel depuis sources.json
-    sources_path = rl.SILVER_DIR / "referentiel" / "challenger" / "sources.json"
+    sources_path = rl.SILVER_DIR / rl.KIND_REF / "challenger" / "sources.json"
     if not sources_path.exists():
         # Essayer un autre rang si challenger n'existe pas
         for rank in ["grandmaster", "master", "diamond"]:
-            alt = rl.SILVER_DIR / "referentiel" / rank / "sources.json"
+            alt = rl.SILVER_DIR / rl.KIND_REF / rank / "sources.json"
             if alt.exists():
                 sources_path = alt
                 break

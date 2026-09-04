@@ -17,11 +17,13 @@ _CORE = Path(__file__).resolve().parent.parent / "core"
 sys.path.insert(0, str(_CORE))
 import numpy as np
 import riotlib as rl
+import ranks as rank_defs
 
 DATASET = rl.DATA / "04_dataset" / "adc_sequence_dataset.npz"
-HIGH_ELO = {"grandmaster", "challenger"}
-DIA_CHALL = {"diamond", "challenger"}
-TASKS = ("high_elo", "dia_chall")
+# Réexports depuis la source unique src/core/ranks.py (cf. rank_defs.TARGETS).
+HIGH_ELO = rank_defs.HIGH_ELO
+DIA_CHALL = set(rank_defs.TARGETS["dia_chall"]["ranks"])
+TASKS = tuple(rank_defs.TARGETS)
 
 
 def load_dataset(path: Path = DATASET) -> dict:
@@ -30,18 +32,16 @@ def load_dataset(path: Path = DATASET) -> dict:
 
 
 def task_subset(data: dict, task: str) -> tuple[np.ndarray, np.ndarray]:
-    """-> (idx rows, y binaire). high_elo : toutes rows label=GM/C. dia_chall : filter
-    diamond+challenger, label=challenger."""
-    ranks = data["rank"]
-    if task == "high_elo":
-        # perso (rank None) exclu -> on garde les rows dont rank est défini
-        idx = np.array([i for i, r in enumerate(ranks) if r is not None])
-        y = np.array([1 if r in HIGH_ELO else 0 for r in ranks[idx]], dtype=np.int64)
-    elif task == "dia_chall":
-        idx = np.array([i for i, r in enumerate(ranks) if r in DIA_CHALL])
-        y = np.array([1 if ranks[i] == "challenger" else 0 for i in idx], dtype=np.int64)
-    else:
+    """-> (idx rows, y binaire). Les rangs retenus et la classe positive viennent de
+    `ranks.TARGETS` : high_elo garde les 4 rangs et labellise GM/C ; dia_chall filtre
+    diamond+challenger et labellise challenger. Le perso (rank None) est toujours exclu."""
+    spec = rank_defs.TARGETS.get(task)
+    if spec is None:
         raise ValueError(f"task inconnue: {task}")
+    allowed, positive = set(spec["ranks"]), spec["pos"]
+    row_ranks = data["rank"]
+    idx = np.array([i for i, r in enumerate(row_ranks) if r in allowed])
+    y = np.array([1 if row_ranks[i] in positive else 0 for i in idx], dtype=np.int64)
     return idx, y
 
 

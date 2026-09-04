@@ -52,16 +52,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))  # ml_features, riotlib
 import pandas as pd
 import riotlib as rl
+from ranks import RANKS
+from cli import arg
 import ml_features as mf
 
 DATASET_DIR = rl.DATA / "04_dataset"
 DEFAULT_THRESHOLD = 30
 DEFAULT_MIN_GAMES = 15
-RANKS = ["diamond", "master", "grandmaster", "challenger"]
-
-
-def arg(flag: str, default=None):
-    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
 
 
 def select_targets(df: pd.DataFrame, threshold: int, min_games: int,
@@ -84,6 +81,46 @@ def select_targets(df: pd.DataFrame, threshold: int, min_games: int,
     return dict(sorted(targets.items(), key=lambda kv: kv[1]["gap"]))
 
 
+def load_referential() -> pd.DataFrame | None:
+    """Rows per-ADC du référentiel depuis le parquet. None si le dataset manque.
+
+    Partagé avec `densify_sweet_spot`, qui recopiait ce chargement, le filtre
+    « referentiel » et le récap par rang.
+    """
+    dataset_path = DATASET_DIR / "adc_dataset.parquet"
+    if not dataset_path.exists():
+        print(f"✗ {dataset_path} introuvable — lancer build_dataset.py d'abord.", file=sys.stderr)
+        return None
+    df = pd.read_parquet(dataset_path)
+    ref = df[df["source"] == rl.KIND_REF].copy()
+    print(f"  {len(ref)} games référentiel | {ref['puuid'].nunique()} joueurs uniques",
+          file=sys.stderr)
+    return ref
+
+
+def print_recap(targets: dict[str, dict], exclude_ranks: set[str] | None = None) -> int:
+    """Récap par rang (joueurs + games manquantes). Retourne le gap cumulé."""
+    exclude_ranks = exclude_ranks or set()
+    total_gap = 0
+    for rank in RANKS:
+        rank_targets = {p: t for p, t in targets.items() if t["rank"] == rank}
+        gap = sum(t["gap"] for t in rank_targets.values())
+        total_gap += gap
+        marker = " (exclu)" if rank in exclude_ranks else ""
+        print(f"    {rank:<12} {len(rank_targets):>4} joueurs | "
+              f"{gap:>5} games manquantes{marker}", file=sys.stderr)
+    print(f"    {'total':<12} {len(targets):>4} joueurs | "
+          f"{total_gap:>5} games manquantes (cumulé)", file=sys.stderr)
+    return total_gap
+
+
+def write_targets(targets: dict[str, dict], out_path: Path) -> None:
+    """Écrit {puuid: {rank, gap}}, format consommé par densify_players --target-list."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(
+        {p: {"rank": t["rank"], "gap": t["gap"]} for p, t in targets.items()}, indent=2))
+
+
 def main() -> int:
     threshold = int(arg("--threshold", DEFAULT_THRESHOLD))
     min_games = int(arg("--min-games", DEFAULT_MIN_GAMES))
@@ -91,14 +128,9 @@ def main() -> int:
     exclude_ranks = set(r.strip() for r in exclude_raw.split(",") if r.strip())
     out_path = Path(arg("--out", str(DATASET_DIR / "densify_targets.json")))
 
-    dataset_path = DATASET_DIR / "adc_dataset.parquet"
-    if not dataset_path.exists():
-        print(f"✗ {dataset_path} introuvable — lancer build_dataset.py d'abord.", file=sys.stderr)
+    ref = load_referential()
+    if ref is None:
         return 1
-
-    df = pd.read_parquet(dataset_path)
-    ref = df[df["source"] == "referentiel"].copy()
-    print(f"  {len(ref)} games référentiel | {ref['puuid'].nunique()} joueurs uniques", file=sys.stderr)
     if exclude_ranks:
         print(f"  exclut : {sorted(exclude_ranks)}", file=sys.stderr)
 
@@ -106,23 +138,13 @@ def main() -> int:
                              exclude_ranks=exclude_ranks)
 
     print(f"\n  Cibles [{min_games}, {threshold}[ games : {len(targets)} joueurs", file=sys.stderr)
-    total_gap = 0
-    for rank in RANKS:
-        rank_targets = {p: t for p, t in targets.items() if t["rank"] == rank}
-        gap = sum(t["gap"] for t in rank_targets.values())
-        total_gap += gap
-        print(f"    {rank:<12} {len(rank_targets):>4} joueurs | {gap:>5} games manquantes (cumulé)",
-              file=sys.stderr)
-    print(f"    {'total':<12} {len(targets):>4} joueurs | {total_gap:>5} games manquantes (cumulé)",
-          file=sys.stderr)
+    print_recap(targets)
 
     if not targets:
         print("\n  ⚠ Aucune cible dans la bande — rien à écrire.", file=sys.stderr)
         return 0
 
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(
-        {p: {"rank": t["rank"], "gap": t["gap"]} for p, t in targets.items()}, indent=2))
+    write_targets(targets, out_path)
     print(f"\n✓ Cibles écrites dans {out_path}", file=sys.stderr)
     print(
         "\n  Étape suivante (à lancer séparément, consomme du quota API) :\n"

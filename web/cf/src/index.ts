@@ -2,6 +2,14 @@ import { ACCOUNTS } from "./accounts";
 import { apiCoach } from "./coach";
 import { apiFeedback } from "./feedback";
 import {
+  methodNotAllowed,
+  notFound,
+  pageParams,
+  paginate,
+  pagingError,
+  unprocessable,
+} from "./http";
+import {
   KEYS,
   readGames,
   readJsonl,
@@ -49,13 +57,7 @@ function recordOf(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function pageParams(params: URLSearchParams): { page: number; size: number } | null {
-  const page = Number(params.get("page") ?? 1);
-  const size = Number(params.get("size") ?? 20);
-  return Number.isInteger(page) && page >= 1 && Number.isInteger(size) && size >= 1 && size <= 100
-    ? { page, size }
-    : null;
-}
+const GAMES_MAX_SIZE = 200;
 
 function gameReviewSummary(item: StoredReview): Record<string, unknown> {
   const payload = recordOf(item.payload);
@@ -77,34 +79,28 @@ function gameReviewSummary(item: StoredReview): Record<string, unknown> {
 }
 
 async function apiAccounts(env: Env): Promise<Response> {
-  const out: unknown[] = [];
-  for (const account of ACCOUNTS) {
-    const games = await readGames(env.DATA, account.slug, 1, 1);
-    const reviews = await readJsonl<{ ts?: string; kind?: string }>(
-      env.DATA,
-      KEYS.reviews(account.slug),
-    );
+  // Les comptes sont indépendants : lectures KV en parallèle plutôt qu'en série.
+  const out = await Promise.all(ACCOUNTS.map(async (account) => {
+    const [games, reviews] = await Promise.all([
+      readGames(env.DATA, account.slug, 1, 1),
+      readJsonl<{ ts?: string; kind?: string }>(env.DATA, KEYS.reviews(account.slug)),
+    ]);
     const latestGlobalReview = [...reviews].reverse().find((review) => review.kind !== "game");
-    out.push({
+    return {
       slug: account.slug,
       riot_id: account.riot_id,
       region: account.region,
       games_count: games.total,
       last_review_ts: latestGlobalReview?.ts ?? null,
-    });
-  }
+    };
+  }));
   return Response.json(out);
 }
 
 async function apiGames(env: Env, slug: string, params: URLSearchParams): Promise<Response> {
-  const page = Number(params.get("page") ?? 1);
-  const size = Number(params.get("size") ?? 20);
-  const okPage = Number.isInteger(page) && page >= 1;
-  const okSize = Number.isInteger(size) && size >= 1 && size <= 200;
-  if (!okPage || !okSize) {
-    return Response.json({ detail: "page>=1 et size in [1,200]" }, { status: 422 });
-  }
-  return Response.json(await readGames(env.DATA, slug, page, size));
+  const paging = pageParams(params, GAMES_MAX_SIZE);
+  if (!paging) return pagingError(GAMES_MAX_SIZE);
+  return Response.json(await readGames(env.DATA, slug, paging.page, paging.size));
 }
 
 async function apiReviews(env: Env, slug: string, params: URLSearchParams): Promise<Response> {
@@ -113,32 +109,39 @@ async function apiReviews(env: Env, slug: string, params: URLSearchParams): Prom
   // Compatibilité de l'API V1 pour les clients qui ne demandent pas une vue paginée.
   if (kind === null) return Response.json(reviews);
   if (kind !== "aggregate" && kind !== "game") {
-    return Response.json({ detail: "kind doit être aggregate ou game" }, { status: 422 });
+    return unprocessable("kind doit être aggregate ou game");
   }
   const paging = pageParams(params);
-  if (!paging) {
-    return Response.json({ detail: "page>=1 et size in [1,100]" }, { status: 422 });
-  }
+  if (!paging) return pagingError();
   const filtered = reviews
     .filter((review) => kind === "game" ? review.kind === "game" : review.kind !== "game")
     .reverse();
-  const start = (paging.page - 1) * paging.size;
-  const slice = filtered.slice(start, start + paging.size);
+  const page = paginate(filtered, paging);
   return Response.json({
-    items: kind === "game" ? slice.map(gameReviewSummary) : slice,
-    page: paging.page,
-    size: paging.size,
-    total: filtered.length,
+    ...page,
+    items: kind === "game" ? page.items.map(gameReviewSummary) : page.items,
   });
 }
 
 async function apiReviewDetail(env: Env, slug: string, ts: string): Promise<Response> {
   const reviews = await readJsonl<StoredReview>(env.DATA, KEYS.reviews(slug));
   const review = reviews.find((item) => item.ts === ts && item.kind === "game");
-  return review
-    ? Response.json(review)
-    : Response.json({ detail: "analyse de partie introuvable" }, { status: 404 });
+  return review ? Response.json(review) : notFound("analyse de partie introuvable");
 }
+
+// Table de routage /api/c/{slug}/{tail} : remplace une chaîne de 6 comparaisons.
+const ACCOUNT_ROUTES: Record<
+  string,
+  (env: Env, slug: string, params: URLSearchParams) => Promise<Response>
+> = {
+  games: (env, slug, params) => apiGames(env, slug, params),
+  rank: async (env, slug) => Response.json((await readRank(env.DATA, slug)) ?? EMPTY_RANK),
+  "predicted-rank": async (env, slug) =>
+    Response.json((await readPred(env.DATA, slug)) ?? EMPTY_PRED),
+  reviews: (env, slug, params) => apiReviews(env, slug, params),
+  feedback: async (env, slug) => Response.json(await readJsonl(env.DATA, KEYS.feedback(slug))),
+  shap: async (env, slug) => Response.json(await readShap(env.DATA, slug)),
+};
 
 export async function handle(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -154,25 +157,15 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   const reviewDetail = url.pathname.match(/^\/api\/c\/([^/]+)\/reviews\/([^/]+)$/);
   if (reviewDetail) {
-    if (request.method !== "GET") return Response.json({ detail: "Method Not Allowed" }, { status: 405 });
+    if (request.method !== "GET") return methodNotAllowed();
     return apiReviewDetail(env, reviewDetail[1], decodeURIComponent(reviewDetail[2]));
   }
   const match = url.pathname.match(/^\/api\/c\/([^/]+)\/([a-z-]+)$/);
   if (match) {
     const [, slug, tail] = match;
-    if (request.method !== "GET") {
-      return Response.json({ detail: "Method Not Allowed" }, { status: 405 });
-    }
-    if (tail === "games") return apiGames(env, slug, url.searchParams);
-    if (tail === "rank") return Response.json((await readRank(env.DATA, slug)) ?? EMPTY_RANK);
-    if (tail === "predicted-rank") {
-      return Response.json((await readPred(env.DATA, slug)) ?? EMPTY_PRED);
-    }
-    if (tail === "reviews") return apiReviews(env, slug, url.searchParams);
-    if (tail === "feedback") {
-      return Response.json(await readJsonl(env.DATA, KEYS.feedback(slug)));
-    }
-    if (tail === "shap") return Response.json(await readShap(env.DATA, slug));
+    if (request.method !== "GET") return methodNotAllowed();
+    const route = ACCOUNT_ROUTES[tail];
+    if (route) return route(env, slug, url.searchParams);
   }
   if (url.pathname === "/api/coach" && request.method === "POST") {
     return apiCoach(request, env);
@@ -180,8 +173,6 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (url.pathname === "/api/feedback" && request.method === "POST") {
     return apiFeedback(request, env);
   }
-  if (url.pathname.startsWith("/api/")) {
-    return Response.json({ detail: "Not Found" }, { status: 404 });
-  }
+  if (url.pathname.startsWith("/api/")) return notFound();
   return env.ASSETS.fetch(request);
 }

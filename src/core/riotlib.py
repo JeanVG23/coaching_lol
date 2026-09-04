@@ -25,9 +25,12 @@ import champion_profiles as cp
 ROOT = Path(__file__).resolve().parent.parent.parent
 DATA = ROOT / "data"
 # Couches médaillon numérotées pour matérialiser l'ordre du pipeline.
-RAW_DIR = DATA / "01_raw"       # JSON API brut, immuable, partagé (compressé .json.zst)
-SILVER_DIR = DATA / "02_silver" # 1 ligne JSONL = 1 game nettoyée
-GOLD_DIR = DATA / "03_gold"     # agrégats prêts conso (benchmarks)
+LAYER_RAW = "01_raw"        # JSON API brut, immuable, partagé (compressé .json.zst)
+LAYER_SILVER = "02_silver"  # 1 ligne JSONL = 1 game nettoyée
+LAYER_GOLD = "03_gold"      # agrégats prêts conso (benchmarks)
+RAW_DIR = DATA / LAYER_RAW
+SILVER_DIR = DATA / LAYER_SILVER
+GOLD_DIR = DATA / LAYER_GOLD
 
 # Niveau de compression zstd du cache raw : 6 = bon ratio + rapide (les timelines
 # JSON sont très répétitives, le gain vient surtout de la compression elle-même).
@@ -42,6 +45,14 @@ QUEUE_SOLO = 420                # ranked solo/duo
 QUEUE_FLEX = 440                # ranked flex
 
 PHASES = [("early", 0, 14), ("mid", 15, 24), ("late", 25, 999)]
+EARLY_END_MINUTE = 14           # borne de la phase early (cf. PHASES)
+GOLD_STATE_MARGIN = 300         # seuil ±g d'avance/retard économique de lane
+# Rectangle de base par équipe, en coordonnées brutes de la Faille (côté ~3500 unités).
+BASE_RECT = {100: (0, 3500, 0, 3500), 200: (11300, MAP_W, 11300, MAP_H)}
+
+# Sous-dossiers des couches silver/gold : référentiel (benchmarks par rang) vs perso.
+KIND_REF = "referentiel"
+KIND_PERSONAL = "personal"
 
 # rôle/champion → filtre de scope (gold)
 ROLE_SCOPES = {
@@ -69,6 +80,43 @@ def load_env(path: Path = ROOT / ".env") -> dict[str, str]:
         key, _, val = line.partition("=")
         env[key.strip()] = val.strip().strip('"').strip("'")
     return env
+
+
+# Les helpers ci-dessous résolvent depuis `DATA` À L'APPEL, pas depuis les constantes
+# figées à l'import : les tests substituent `rl.DATA` par un tmp_path, et l'ancien
+# mélange des deux conventions (`rl.DATA / "02_silver"` vs `rl.SILVER_DIR`) rendait le
+# comportement dépendant de la forme choisie par l'appelant.
+def silver_dir() -> Path:
+    return DATA / LAYER_SILVER
+
+
+def gold_dir() -> Path:
+    return DATA / LAYER_GOLD
+
+
+def raw_dir() -> Path:
+    return DATA / LAYER_RAW
+
+
+def silver_games(kind: str, name: str) -> Path:
+    """Chemin du JSONL silver d'un rang (KIND_REF) ou d'un joueur (KIND_PERSONAL)."""
+    return silver_dir() / kind / name / "games.jsonl"
+
+
+def gold_base(kind: str, name: str) -> Path:
+    """Racine gold d'un rang/joueur : contient un sous-dossier par scope."""
+    return gold_dir() / kind / name
+
+
+def gold_aggregate(kind: str, name: str, scope: str) -> Path:
+    """Chemin de l'agrégat gold d'un scope donné."""
+    return gold_base(kind, name) / scope / "aggregate.json"
+
+
+def silver_roots() -> list[tuple[str, Path]]:
+    """[(kind, dossier)] des racines silver existantes, pour les balayages."""
+    return [(kind, silver_dir() / kind) for kind in (KIND_REF, KIND_PERSONAL)
+            if (silver_dir() / kind).is_dir()]
 
 
 def patch_of(game_version: str) -> str:
@@ -249,11 +297,13 @@ def get_match_timeline(client: RiotClient, match_id: str,
 LANE_KEYS = ["gd10", "gd14", "gd20", "csd10", "csd14", "xpd10", "csm10", "csm14", "gpm10", "gpm14", "xppm10"]  # diffs + absolus
 
 
-def _cs(pf: dict) -> int:
+def cs_of(pf: dict) -> int:
+    """CS total d'une participantFrame (sbires de lane + camps de jungle)."""
     return pf.get("minionsKilled", 0) + pf.get("jungleMinionsKilled", 0)
 
 
-def _frames_by_minute(timeline: dict, pid: int) -> dict[int, dict]:
+def frames_by_minute(timeline: dict, pid: int) -> dict[int, dict]:
+    """{minute: participantFrame} pour un participant donné."""
     out = {}
     for fr in timeline["info"]["frames"]:
         pf = fr["participantFrames"].get(str(pid))
@@ -262,15 +312,74 @@ def _frames_by_minute(timeline: dict, pid: int) -> dict[int, dict]:
     return out
 
 
+def iter_events(timeline: dict):
+    """Aplatit les events de toutes les frames (retire un niveau d'imbrication)."""
+    for fr in timeline["info"]["frames"]:
+        yield from fr.get("events", [])
+
+
+def participant_id(match: dict, puuid: str) -> int | None:
+    """puuid -> participantId (1..10). None si le joueur n'est pas dans la game."""
+    parts = match.get("metadata", {}).get("participants", [])
+    return parts.index(puuid) + 1 if puuid in parts else None
+
+
+def find_pid(match: dict, *, team: int | None = None,
+             role: str | None = None) -> int | None:
+    """participantId du premier joueur satisfaisant (équipe, rôle). None si absent."""
+    for i, p in enumerate(match["info"]["participants"]):
+        if team is not None and p["teamId"] != team:
+            continue
+        if role is not None and (p.get("teamPosition") or "") != role:
+            continue
+        return i + 1
+    return None
+
+
+def enemy_team_of(team_id: int) -> int:
+    return 100 if team_id == 200 else 200
+
+
+# Alias privés historiques (conservés : importés par game_journal / build_sequence_dataset).
+_cs = cs_of
+_frames_by_minute = frames_by_minute
+
+
 def _gold_state(gd: int | None) -> str | None:
     """Avance/retard/égalité économique vs adversaire de lane (seuil ±300g)."""
     if gd is None:
         return None
-    return "ahead" if gd > 300 else "behind" if gd < -300 else "even"
+    return ("ahead" if gd > GOLD_STATE_MARGIN
+            else "behind" if gd < -GOLD_STATE_MARGIN else "even")
+
+
+class MatchCache:
+    """Travail par-match partagé entre les extractions des 10 joueurs d'une game.
+
+    `extract_game` refaisait pour CHAQUE joueur des calculs qui ne dépendent pas du
+    joueur : les snapshots de positions de `positioning` (10 reconstructions par game)
+    et les `frames_by_minute` de l'adversaire de lane (déjà calculées pour lui-même).
+    """
+
+    def __init__(self, timeline: dict):
+        self._timeline = timeline
+        self._frames: dict[int, dict[int, dict]] = {}
+        self._snaps = None
+
+    def frames(self, pid: int) -> dict[int, dict]:
+        if pid not in self._frames:
+            self._frames[pid] = frames_by_minute(self._timeline, pid)
+        return self._frames[pid]
+
+    def snaps(self) -> list:
+        if self._snaps is None:
+            import positioning  # import paresseux : évite le cycle riotlib<->positioning
+            self._snaps = positioning._build_snaps(self._timeline)
+        return self._snaps
 
 
 def extract_game(match: dict, timeline: dict, puuid: str,
-                 rank: str | None = None) -> dict | None:
+                 rank: str | None = None, cache: "MatchCache | None" = None) -> dict | None:
     """Une game -> record silver (morts + benchmark de lane). None si hors Faille."""
     info = match["info"]
     if info.get("mapId") != SR_MAP_ID:
@@ -279,7 +388,7 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     if puuid not in meta["participants"]:
         return None
     pidx = meta["participants"].index(puuid)
-    participant_id = pidx + 1
+    my_pid = pidx + 1
     parts = info["participants"]
     me = parts[pidx]
 
@@ -287,25 +396,18 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     pid_champ = {i + 1: p["championName"] for i, p in enumerate(parts)}
 
     my_role, my_team = me.get("teamPosition") or "", me["teamId"]
-    enemy_team = 100 if my_team == 200 else 200
-    opp_pid = next((i + 1 for i, p in enumerate(parts)
-                    if p["teamId"] != my_team and (p.get("teamPosition") or "") == my_role
-                    and my_role), None)
-    
-    enemy_jungle_pid = next((i + 1 for i, p in enumerate(parts)
-                             if p["teamId"] != my_team and p.get("teamPosition") == "JUNGLE"), None)
-                             
-    support_pid = next((i + 1 for i, p in enumerate(parts)
-                        if p["teamId"] == my_team and p.get("teamPosition") == "UTILITY"), None)
-                        
-    enemy_adc_pid = next((i + 1 for i, p in enumerate(parts)
-                          if p["teamId"] != my_team and p.get("teamPosition") == "BOTTOM"), None)
-    enemy_supp_pid = next((i + 1 for i, p in enumerate(parts)
-                           if p["teamId"] != my_team and p.get("teamPosition") == "UTILITY"), None)
+    enemy_team = enemy_team_of(my_team)
+    opp_pid = find_pid(match, team=enemy_team, role=my_role) if my_role else None
+    enemy_jungle_pid = find_pid(match, team=enemy_team, role="JUNGLE")
+    support_pid = find_pid(match, team=my_team, role="UTILITY")
+    enemy_adc_pid = find_pid(match, team=enemy_team, role="BOTTOM")
+    enemy_supp_pid = find_pid(match, team=enemy_team, role="UTILITY")
     enemy_bot_pids = {enemy_adc_pid, enemy_supp_pid} - {None}
 
-    my_fr = _frames_by_minute(timeline, participant_id)
-    opp_fr = _frames_by_minute(timeline, opp_pid) if opp_pid else {}
+    frames_of = cache.frames if cache is not None else (
+        lambda pid: frames_by_minute(timeline, pid))
+    my_fr = frames_of(my_pid)
+    opp_fr = frames_of(opp_pid) if opp_pid else {}
 
     def gold_diff_at(minute: int) -> int | None:
         a, b = my_fr.get(minute), opp_fr.get(minute)
@@ -314,11 +416,11 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     # Snapshots de lane aux minutes clés
     lane = {
         "gd10": gold_diff_at(10), "gd14": gold_diff_at(14), "gd20": gold_diff_at(20),
-        "csd10": (_cs(my_fr[10]) - _cs(opp_fr[10])) if 10 in my_fr and 10 in opp_fr else None,
-        "csd14": (_cs(my_fr[14]) - _cs(opp_fr[14])) if 14 in my_fr and 14 in opp_fr else None,
+        "csd10": (cs_of(my_fr[10]) - cs_of(opp_fr[10])) if 10 in my_fr and 10 in opp_fr else None,
+        "csd14": (cs_of(my_fr[14]) - cs_of(opp_fr[14])) if 14 in my_fr and 14 in opp_fr else None,
         "xpd10": (my_fr[10].get("xp", 0) - opp_fr[10].get("xp", 0)) if 10 in my_fr and 10 in opp_fr else None,
-        "csm10": _cs(my_fr[10]) / 10.0 if 10 in my_fr else None,
-        "csm14": _cs(my_fr[14]) / 14.0 if 14 in my_fr else None,
+        "csm10": cs_of(my_fr[10]) / 10.0 if 10 in my_fr else None,
+        "csm14": cs_of(my_fr[14]) / 14.0 if 14 in my_fr else None,
         "gpm10": my_fr[10].get("totalGold", 0) / 10.0 if 10 in my_fr else None,
         "gpm14": my_fr[14].get("totalGold", 0) / 14.0 if 14 in my_fr else None,
         "xppm10": my_fr[10].get("xp", 0) / 10.0 if 10 in my_fr else None,
@@ -344,16 +446,15 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     for frame in timeline["info"]["frames"]:
         minute = round(frame["timestamp"] / 60000)
         
-        if minute < 14:
-            p_frame = frame["participantFrames"].get(str(participant_id))
-            if p_frame and "position" in p_frame:
-                px, py = p_frame["position"].get("x"), p_frame["position"].get("y")
-                if px is not None and py is not None:
-                    if my_team == 100 and px < 3500 and py < 3500:
-                        frames_in_base += 1
-                    elif my_team == 200 and px > 11300 and py > 11300:
-                        frames_in_base += 1
-                        
+        if minute < EARLY_END_MINUTE:
+            p_frame = frame["participantFrames"].get(str(my_pid))
+            pos = (p_frame or {}).get("position") or {}
+            px, py = pos.get("x"), pos.get("y")
+            x0, x1, y0, y1 = BASE_RECT.get(my_team, (0, 0, 0, 0))
+            if px is not None and py is not None and x0 <= px < x1 and y0 <= py < y1:
+                frames_in_base += 1
+
+
         for ev in frame.get("events", []):
             if ev.get("type") == "CHAMPION_KILL":
                 ev_minute = round(ev["timestamp"] / 60000)
@@ -361,7 +462,7 @@ def extract_game(match: dict, timeline: dict, puuid: str,
                 assisters = ev.get("assistingParticipantIds", [])
                 involved = {kpid}.union(set(assisters)) - {None}
                 
-                if ev.get("victimId") == participant_id:
+                if ev.get("victimId") == my_pid:
                     pos = ev.get("position", {})
                     is_2v2 = len(involved) > 0 and involved.issubset(enemy_bot_pids)
                     
@@ -379,8 +480,8 @@ def extract_game(match: dict, timeline: dict, puuid: str,
                 elif ev.get("victimId") == support_pid:
                     support_deaths.append(ev_minute)
                 
-                if kpid == participant_id:
-                    my_bot_pids = {participant_id, support_pid} - {None}
+                if kpid == my_pid:
+                    my_bot_pids = {my_pid, support_pid} - {None}
                     is_kill_2v2 = len(involved) > 0 and involved.issubset(my_bot_pids) and ev.get("victimId") in enemy_bot_pids
                     kills.append({
                         "minute": ev_minute,
@@ -388,8 +489,8 @@ def extract_game(match: dict, timeline: dict, puuid: str,
                         "is_solo": len(assisters) == 0,
                         "is_2v2": is_kill_2v2,
                     })
-                elif participant_id in assisters:
-                    my_bot_pids = {participant_id, support_pid} - {None}
+                elif my_pid in assisters:
+                    my_bot_pids = {my_pid, support_pid} - {None}
                     is_assist_2v2 = len(involved) > 0 and involved.issubset(my_bot_pids) and ev.get("victimId") in enemy_bot_pids
                     assists.append({
                         "minute": ev_minute,
@@ -434,7 +535,8 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     import positioning  # import paresseux : évite le cycle riotlib<->positioning
     pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
     position = positioning.positioning_features(
-        timeline, participant_id, pid_team, my_role or "BOTTOM")
+        timeline, my_pid, pid_team, my_role or "BOTTOM",
+        snaps=cache.snaps() if cache is not None else None)
 
     return {
         "match_id": meta["matchId"],
@@ -464,9 +566,10 @@ def extract_all_games(match: dict, timeline: dict, rank: str | None = None) -> l
     """Extrait les statistiques pour les 10 joueurs de la partie."""
     meta = match.get("metadata", {})
     puuids = meta.get("participants", [])
+    cache = MatchCache(timeline)
     results = []
     for p in puuids:
-        g = extract_game(match, timeline, p, rank)
+        g = extract_game(match, timeline, p, rank, cache=cache)
         if g:
             results.append(g)
     return results
@@ -474,26 +577,37 @@ def extract_all_games(match: dict, timeline: dict, rank: str | None = None) -> l
 
 # ------------------------------------------------------------- gold (agrégat)
 def filter_scope(games: list[dict], scope: str) -> list[dict]:
-    """all / role (adc, mid…) / nom de champion (zeri…)."""
+    """all / role (adc, mid…) / nom de champion (zeri…).
+
+    Résolveur unique de scope du projet (gold ET records silver) : accès tolérants
+    (`.get`) pour rester utilisable sur des records partiels.
+    """
     s = scope.lower()
     if s == "all":
-        return games
+        return list(games)
     if s in ROLE_SCOPES:
         role = ROLE_SCOPES[s]
-        return [g for g in games if g["role"] == role]
-    return [g for g in games if g["champion"].lower() == s]
+        return [g for g in games if g.get("role") == role]
+    return [g for g in games if (g.get("champion") or "").lower() == s]
 
 
 def _norm(counter: collections.Counter, total: int) -> dict:
     return {k: round(v / total, 4) for k, v in counter.most_common()} if total else {}
 
 
-def _median(vals) -> int | None:
+def _median_of(vals, ndigits: int | None) -> float | None:
+    """Médiane robuste des valeurs non nulles, arrondie à `ndigits` (None = entier)."""
     vals = sorted(v for v in vals if v is not None)
     if not vals:
         return None
     m = len(vals) // 2
-    return vals[m] if len(vals) % 2 else round((vals[m - 1] + vals[m]) / 2)
+    med = vals[m] if len(vals) % 2 else (vals[m - 1] + vals[m]) / 2
+    return med if len(vals) % 2 and ndigits is None else round(med, ndigits)
+
+
+def _median(vals) -> int | None:
+    """Médiane arrondie à l'entier (gold/cs/xp diffs)."""
+    return _median_of(vals, None)
 
 
 def _fmedian(vals) -> float | None:
@@ -502,12 +616,7 @@ def _fmedian(vals) -> float | None:
     `_median` arrondit à l'entier (ok pour gold/cs diffs) ; appliqué à une fraction
     comme frac_overextended ça l'écrase à 0/1. Les features positionnelles ont des
     échelles mixtes (0..1, ~milliers, comptes) → médiane flottante, arrondie à 4 déc."""
-    vals = sorted(v for v in vals if v is not None)
-    if not vals:
-        return None
-    m = len(vals) // 2
-    med = vals[m] if len(vals) % 2 else (vals[m - 1] + vals[m]) / 2
-    return round(med, 4)
+    return _median_of(vals, 4)
 
 
 def _facet(subset: list[dict]) -> dict:
@@ -608,10 +717,19 @@ def merge_jsonl(path: Path, new_rows: list[dict]) -> list[dict]:
     return merged
 
 
-def write_gold(base: Path, games: list[dict], scopes: list[str], **labels) -> None:
-    """Écrit base/<scope>/aggregate.json pour chaque scope."""
+def write_gold(base: Path, games: list[dict], scopes: list[str],
+               **labels) -> dict[str, dict]:
+    """Écrit base/<scope>/aggregate.json pour chaque scope et renvoie {scope: agrégat}.
+
+    Le retour évite aux appelants de rappeler `aggregate` pour afficher un récap :
+    l'agrégation (facettes overall/win/loss + by_lane_context) coûte des dizaines de
+    passes de médiane sur des milliers de games.
+    """
+    out_aggs = {}
     for scope in scopes:
         agg = aggregate(games, scope, **labels)
         out = base / scope / "aggregate.json"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(agg, indent=2))
+        out_aggs[scope] = agg
+    return out_aggs

@@ -18,9 +18,7 @@ ROLES = ("self_adc", "self_support", "enemy_adc", "enemy_support",
 def main() -> int:
     traits = cp.load_traits()
     seen = collections.Counter()
-    for root in (rl.SILVER_DIR / "referentiel", rl.SILVER_DIR / "personal"):
-        if not root.exists():
-            continue
+    for _kind, root in rl.silver_roots():
         for d in sorted(root.iterdir()):
             for g in rl.read_jsonl(d / "games.jsonl"):
                 comp = g.get("comp") or {}

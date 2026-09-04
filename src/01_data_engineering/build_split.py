@@ -15,7 +15,6 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # dataset_split
 import numpy as np
 import pandas as pd

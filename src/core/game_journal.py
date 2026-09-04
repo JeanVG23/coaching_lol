@@ -12,8 +12,11 @@ restent ML_ONLY dans positioning.py et ne doivent jamais entrer ici.
 """
 from __future__ import annotations
 
-from riotlib import (SR_MAP_ID, approx_zone, patch_of, phase_of,
-                     _frames_by_minute, _gold_state)
+import bisect
+
+from riotlib import (SR_MAP_ID, approx_zone, enemy_team_of, find_pid,
+                     frames_by_minute, iter_events, participant_id, patch_of,
+                     phase_of, _gold_state)
 
 # Timers d'objectifs (ms) — v1 approximative, À AJUSTER PAR PATCH.
 # Elder (après l'âme) et Atakhan ignorés en v1 : le drake standard porte
@@ -37,13 +40,13 @@ def _clock(t_ms: int) -> str:
 
 
 def _events(timeline: dict):
-    for fr in timeline["info"]["frames"]:
-        yield from fr.get("events", [])
+    """Alias historique de `riotlib.iter_events` (conservé : utilisé hors module)."""
+    return iter_events(timeline)
 
 
 def _objective_kills(timeline: dict) -> dict[str, list[int]]:
     kills = {name: [] for name in OBJECTIVES}
-    for ev in _events(timeline):
+    for ev in iter_events(timeline):
         if ev.get("type") == "ELITE_MONSTER_KILL" and ev.get("monsterType") in kills:
             kills[ev["monsterType"]].append(ev["timestamp"])
     return {name: sorted(ts) for name, ts in kills.items()}
@@ -69,7 +72,11 @@ def _objective_at(kills: dict[str, list[int]], t_ms: int) -> dict | None:
 
 
 def _frame_before(timeline: dict, pid: int, t_ms: int) -> dict | None:
-    """Dernière participantFrame du joueur pid avec timestamp <= t_ms."""
+    """Dernière participantFrame du joueur pid avec timestamp <= t_ms.
+
+    Conservée pour les appels hors journal ; le journal passe par `_Timeline`, qui
+    indexe une fois au lieu de rebalayer les frames à chaque mort/recall.
+    """
     best = None
     for fr in timeline["info"]["frames"]:
         if fr["timestamp"] > t_ms:
@@ -78,6 +85,51 @@ def _frame_before(timeline: dict, pid: int, t_ms: int) -> dict | None:
         if pf:
             best = pf
     return best
+
+
+class _Timeline:
+    """Index construit UNE fois par game : events triés + frames repérées par temps.
+
+    Avant, chaque mort déclenchait une traversée complète des events (`_consequences`)
+    plus deux balayages de frames (`_frame_before`, swing de gold) : ~8-10 traversées
+    redondantes par game, multipliées par la taille du lot et par les 2 ADC extraits
+    depuis le raw. Objet volontairement court-durée de vie, ne retenant que les
+    tableaux d'index (pas une closure sur tout le scope appelant).
+    """
+
+    def __init__(self, timeline: dict, pid: int):
+        events = sorted(iter_events(timeline), key=lambda ev: ev.get("timestamp", 0))
+        self._events = events
+        self._event_ts = [ev.get("timestamp", 0) for ev in events]
+        frames = timeline["info"]["frames"]
+        self._frames = frames
+        self._frame_ts = [fr["timestamp"] for fr in frames]
+        # Frames du joueur ciblé uniquement : seul pid interrogé par le journal.
+        self._my_ts: list[int] = []
+        self._my_frames: list[dict] = []
+        for fr in frames:
+            pf = fr["participantFrames"].get(str(pid))
+            if pf:
+                self._my_ts.append(fr["timestamp"])
+                self._my_frames.append(pf)
+
+    def events_between(self, t0: int, t1: int):
+        """Events dans ]t0, t1] — bornes identiques à la fenêtre d'origine."""
+        lo = bisect.bisect_right(self._event_ts, t0)
+        hi = bisect.bisect_right(self._event_ts, t1)
+        return self._events[lo:hi]
+
+    def my_frame_before(self, t_ms: int) -> dict | None:
+        i = bisect.bisect_right(self._my_ts, t_ms)
+        return self._my_frames[i - 1] if i else None
+
+    def frame_before(self, t_ms: int) -> dict | None:
+        i = bisect.bisect_right(self._frame_ts, t_ms)
+        return self._frames[i - 1] if i else None
+
+    def frame_at_or_after(self, t_ms: int) -> dict | None:
+        i = bisect.bisect_left(self._frame_ts, t_ms)
+        return self._frames[i] if i < len(self._frames) else None
 
 
 def _team_gold_diff(frame: dict, pid_team: dict[int, int], my_team: int) -> int:
@@ -89,7 +141,7 @@ def _team_gold_diff(frame: dict, pid_team: dict[int, int], my_team: int) -> int:
     return diff
 
 
-def _consequences(timeline: dict, t_ms: int, my_team: int,
+def _consequences(tl: _Timeline, t_ms: int, my_team: int,
                   pid_team: dict[int, int]) -> dict:
     """Conséquences mécaniques d'une mort : ce que l'ennemi prend dans la
     fenêtre post-mort + swing de gold d'équipe. ASYMÉTRIE : tout est de l'info
@@ -99,10 +151,8 @@ def _consequences(timeline: dict, t_ms: int, my_team: int,
     """
     win_end = t_ms + CONSEQUENCE_WINDOW_S * 1000
     objectives, buildings = [], []
-    for ev in _events(timeline):
+    for ev in tl.events_between(t_ms, win_end):
         et = ev.get("timestamp", 0)
-        if not t_ms < et <= win_end:
-            continue
         if ev.get("type") == "ELITE_MONSTER_KILL":
             team = ev.get("killerTeamId") or pid_team.get(ev.get("killerId"))
             if team != my_team:
@@ -113,12 +163,8 @@ def _consequences(timeline: dict, t_ms: int, my_team: int,
             buildings.append({"type": ev.get("towerType") or ev.get("buildingType"),
                               "lane": ev.get("laneType"),
                               "clock": _clock(et)})
-    before = after = None
-    for fr in timeline["info"]["frames"]:
-        if fr["timestamp"] <= t_ms:
-            before = fr
-        elif after is None and fr["timestamp"] >= t_ms + GOLD_SWING_WINDOW_S * 1000:
-            after = fr
+    before = tl.frame_before(t_ms)
+    after = tl.frame_at_or_after(t_ms + GOLD_SWING_WINDOW_S * 1000)
     out: dict = {}
     if objectives:
         out["objectives_lost"] = objectives
@@ -130,11 +176,16 @@ def _consequences(timeline: dict, t_ms: int, my_team: int,
     return out
 
 
-def _deaths(timeline: dict, pid: int, pid_champ: dict, pid_role: dict,
-            enemy_jungle_pid: int | None, gold_state_at, obj_kills, my_team: int,
-            pid_team: dict[int, int]) -> list[dict]:
+def _deaths(ctx: "_GameContext") -> list[dict]:
+    """Morts du joueur ciblé, horodatées et contextualisées.
+
+    Les 9 paramètres positionnels d'origine (tables participants, closure de gold,
+    kills d'objectifs, équipes) sont devenus les champs d'un seul contexte de game.
+    """
+    tl, pid = ctx.tl, ctx.pid
+    pid_champ, pid_role = ctx.pid_champ, ctx.pid_role
     out = []
-    for ev in _events(timeline):
+    for ev in tl.events_between(-1, ctx.end_ms):
         if ev.get("type") != "CHAMPION_KILL" or ev.get("victimId") != pid:
             continue
         t = ev["timestamp"]
@@ -142,7 +193,7 @@ def _deaths(timeline: dict, pid: int, pid_champ: dict, pid_role: dict,
         assisters = ev.get("assistingParticipantIds", [])
         involved = ({kpid} | set(assisters)) - {None}
         pos = ev.get("position", {})
-        pf = _frame_before(timeline, pid, t)
+        pf = tl.my_frame_before(t)
         entry = {
             "t_ms": t, "clock": _clock(t),
             "minute": t // 60000, "phase": phase_of(t // 60000),
@@ -150,14 +201,14 @@ def _deaths(timeline: dict, pid: int, pid_champ: dict, pid_role: dict,
             "killer_champ": pid_champ.get(kpid, "?"),
             "killer_role": pid_role.get(kpid, "?"),
             "is_solo": len(assisters) == 0,
-            "is_ganked_by_jungle": (enemy_jungle_pid is not None
-                                    and enemy_jungle_pid in involved),
-            "gold_state": gold_state_at(t // 60000),
+            "is_ganked_by_jungle": (ctx.enemy_jungle_pid is not None
+                                    and ctx.enemy_jungle_pid in involved),
+            "gold_state": ctx.gold_state_at(t // 60000),
             "unspent_gold": pf.get("currentGold") if pf else None,
             "level": pf.get("level") if pf else None,
-            "objective": _objective_at(obj_kills, t),
+            "objective": _objective_at(ctx.obj_kills, t),
         }
-        cons = _consequences(timeline, t, my_team, pid_team)
+        cons = _consequences(tl, t, ctx.my_team, ctx.pid_team)
         if cons:
             entry["consequences"] = cons
         out.append(entry)
@@ -165,7 +216,7 @@ def _deaths(timeline: dict, pid: int, pid_champ: dict, pid_role: dict,
     return out
 
 
-def _recalls(timeline: dict, pid: int, obj_kills) -> list[dict]:
+def _recalls(tl: "_Timeline", pid: int, obj_kills: dict, end_ms: int) -> list[dict]:
     """Visites de shop (clusters d'achats), hors shopping de départ.
 
     Approximation v1 : un achat implique la présence au shop (recall ou reset
@@ -173,17 +224,16 @@ def _recalls(timeline: dict, pid: int, obj_kills) -> list[dict]:
     de la dernière frame avant la visite (léger plancher, frames espacées de 60 s).
     ITEM_UNDO honoré (retire le dernier achat correspondant) ; ITEM_SOLD ignoré.
     """
-    buys = sorted(((ev["timestamp"], ev.get("itemId"))
-                   for ev in _events(timeline)
-                   if ev.get("type") == "ITEM_PURCHASED"
-                   and ev.get("participantId") == pid
-                   and ev["timestamp"] >= OPENING_BUY_MS),
-                  key=lambda e: e[0])
-    undos = sorted(((ev["timestamp"], ev.get("beforeId"))
-                    for ev in _events(timeline)
-                    if ev.get("type") == "ITEM_UNDO"
-                    and ev.get("participantId") == pid),
-                   key=lambda e: e[0])
+    # Un seul balayage des events triés au lieu de deux (achats + undos).
+    buys, undos = [], []
+    for ev in tl.events_between(-1, end_ms):
+        if ev.get("participantId") != pid:
+            continue
+        et = ev["timestamp"]
+        if ev.get("type") == "ITEM_PURCHASED" and et >= OPENING_BUY_MS:
+            buys.append((et, ev.get("itemId")))
+        elif ev.get("type") == "ITEM_UNDO":
+            undos.append((et, ev.get("beforeId")))
     for undo_t, before in undos:
         for i in range(len(buys) - 1, -1, -1):
             if buys[i][1] == before and buys[i][0] <= undo_t:
@@ -198,7 +248,7 @@ def _recalls(timeline: dict, pid: int, obj_kills) -> list[dict]:
     out = []
     for visit in visits:
         t0 = visit[0][0]
-        pf = _frame_before(timeline, pid, t0)
+        pf = tl.my_frame_before(t0)
         out.append({
             "t_ms": t0, "clock": _clock(t0),
             "minute": t0 // 60000, "phase": phase_of(t0 // 60000),
@@ -210,53 +260,78 @@ def _recalls(timeline: dict, pid: int, obj_kills) -> list[dict]:
     return out
 
 
+def recalls_for(timeline: dict, pid: int, obj_kills: dict | None = None) -> list[dict]:
+    """Visites de shop d'un joueur, sans construire tout le contexte de game.
+
+    Point d'entrée des consommateurs hors journal (ex. build_sequence_dataset), qui
+    appelaient `_recalls(timeline, pid, obj_kills)` avant l'indexation.
+    """
+    if obj_kills is None:
+        obj_kills = _objective_kills(timeline)
+    frames = timeline["info"]["frames"]
+    end_ms = (frames[-1]["timestamp"] if frames else 0) + 60000
+    return _recalls(_Timeline(timeline, pid), pid, obj_kills, end_ms)
+
+
+class _GameContext:
+    """Tout ce dont le journal a besoin sur une game, résolu une fois.
+
+    Les résolutions de participants (adversaire de lane, jungler ennemi, tables
+    pid->champion/rôle/équipe) passent par les primitives de `riotlib` : elles y
+    étaient recopiées verbatim, avec un ordre de conditions déjà subtilement
+    différent sur la définition de « adversaire de lane ».
+    """
+
+    def __init__(self, match: dict, timeline: dict, pid: int):
+        info, parts = match["info"], match["info"]["participants"]
+        self.pid = pid
+        self.me = parts[pid - 1]
+        self.my_team = self.me["teamId"]
+        self.my_role = self.me.get("teamPosition") or ""
+        enemy_team = enemy_team_of(self.my_team)
+        self.pid_champ = {i + 1: p["championName"] for i, p in enumerate(parts)}
+        self.pid_role = {i + 1: p.get("teamPosition") or "?" for i, p in enumerate(parts)}
+        self.pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
+        self.opp_pid = (find_pid(match, team=enemy_team, role=self.my_role)
+                        if self.my_role else None)
+        self.enemy_jungle_pid = find_pid(match, team=enemy_team, role="JUNGLE")
+        self.tl = _Timeline(timeline, pid)
+        self.obj_kills = _objective_kills(timeline)
+        # Borne supérieure des fenêtres d'events : durée de game + une marge de frame.
+        self.end_ms = max(info.get("gameDuration", 0) * 1000,
+                          timeline["info"]["frames"][-1]["timestamp"]) + 60000
+        self._my_fr = frames_by_minute(timeline, pid)
+        self._opp_fr = frames_by_minute(timeline, self.opp_pid) if self.opp_pid else {}
+
+    def gold_state_at(self, minute: int) -> str | None:
+        """Avance/retard vs adversaire de lane à la frame la plus récente <= minute."""
+        for m in range(minute, -1, -1):
+            if m in self._my_fr and m in self._opp_fr:
+                return _gold_state(self._my_fr[m].get("totalGold", 0)
+                                   - self._opp_fr[m].get("totalGold", 0))
+        return None
+
+
 def game_journal(match: dict, timeline: dict, puuid: str) -> dict | None:
     """Une game -> journal d'événements ancrés du joueur. None si hors Faille."""
     info = match["info"]
     if info.get("mapId") != SR_MAP_ID:
         return None
-    meta = match["metadata"]
-    if puuid not in meta["participants"]:
+    pid = participant_id(match, puuid)
+    if pid is None:
         return None
-    pid = meta["participants"].index(puuid) + 1
-    parts = info["participants"]
-    me = parts[pid - 1]
-    my_team = me["teamId"]
-
-    pid_champ = {i + 1: p["championName"] for i, p in enumerate(parts)}
-    pid_role = {i + 1: p.get("teamPosition") or "?" for i, p in enumerate(parts)}
-    pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
-    my_role = me.get("teamPosition") or ""
-    opp_pid = next((i + 1 for i, p in enumerate(parts)
-                    if p["teamId"] != my_team and my_role
-                    and (p.get("teamPosition") or "") == my_role), None)
-    enemy_jungle_pid = next((i + 1 for i, p in enumerate(parts)
-                             if p["teamId"] != my_team
-                             and p.get("teamPosition") == "JUNGLE"), None)
-
-    my_fr = _frames_by_minute(timeline, pid)
-    opp_fr = _frames_by_minute(timeline, opp_pid) if opp_pid else {}
-
-    def gold_state_at(minute: int) -> str | None:
-        for m in range(minute, -1, -1):   # frame la plus récente <= minute
-            if m in my_fr and m in opp_fr:
-                return _gold_state(my_fr[m].get("totalGold", 0)
-                                   - opp_fr[m].get("totalGold", 0))
-        return None
-
-    obj_kills = _objective_kills(timeline)
+    ctx = _GameContext(match, timeline, pid)
+    me = ctx.me
     return {
-        "match_id": meta["matchId"],
+        "match_id": match["metadata"]["matchId"],
         "patch": patch_of(info.get("gameVersion", "")),
         "champion": me["championName"],
-        "role": my_role,
+        "role": ctx.my_role,
         "win": me.get("win"),
         "duration_min": round(info.get("gameDuration", 0) / 60, 1),
         "kda": {"kills": me.get("kills", 0), "deaths": me.get("deaths", 0),
                 "assists": me.get("assists", 0)},
-        "opponent": pid_champ.get(opp_pid),
-        "deaths": _deaths(timeline, pid, pid_champ, pid_role,
-                          enemy_jungle_pid, gold_state_at, obj_kills,
-                          my_team, pid_team),
-        "recalls": _recalls(timeline, pid, obj_kills),
+        "opponent": ctx.pid_champ.get(ctx.opp_pid),
+        "deaths": _deaths(ctx),
+        "recalls": _recalls(ctx.tl, ctx.pid, ctx.obj_kills, ctx.end_ms),
     }

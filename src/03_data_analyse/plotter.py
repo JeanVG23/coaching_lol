@@ -1,4 +1,3 @@
-import json
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
@@ -10,6 +9,39 @@ from statsmodels.nonparametric.smoothers_lowess import lowess
 _LOWESS_MAX_SAMPLES = 5000
 _LOWESS_FRAC = 0.25
 _SIGNIFICANCE_PCT = 0.05
+
+
+class _Diag:
+    """Contexte de diagnostic d'une feature + fabrique de verdict.
+
+    Les 12 `return {...}` du module portaient la même forme (trend_type,
+    diagnostic, effect_strength, confidence = k × qualité, puis les 3 blocs de
+    métriques fusionnés) : ajouter une métrique de risque demandait d'éditer 12
+    littéraux, et un oubli produisait un diagnostic à clé manquante consommé sans
+    erreur par shap_analysis. Les 4 détecteurs prenaient en plus les mêmes 4
+    valeurs en paramètres positionnels.
+    """
+
+    __slots__ = ("robustness", "risk", "interaction", "quality")
+
+    def __init__(self, robustness: dict, risk: dict, interaction: dict, quality: float):
+        self.robustness = robustness
+        self.risk = risk
+        self.interaction = interaction
+        self.quality = quality
+
+    def verdict(self, trend_type: str, diagnostic: str, effect_strength: float,
+                conf_mult: float, **extra) -> dict:
+        return {
+            "trend_type": trend_type,
+            "diagnostic": diagnostic,
+            "effect_strength": effect_strength,
+            **extra,
+            "confidence": conf_mult * self.quality,
+            **self.robustness,
+            **self.risk,
+            **self.interaction,
+        }
 
 
 def _compute_shap_risk_metrics(s: np.ndarray) -> dict:
@@ -32,10 +64,19 @@ def _compute_shap_risk_metrics(s: np.ndarray) -> dict:
     }
 
 
+# (trend_type, diagnostic) d'une feature binaire, selon le signe de l'écart.
+_BINARY_VERDICTS = {
+    0: ("neutral", "⚪ NEUTRE"),
+    1: ("binary_positive", "🟢 BONUS (Recommandé)"),
+    -1: ("binary_negative", "🔴 MALUS (Pénalisant)"),
+}
+
+
 def _handle_binary_feature(x: np.ndarray, s: np.ndarray, unique_vals: np.ndarray, _risk: dict) -> dict:
     _robustness = {"stability": 1.0, "coverage": min(1.0, len(x) / 150), "density": 1.0}
     _quality = 0.4 * _robustness["stability"] + 0.3 * _robustness["coverage"] + 0.3 * _robustness["density"]
-    _interaction = {"interaction_ratio": 0.0, "has_strong_interaction": False}
+    diag = _Diag(_robustness, _risk,
+                 {"interaction_ratio": 0.0, "has_strong_interaction": False}, _quality)
 
     low_val, high_val = np.min(unique_vals), np.max(unique_vals)
     mean_low = s[x == low_val].mean() if np.any(x == low_val) else 0
@@ -43,34 +84,11 @@ def _handle_binary_feature(x: np.ndarray, s: np.ndarray, unique_vals: np.ndarray
     diff = mean_high - mean_low
 
     if abs(diff) < _SIGNIFICANCE_PCT * np.std(s):
-        return {
-            "trend_type": "neutral",
-            "diagnostic": "⚪ NEUTRE",
-            "effect_strength": float(abs(diff)),
-            "confidence": 0.95 * _quality,
-            **_robustness,
-            **_risk,
-            **_interaction,
-        }
-    if diff > 0:
-        return {
-            "trend_type": "binary_positive",
-            "diagnostic": "🟢 BONUS (Recommandé)",
-            "effect_strength": float(abs(diff)),
-            "confidence": 0.95 * _quality,
-            **_robustness,
-            **_risk,
-            **_interaction,
-        }
-    return {
-        "trend_type": "binary_negative",
-        "diagnostic": "🔴 MALUS (Pénalisant)",
-        "effect_strength": float(abs(diff)),
-        "confidence": 0.95 * _quality,
-        **_robustness,
-        **_risk,
-        **_interaction,
-    }
+        sign = 0
+    else:
+        sign = 1 if diff > 0 else -1
+    trend, label = _BINARY_VERDICTS[sign]
+    return diag.verdict(trend, label, float(abs(diff)), 0.95)
 
 
 def _prepare_data_for_lowess(x: np.ndarray, s: np.ndarray) -> tuple[np.ndarray, np.ndarray, bool]:
@@ -137,64 +155,23 @@ def _compute_interaction_metrics(x: np.ndarray, s: np.ndarray, _residuals: np.nd
     }
 
 
-def _evaluate_directional_fallback(
-    s_smooth: np.ndarray,
-    amp: float,
-    significance: float,
-    _robustness: dict,
-    _risk: dict,
-    _interaction: dict,
-    _quality: float,
-) -> dict:
+def _evaluate_directional_fallback(s_smooth: np.ndarray, amp: float,
+                                   significance: float, diag: "_Diag") -> dict:
     n = len(s_smooth)
     third = max(1, n // 3)
-    mean_left = np.mean(s_smooth[:third])
-    mean_right = np.mean(s_smooth[-third:])
-    diff = mean_right - mean_left
+    diff = np.mean(s_smooth[-third:]) - np.mean(s_smooth[:third])
 
     if diff > significance:
-        return {
-            "trend_type": "weak_positive",
-            "diagnostic": "📈 TENDANCE POSITIVE (Avoir plus aide)",
-            "effect_strength": amp,
-            "confidence": 0.50 * _quality,
-            **_robustness,
-            **_risk,
-            **_interaction,
-        }
+        return diag.verdict("weak_positive", "📈 TENDANCE POSITIVE (Avoir plus aide)",
+                            amp, 0.50)
     if diff < -significance:
-        return {
-            "trend_type": "weak_negative",
-            "diagnostic": "📉 TENDANCE NÉGATIVE (Avoir plus pénalise)",
-            "effect_strength": amp,
-            "confidence": 0.50 * _quality,
-            **_robustness,
-            **_risk,
-            **_interaction,
-        }
-
-    return {
-        "trend_type": "neutral",
-        "diagnostic": "⚪ NEUTRE",
-        "effect_strength": amp,
-        "confidence": 0.30 * _quality,
-        **_robustness,
-        **_risk,
-        **_interaction,
-    }
+        return diag.verdict("weak_negative", "📉 TENDANCE NÉGATIVE (Avoir plus pénalise)",
+                            amp, 0.50)
+    return diag.verdict("neutral", "⚪ NEUTRE", amp, 0.30)
 
 
-def _detect_peak_zone(
-    x_smooth: np.ndarray,
-    s_smooth: np.ndarray,
-    amp: float,
-    peak_idx: int,
-    n: int,
-    _robustness: dict,
-    _risk: dict,
-    _interaction: dict,
-    _quality: float,
-) -> dict | None:
+def _detect_peak_zone(x_smooth: np.ndarray, s_smooth: np.ndarray, amp: float,
+                      peak_idx: int, n: int, diag: "_Diag") -> dict | None:
     if 0.15 < peak_idx / n < 0.85:
         plateau_threshold = 0.10
         top_mask = s_smooth >= (np.max(s_smooth) - plateau_threshold * amp)
@@ -205,32 +182,18 @@ def _detect_peak_zone(
             zone_width = opt_max - opt_min
             if full_range > 0 and zone_width / full_range < 0.50:
                 fmt = ".2f" if abs(opt_max) < 10 else ".0f"
-                return {
-                    "trend_type": "optimal_range",
-                    "diagnostic": f"🎯 ZONE IDÉALE (Cible : ~{opt_min:{fmt}} à {opt_max:{fmt}})",
-                    "effect_strength": amp,
-                    "peak_x": float(x_smooth[peak_idx]),
-                    "optimal_range": (opt_min, opt_max),
-                    "confidence": 0.80 * _quality,
-                    **_robustness,
-                    **_risk,
-                    **_interaction,
-                }
+                return diag.verdict(
+                    "optimal_range",
+                    f"🎯 ZONE IDÉALE (Cible : ~{opt_min:{fmt}} à {opt_max:{fmt}})",
+                    amp, 0.80,
+                    peak_x=float(x_smooth[peak_idx]),
+                    optimal_range=(opt_min, opt_max))
     return None
 
 
-def _detect_valley_zone(
-    s: np.ndarray,
-    x_smooth: np.ndarray,
-    s_smooth: np.ndarray,
-    amp: float,
-    valley_idx: int,
-    n: int,
-    _robustness: dict,
-    _risk: dict,
-    _interaction: dict,
-    _quality: float,
-) -> dict | None:
+def _detect_valley_zone(s: np.ndarray, x_smooth: np.ndarray, s_smooth: np.ndarray,
+                        amp: float, valley_idx: int, n: int,
+                        diag: "_Diag") -> dict | None:
     if 0.15 < valley_idx / n < 0.85:
         valley_x = float(x_smooth[valley_idx])
         valley_shap = float(s_smooth[valley_idx])
@@ -243,19 +206,10 @@ def _detect_valley_zone(
         if depth >= 0.30 * amp:
             min_support = max(5, int(0.15 * n))
             if valley_idx < min_support or (n - valley_idx - 1) < min_support:
-                return {
-                    "trend_type": "u_shape",
-                    "diagnostic": f"🌀 EFFET EN U (Creux vers ~{valley_x:{vfmt}})",
-                    "effect_strength": amp,
-                    "valley_x": valley_x,
-                    "dominant_tail": "ambiguous",
-                    "sweet_spot_x": None,
-                    "tail_shap_diff": 0.0,
-                    "confidence": 0.55 * _quality,
-                    **_robustness,
-                    **_risk,
-                    **_interaction,
-                }
+                return diag.verdict(
+                    "u_shape", f"🌀 EFFET EN U (Creux vers ~{valley_x:{vfmt}})", amp, 0.55,
+                    valley_x=valley_x, dominant_tail="ambiguous",
+                    sweet_spot_x=None, tail_shap_diff=0.0)
 
             n_quarter = max(5, n // 4)
             left_stable = float(np.median(s_smooth[:n_quarter]))
@@ -281,44 +235,18 @@ def _detect_valley_zone(
                 diagnostic = f"🌀 EFFET EN U (Creux vers ~{valley_x:{vfmt}})"
                 _base_conf = 0.55
 
-            return {
-                "trend_type": "u_shape",
-                "diagnostic": diagnostic,
-                "effect_strength": amp,
-                "valley_x": valley_x,
-                "dominant_tail": dominant_tail,
-                "sweet_spot_x": peak_x,
-                "tail_shap_diff": float(tail_diff),
-                "confidence": _base_conf * _quality,
-                **_robustness,
-                **_risk,
-                **_interaction,
-            }
+            return diag.verdict(
+                "u_shape", diagnostic, amp, _base_conf,
+                valley_x=valley_x, dominant_tail=dominant_tail,
+                sweet_spot_x=peak_x, tail_shap_diff=float(tail_diff))
     return None
 
 
-def _detect_shape_and_diagnostic(
-    x: np.ndarray,
-    s: np.ndarray,
-    x_smooth: np.ndarray,
-    s_smooth: np.ndarray,
-    amp: float,
-    significance: float,
-    _robustness: dict,
-    _risk: dict,
-    _interaction: dict,
-    _quality: float,
-) -> dict:
+def _detect_shape_and_diagnostic(x: np.ndarray, s: np.ndarray, x_smooth: np.ndarray,
+                                 s_smooth: np.ndarray, amp: float, significance: float,
+                                 diag: "_Diag") -> dict:
     if amp < significance:
-        return {
-            "trend_type": "neutral",
-            "diagnostic": "⚪ NEUTRE",
-            "effect_strength": amp,
-            "confidence": 0.30 * _quality,
-            **_robustness,
-            **_risk,
-            **_interaction,
-        }
+        return diag.verdict("neutral", "⚪ NEUTRE", amp, 0.30)
 
     ds = np.diff(s_smooth)
     eps = significance / 10
@@ -326,61 +254,31 @@ def _detect_shape_and_diagnostic(
     neg_ratio = np.mean(ds < -eps)
     with np.errstate(invalid="ignore"):
         rho_raw, _ = spearmanr(x, s)
-        try:
-            rho = float(str(rho_raw))
-        except Exception:
-            rho = 0.0
-    if not np.isfinite(rho):
+        rho = float(rho_raw)
+    if not np.isfinite(rho):        # spearmanr renvoie nan sur une série constante
         rho = 0.0
 
     if pos_ratio > 0.75 and rho > 0.3:
-        return {
-            "trend_type": "monotonic_increasing",
-            "diagnostic": "📈 À MAXIMISER (Le plus possible)",
-            "effect_strength": amp,
-            "spearman_rho": float(rho),
-            "confidence": float(min(1.0, abs(rho))) * _quality,
-            **_robustness,
-            **_risk,
-            **_interaction,
-        }
+        return diag.verdict("monotonic_increasing", "📈 À MAXIMISER (Le plus possible)",
+                            amp, float(min(1.0, abs(rho))), spearman_rho=float(rho))
 
     if neg_ratio > 0.75 and rho < -0.3:
-        return {
-            "trend_type": "monotonic_decreasing",
-            "diagnostic": "📉 À MINIMISER (Toxique / Sur-opti)",
-            "effect_strength": amp,
-            "spearman_rho": float(rho),
-            "confidence": float(min(1.0, abs(rho))) * _quality,
-            **_robustness,
-            **_risk,
-            **_interaction,
-        }
+        return diag.verdict("monotonic_decreasing", "📉 À MINIMISER (Toxique / Sur-opti)",
+                            amp, float(min(1.0, abs(rho))), spearman_rho=float(rho))
 
     peak_idx = int(np.argmax(s_smooth))
     valley_idx = int(np.argmin(s_smooth))
     n = len(s_smooth)
 
-    peak_res = _detect_peak_zone(x_smooth, s_smooth, amp, peak_idx, n, _robustness, _risk, _interaction, _quality)
+    peak_res = _detect_peak_zone(x_smooth, s_smooth, amp, peak_idx, n, diag)
     if peak_res:
         return peak_res
 
-    valley_res = _detect_valley_zone(
-        s,
-        x_smooth,
-        s_smooth,
-        amp,
-        valley_idx,
-        n,
-        _robustness,
-        _risk,
-        _interaction,
-        _quality,
-    )
+    valley_res = _detect_valley_zone(s, x_smooth, s_smooth, amp, valley_idx, n, diag)
     if valley_res:
         return valley_res
 
-    return _evaluate_directional_fallback(s_smooth, amp, significance, _robustness, _risk, _interaction, _quality)
+    return _evaluate_directional_fallback(s_smooth, amp, significance, diag)
 
 
 def compute_shap_trend_summary(x_vals: np.ndarray, s_vals: np.ndarray) -> dict:
@@ -426,18 +324,8 @@ def compute_shap_trend_summary(x_vals: np.ndarray, s_vals: np.ndarray) -> dict:
     significance = max(_SIGNIFICANCE_PCT * np.std(s), 1e-8)
     _interaction = _compute_interaction_metrics(x, s, _residuals, amp)
 
-    return _detect_shape_and_diagnostic(
-        x,
-        s,
-        x_smooth,
-        s_smooth,
-        amp,
-        significance,
-        _robustness,
-        _risk,
-        _interaction,
-        _quality,
-    )
+    diag = _Diag(_robustness, _risk, _interaction, _quality)
+    return _detect_shape_and_diagnostic(x, s, x_smooth, s_smooth, amp, significance, diag)
 
 
 # ==========================================

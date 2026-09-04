@@ -39,10 +39,7 @@ def _feedback_path(player: str, root=None) -> Path:
 
 
 def list_reviews(player: str, root=None) -> list[dict]:
-    path = _reviews_path(player, root)
-    if not path.exists():
-        return []
-    return [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
+    return rl.read_jsonl(_reviews_path(player, root))
 
 
 def load_review(player: str, ts: str, root=None) -> dict | None:
@@ -110,14 +107,8 @@ _OBJECTIVE_RATE = 0.70     # sur >=10 reviews par-game annotées
 
 
 def load_feedbacks(player: str, root=None) -> list[schema_mod.Feedback]:
-    path = _feedback_path(player, root)
-    if not path.exists():
-        return []
-    out = []
-    for l in path.read_text().splitlines():
-        if l.strip():
-            out.append(schema_mod.Feedback.model_validate(json.loads(l)))
-    return out
+    return [schema_mod.Feedback.model_validate(row)
+            for row in rl.read_jsonl(_feedback_path(player, root))]
 
 
 def summarize(fbs: list[schema_mod.Feedback]) -> dict:

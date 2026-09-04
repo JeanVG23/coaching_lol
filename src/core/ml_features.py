@@ -11,6 +11,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ranks import RANK_ORD  # noqa: F401  (réexport historique, cf. src/core/ranks.py)
+
 FEATURES = [
     "csm10", "csm14", "gpm10", "gpm14", "xppm10",
     "n_deaths", "deaths_early", "deaths_mid", "deaths_late",
@@ -28,8 +30,17 @@ FEATURES = [
     "pos_frac_deaths_in_fog", "pos_avg_unaccounted_enemies", "pos_overext_x_unaccounted",
 ]
 
-RANK_ORD = {"diamond": 0, "master": 1, "grandmaster": 2, "challenger": 3}
-AGG_STATS = ["mean", "std", "p10", "p50", "p90"]
+# Une seule table {nom: calcul} : la liste AGG_STATS, l'ordre des colonnes et le
+# calcul en dérivent tous. Avant, les 5 stats étaient écrites trois fois (liste +
+# branche NaN + branche valeur) dans le module même censé empêcher le drift train/serve.
+AGG_FUNCS = {
+    "mean": lambda v: v.mean(),
+    "std": lambda v: v.std(ddof=1) if len(v) > 1 else 0.0,
+    "p10": lambda v: np.percentile(v, 10),
+    "p50": lambda v: np.percentile(v, 50),
+    "p90": lambda v: np.percentile(v, 90),
+}
+AGG_STATS = list(AGG_FUNCS)
 DISPERSION_STATS = {"std", "p10", "p90"}
 CENTRAL_STATS = {"mean", "p50"}
 
@@ -61,18 +72,8 @@ def aggregate_player_features(df: pd.DataFrame, features: list[str] = FEATURES) 
     rec: dict = {}
     for f in features:
         vals = df[f].dropna() if f in df.columns else pd.Series([], dtype=float)
-        if vals.empty:
-            rec[f"{f}__mean"] = np.nan
-            rec[f"{f}__std"] = np.nan
-            rec[f"{f}__p10"] = np.nan
-            rec[f"{f}__p50"] = np.nan
-            rec[f"{f}__p90"] = np.nan
-        else:
-            rec[f"{f}__mean"] = vals.mean()
-            rec[f"{f}__std"] = vals.std(ddof=1) if len(vals) > 1 else 0.0
-            rec[f"{f}__p10"] = np.percentile(vals, 10)
-            rec[f"{f}__p50"] = np.percentile(vals, 50)
-            rec[f"{f}__p90"] = np.percentile(vals, 90)
+        for stat, fn in AGG_FUNCS.items():
+            rec[f"{f}__{stat}"] = np.nan if vals.empty else fn(vals)
     rec["win_rate"] = df["win"].mean() if "win" in df.columns and len(df) else np.nan
     rec["n_games"] = len(df)
     return rec

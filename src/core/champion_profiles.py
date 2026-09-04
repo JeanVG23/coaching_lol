@@ -30,7 +30,7 @@ def fetch_ddragon(version: str | None = None) -> Path:
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     dest.write_text(resp.text)
-    load_ddragon.cache_clear()  # invalide un éventuel {} mis en cache avant le fetch
+    _invalidate_catalogs()  # invalide un éventuel {} mis en cache avant le fetch
     return dest
 
 
@@ -85,31 +85,75 @@ def load_traits() -> dict:
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
-def _ci_get(name: str, d: dict) -> dict:
-    """Return d[name] (exact match first); fall back to case-insensitive match; else {}."""
+def _ci_get(name: str, d: dict, index: dict | None = None) -> dict:
+    """d[name] (exact d'abord), repli insensible à la casse, sinon {}.
+
+    `index` = table {nom minuscule: entrée} pré-construite : évite de rebalayer les
+    ~170 entrées du catalogue à chaque miss (le scan linéaire était sur le chemin
+    chaud de `_by_lane_context`, ~7 vecteurs par game).
+    """
     if name in d:
         return d[name]
     lower = name.lower()
+    if index is not None:
+        return index.get(lower, {})
     for k, v in d.items():
         if k.lower() == lower:
             return v
     return {}
 
 
-def champion_vector(name: str, traits: dict | None = None,
-                    ddragon: dict | None = None) -> dict:
-    if traits is None:
-        traits = load_traits()
-    if ddragon is None:
-        ddragon = load_ddragon()
-    dd = _ci_get(name, ddragon)
-    tr = _ci_get(name, traits)
+@lru_cache(maxsize=2)
+def _default_index(which: str) -> dict:
+    """Index insensible à la casse des catalogues par défaut, construit une fois."""
+    catalog = load_traits() if which == "traits" else load_ddragon()
+    return {k.lower(): v for k, v in catalog.items()}
+
+
+def _build_vector(name: str, traits: dict, ddragon: dict,
+                  tr_index=None, dd_index=None) -> dict:
+    dd = _ci_get(name, ddragon, dd_index)
+    tr = _ci_get(name, traits, tr_index)
     rng = dd.get("attackrange")
     range_class = "unknown" if rng is None else ("ranged" if rng >= RANGED_MIN else "melee")
     v = {"name": name, "range_class": range_class, "tags": list(dd.get("tags", []))}
     for axis in AXES_CURATED:
         v[axis] = tr.get(axis, "unknown")
     return v
+
+
+@lru_cache(maxsize=None)
+def _cached_vector(name: str) -> dict:
+    return _build_vector(name, load_traits(), load_ddragon(),
+                         _default_index("traits"), _default_index("ddragon"))
+
+
+def _invalidate_catalogs() -> None:
+    """Vide d'un coup tous les caches dérivés des catalogues (traits + Data Dragon).
+
+    Un seul point d'invalidation : oublier l'un des caches dérivés après un fetch
+    laissait servir un catalogue vide mis en cache avant le téléchargement.
+    """
+    load_ddragon.cache_clear()
+    load_traits.cache_clear()
+    _default_index.cache_clear()
+    _cached_vector.cache_clear()
+
+
+def champion_vector(name: str, traits: dict | None = None,
+                    ddragon: dict | None = None) -> dict:
+    """Vecteur d'identité d'un champion (Data Dragon + table curée).
+
+    Mémoïsé quand les catalogues sont ceux par défaut (le cas de tout le pipeline) :
+    ~170 champions distincts étaient reconstruits des dizaines de milliers de fois sur
+    un `rebuild_gold`. Copie retournée pour que le cache reste immuable côté appelant.
+    """
+    on_defaults = ((traits is None or traits is load_traits())
+                   and (ddragon is None or ddragon is load_ddragon()))
+    if on_defaults:
+        return dict(_cached_vector(name))
+    return _build_vector(name, traits if traits is not None else load_traits(),
+                         ddragon if ddragon is not None else load_ddragon())
 
 
 def _vec(name, traits, ddragon):

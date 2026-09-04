@@ -35,11 +35,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))  # acc�
 import numpy as np
 import pandas as pd
 import riotlib as rl
+from ranks import RANKS, RANK_ORD, HIGH_ELO  # cible binaire + tie-break
 
 DATASET_DIR = rl.DATA / "04_dataset"
-RANKS = ["diamond", "master", "grandmaster", "challenger"]
-RANK_ORD = {r: i for i, r in enumerate(RANKS)}
-HIGH_ELO = {"grandmaster", "challenger"}  # cible binaire
 
 
 def game_to_row(g: dict, rank: str | None, source: str) -> dict:
@@ -101,7 +99,7 @@ def build_rank_map() -> tuple[dict[str, str], int]:
     rang le plus bas (RANK_ORD min) pour ne pas gonfler high_elo aux frontières."""
     seen: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
     for rank in RANKS:
-        for g in rl.read_jsonl(rl.SILVER_DIR / "referentiel" / rank / "games.jsonl"):
+        for g in rl.read_jsonl(rl.silver_games(rl.KIND_REF, rank)):
             seen[g["match_id"]][rank] += 1
     rank_of, multi = {}, 0
     for mid, cnt in seen.items():
@@ -136,7 +134,7 @@ def main() -> int:
         for puuid in adc_puuids(match):
             rec = rl.extract_game(match, timeline, puuid, rank=rank)
             if rec and rec.get("role") == "BOTTOM":  # extract_game filtre déjà non-SR
-                rows.append(game_to_row(rec, rank, "referentiel"))
+                rows.append(game_to_row(rec, rank, rl.KIND_REF))
                 per_rank[rank] += 1
     for rank in RANKS:
         print(f"  referentiel/{rank:<12}: {per_rank[rank]} rows ADC")
@@ -145,7 +143,7 @@ def main() -> int:
 
     # perso (non labellisé : pour inférence ultérieure) — perspective de Spadzze, pas
     # l'ADC ennemi. Reste basé sur le silver collecté.
-    perso_root = rl.SILVER_DIR / "personal"
+    perso_root = rl.SILVER_DIR / rl.KIND_PERSONAL
     if perso_root.exists():
         for d in sorted(perso_root.iterdir()):
             games = rl.read_jsonl(d / "games.jsonl")

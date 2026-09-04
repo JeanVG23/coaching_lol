@@ -35,12 +35,7 @@ npm test
 npm run typecheck
 ```
 
-Le backend FastAPI dans `web/backend/` reste la référence Python et peut encore être
-lancé pour comparaison :
-
-```bash
-poetry run uvicorn main:app --app-dir web/backend --reload
-```
+> ℹ️ **Stack de serving** : Le site (en local comme en production) tourne exclusivement sur le Worker Cloudflare TypeScript (`web/cf/`). L'ancien backend FastAPI (`web/backend/`) issu de l'hébergement initial sur Fly.io a été décommissionné et n'est conservé que comme archive historique / référence de schéma.
 
 ## Synchroniser les données locales vers KV
 
@@ -118,7 +113,7 @@ web/
     index.html          # shell SPA
     style.css           # composants et thème
     app.js              # Alpine, API et consommation SSE
-  backend/              # implémentation FastAPI de référence
+  backend/              # [Archivé] ancienne implémentation FastAPI (Fly.io)
 src/collection/sync_cloudflare.py  # publication locale vers KV
 ```
 

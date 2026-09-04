@@ -28,10 +28,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import numpy as np
 import pandas as pd
 import riotlib as rl
+from ranks import RANKS
 
 DATASET = rl.DATA / "04_dataset" / "adc_dataset.parquet"
 MODEL_DIR = rl.DATA / "05_model"
-RANKS = ["diamond", "master", "grandmaster", "challenger"]
 
 
 def main() -> int:

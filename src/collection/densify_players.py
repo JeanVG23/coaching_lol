@@ -19,13 +19,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 import riotlib as rl
+from ranks import COLLECT_ORDER as ALL_RANKS
+from cli import arg
 
-ALL_RANKS = ["challenger", "grandmaster", "master", "diamond"]
 SCOPES = ["all", "adc", "zeri", "smolder", "jinx", "caitlyn", "ezreal", "aphelios", "kaisa"]
-
-
-def arg(flag: str, default=None):
-    return sys.argv[sys.argv.index(flag) + 1] if flag in sys.argv else default
 
 
 def has_flag(flag: str) -> bool:
@@ -79,7 +76,7 @@ def main() -> int:
     # 1. Charger tous les match_ids déjà connus pour éviter les appels d'API inutiles
     global_seen_matches = set()
     for r in ALL_RANKS:
-        path = rl.SILVER_DIR / "referentiel" / r / "games.jsonl"
+        path = rl.silver_games(rl.KIND_REF, r)
         if path.exists():
             for row in rl.read_jsonl(path):
                 if row.get("match_id"):
@@ -88,7 +85,7 @@ def main() -> int:
     print(f"→ {len(global_seen_matches)} match_ids uniques déjà en base.", file=sys.stderr)
 
     for rank in ranks:
-        silver_base = rl.SILVER_DIR / "referentiel" / rank
+        silver_base = rl.SILVER_DIR / rl.KIND_REF / rank
         path = silver_base / "games.jsonl"
         if not path.exists():
             print(f"  ⚠ {rank}: aucun games.jsonl trouvé, skip.", file=sys.stderr)
@@ -193,7 +190,7 @@ def main() -> int:
             }, indent=2))
             
             # Mettre à jour la couche Gold
-            gold_base = rl.GOLD_DIR / "referentiel" / rank
+            gold_base = rl.gold_base(rl.KIND_REF, rank)
             rl.write_gold(gold_base, merged, SCOPES, rank=rank, patch=patch)
 
     print("\n✓ Densification terminée.", file=sys.stderr)

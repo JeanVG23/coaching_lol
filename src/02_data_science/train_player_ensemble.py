@@ -41,11 +41,12 @@ import pickle
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))          # riotlib
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core")) # ml_features
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # cv_common
 import numpy as np
 import pandas as pd
 import riotlib as rl
+from ranks import HIGH_ELO
 import ml_features as mf
 import dataset_split as ds
 from sklearn.model_selection import StratifiedKFold
@@ -58,77 +59,12 @@ import shap
 DATASET = rl.DATA / "04_dataset" / "adc_player_dataset.parquet"
 DATASET_PER_GAME = rl.DATA / "04_dataset" / "adc_dataset.parquet"  # pour la purge
 MODEL_DIR = rl.DATA / "05_model"
-HIGH_ELO = {"grandmaster", "challenger"}
 
 
-def purged_train_features(ref: pd.DataFrame, train_puuids, val_puuids,
-                          features: list[str] = None) -> tuple[pd.DataFrame, list[str]]:
-    """Agrégats des joueurs de train recalculés SANS les matchs joués par un joueur
-    de val (purge exacte de la fuite par games partagées : les deux ADC d'une game
-    portent des features en miroir, cf. tests/test_train_player_ensemble.py).
-    Retourne (DataFrame 1 ligne/joueur survivant, ordre de train_puuids ; liste des
-    joueurs droppés faute de game restante après purge)."""
-    features = mf.FEATURES if features is None else features
-    val_matches = set(ref.loc[ref["puuid"].isin(set(val_puuids)), "match_id"])
-    sub = ref[ref["puuid"].isin(set(train_puuids))
-              & ~ref["match_id"].isin(val_matches)]
-    by_puuid = dict(tuple(sub.groupby("puuid")))
-    rows, dropped = [], []
-    for puuid in train_puuids:
-        g = by_puuid.get(puuid)
-        if g is None or g.empty:
-            dropped.append(puuid)
-            continue
-        rec = {"puuid": puuid}
-        rec.update(mf.aggregate_player_features(g, features))
-        rows.append(rec)
-    return pd.DataFrame(rows), dropped
-
-
-def control_train_features(ref: pd.DataFrame, train_puuids, n_drop: dict,
-                           features: list[str] = None,
-                           seed: int = 42) -> tuple[pd.DataFrame, list[str]]:
-    """Contrôle du purged CV : retire à chaque joueur de train le MÊME NOMBRE de
-    games que la purge (n_drop = {puuid: n}), mais tirées au hasard au lieu des
-    games partagées — la différence d'AUC contrôle-purgé isole la fuite pure de
-    l'effet 'agrégats sur moins de games'."""
-    features = mf.FEATURES if features is None else features
-    rng = np.random.RandomState(seed)
-    by_puuid = dict(tuple(ref[ref["puuid"].isin(set(train_puuids))].groupby("puuid")))
-    rows, dropped = [], []
-    for puuid in train_puuids:
-        g = by_puuid.get(puuid)
-        if g is None:
-            dropped.append(puuid)
-            continue
-        n = n_drop.get(puuid, 0)
-        if n >= len(g):
-            dropped.append(puuid)
-            continue
-        if n:
-            g = g.drop(index=rng.choice(g.index, size=n, replace=False))
-        rec = {"puuid": puuid}
-        rec.update(mf.aggregate_player_features(g, features))
-        rows.append(rec)
-    return pd.DataFrame(rows), dropped
-
-
-def make_models() -> dict:
-    return {
-        "xgb": xgb.XGBClassifier(
-            n_estimators=300, max_depth=3, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.8, min_child_weight=5,
-            reg_lambda=1.0, eval_metric="logloss", tree_method="hist",
-            random_state=42,
-        ),
-        "rf": RandomForestClassifier(
-            n_estimators=300, max_depth=5, min_samples_leaf=5,
-            max_features="sqrt", bootstrap=True, n_jobs=-1, random_state=42,
-        ),
-        "ebm": ExplainableBoostingClassifier(
-            interactions=0, random_state=42,
-        ),
-    }
+# Briques de CV partagées (cf. cv_common.py) — réexportées ici : le module reste le
+# point d'entrée historique de `purged_train_features` pour les tests et train_player_lp.
+from cv_common import (SEED, control_train_features, make_models,  # noqa: E402
+                       purged_train_features)
 
 
 def dispersion_share_analysis(per_feature: dict[str, float]) -> dict:
