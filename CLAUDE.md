@@ -161,9 +161,10 @@ agrégation contextuelle. Lancer : `poetry run pytest tests/`.
 ```
 src/
   core/           riotlib.py, positioning.py, champion_profiles.py, game_journal.py, ml_features.py,
-                  ranks.py, cli.py, kv_keys.py, dataset_split.py
+                  ranks.py, cli.py, kv_keys.py, dataset_split.py, ml_rank.py, settings.py
   collection/     build_referential.py, aggregate_games.py, live_capture.py, sync_cloudflare.py,
-                  densify_targets.py, densify_sweet_spot.py, densify_players.py, fetch_apex_lp.py
+                  refresh_cloudflare.py, pipeline.py, densify_targets.py, densify_sweet_spot.py,
+                  densify_players.py, fetch_apex_lp.py
   pipeline_ops/   reextract_silver.py, rebuild_gold.py, compress_raw.py,
                   archive_patch.py, list_unknown_champions.py, dataset_report.py
   reporting/      compare.py
@@ -176,7 +177,8 @@ src/
                         sequence_model.py, sequence_data.py, train_sequence_model.py,
                         pretrain_sequence_model.py, cv_common.py
   03_data_analyse/      shap_analysis.py, plot_custom_shap.py
-  04_coaching/          payload.py, prompt.py, schema.py, llm_client.py, coach.py, feedback.py
+  04_coaching/          payload.py, prompt.py, schema.py, llm_client.py, coach.py, feedback.py,
+                        grounding.py, counterfactual.py
 data/
   00_static/      champion_traits.json (force-add : config source), ddragon/<version>/ (ignoré)
   01_raw/         JSON API brut compressé .json.zst (~10 Go -> ~750 Mo, ×13). Lecture/écriture
@@ -192,8 +194,12 @@ web/
   cf/             Worker TypeScript de production : API, assets, KV, Ollama SSE
                   (src/http.ts = réponses d'erreur + pagination partagées)
   frontend/       SPA statique servie par le Worker
-  backend/        Ancien backend FastAPI (archivé / legacy Fly.io, non utilisé)
+config/           accounts.json (ignoré, données perso) + accounts.example.json (gabarit)
 ```
+⚠️ `web/backend/` (FastAPI, ère Fly.io) a été SUPPRIMÉ le 2026-09-04. Les trois modules
+qui n'étaient pas du serving et que la collecte locale utilise toujours ont migré :
+`ml_rank.py` et `settings.py` → `src/core/`, `pipeline.py` → `src/collection/`. Le reste
+(main/jobs/readers/routers) ne servait que l'ancienne app ; l'historique git le garde.
 ⚠️ `data/` est gitignoré SAUF `data/00_static/champion_traits.json` (force-add : config source).
 ⚠️ Les chemins des couches sont définis dans `src/core/riotlib.py` (`RAW_DIR`/`SILVER_DIR`/`GOLD_DIR`).
 Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancien.
@@ -257,6 +263,10 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   stdlib (copiable seul sur une machine sans le reste du repo).
 - **`sync_cloudflare.py`** — publication des agrégats, rangs, prédictions ML, SHAP, reviews et
   feedbacks locaux vers Cloudflare KV. Fusionne l'historique distant et supporte `--dry-run`.
+  `--seed-reviews` n'amorce les reviews que si la clé est absente ; `--push-coaching` fusionne
+  reviews + annotations locales dans KV par `ts` (`merge_jsonl` : la ligne distante écrite
+  depuis le site survit, la ligne locale gagne sur un `ts` commun) — sans lui, les annotations
+  CLI resteraient invisibles du taux publié.
 - **`densify_targets.py`** — sélection **chirurgicale** des joueurs à densifier vers le sweet
   spot ~30 games/joueur (cf. `analyze_auc_vs_ngames.py`). 0 API : relit `adc_dataset.parquet`
   (comptage par joueur sur le référentiel double-ADC), cible la bande `[--min-games, --threshold[`,
@@ -319,7 +329,7 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
 - **`02_data_science/`** : `train_ensemble.py` — classif High-Elo vs Low-Elo via **ensemble à 3
   biais inductifs** (XGBoost=GBDT, Random Forest=bagging, EBM=GA²M glass-box). SHAP moyen sur
   les 2 arbres ; EBM = validateur indépendant + interactions par paires.
-  `calibrate_rank.py` — calibration proba→rang (`web/backend/ml_rank.py`) : modèle `high_elo`
+  `calibrate_rank.py` — calibration proba→rang (`src/core/ml_rank.py`) : modèle `high_elo`
   binaire (M/D vs GM/C), on calibre la proba moyenne ensemble (xgb+rf) par rang réel sur le
   référentiel (`data/05_model/rank_calibration.json`), puis place le joueur au rang calibré le
   plus proche de sa proba moyenne sur ses dernières games ADC.
@@ -334,7 +344,7 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   random search graine fixe en purged CV précalculée par fold, sélection au Spearman pooled OOF).
   `calibrate_player_rank.py`, `lp_metrics.py` (Spearman pooled/by-tier + RMSE, garde anti-NaN
   `_safe_spearman`), `audit_leakage.py` (diagnostic OOF/AUC), `poc/per_player_hypothesis.py`
-  (hypothèse constance, repris en prod par `web/backend/ml_rank.py`).
+  (hypothèse constance, repris en prod par `src/core/ml_rank.py`).
 - **`03_data_analyse/`** : `shap_analysis.py` (SHAP global + Spadzze + cross-check EBM :
   direction par feature via `explain_local`, interactions par paires via `explain_global`) et
   `plot_custom_shap.py`.
@@ -347,9 +357,18 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   obligatoire (POURQUOI : mécanisme de mort / comportement) + horodatage mm:ss dans l'evidence,
   sur forces ET erreurs** (réponse feedback « je sais pas pourquoi je suis mort ») ;
   pas de habits sur 1 game ; `Feedback`/`FeedbackItem`),
+  `grounding.py` (vérifications d'ancrage, 0 réseau), `counterfactual.py` (tests
+  contrefactuels, 1 appel par perturbation),
   `llm_client.py` (client `https://ollama.com/api/chat`, `OLLAMA_API_KEY`, `format`=JSON-schema,
-  défaut `kimi-k2.6`), `coach.py` (CLI : payload→prompt→client→validation→affiche+persiste),
+  défaut `kimi-k2.6` ; `generate` renvoie `Generation(data, usage)` = sortie + télémétrie),
+  `coach.py` (CLI : payload→prompt→client→validation→affiche+persiste),
   `feedback.py` (CLI `annotate`/`summary` : boucle d'éval par-insight).
+  **Traçabilité des runs** : chaque review persistée porte un bloc `run`
+  (`prompt_version` = empreinte sha256 du system prompt via `prompt.version_of`, donc
+  impossible à oublier de bumper ; `latency_ms`/`total_tokens` cumulés **retries de schéma
+  inclus** ; `schema_retries` ; `cost_usd` = `None` tant que `llm_client.PRICE_PER_MTOK`
+  est vide, Ollama Cloud étant facturé à l'abonnement). Sans ce bloc, une variation du
+  taux d'utilité n'est attribuable ni au prompt ni au modèle.
   **Chemin par-game** : `payload.build_game` (journal `game_journal` + repères référentiel à issue
   égale ; recalls enrichis d'items résolus {nom, coût} via `champion_profiles.load_items` — plus
   d'`item_ids` bruts côté LLM ; bloc `context` = comp botlane/jungle/mid + `lane_pattern`/
@@ -361,6 +380,24 @@ Renommer un dossier data SANS mettre à jour le code → le code recrée l'ancie
   taux par section + top tags + par modèle + tendance + verbatims `tag_notes` + bloc `Objectif
   par-game` (`objective_stats` : % mistakes utiles sur les reviews `kind: "game"`). Le champ
   `note` est aussi exposé côté web (`web/frontend/`, textarea sous chaque item noté, `POST /api/feedback`).
+  **Éval automatique (0 humain, 0 annotation)** : `grounding.py` (les chiffres et
+  horodatages cités existent-ils dans le payload ? + violations d'asymétrie) et
+  `counterfactual.py` (le coach LIT-il le payload ? on perturbe une dimension, on
+  régénère, on vérifie que la sortie suit). ⚠️ Deux points non négociables : le
+  **cloisonnement par unité** de `grounding` (sans lui, n'importe quel nombre du
+  journal ancre n'importe quelle stat : 30 % de détection au lieu de 91 %) et la
+  **calibration par contrôle négatif** (`ROUNDED_REL=0.01`, mesurée dans
+  `tests/test_grounding.py` — un taux d'ancrage sans mesure de puissance ne veut
+  rien dire). Les sorties contrefactuelles sont persistées dans
+  `data/07_coaching/<player>/eval/`, JAMAIS dans `reviews.jsonl` (ni annotation ni
+  publication : ce ne sont pas des reviews du joueur).
+  **Publication du taux** : `feedback.eval_report` / `summary --json` (rapport machine) côté
+  local ; côté site le Worker le recalcule À LA LECTURE (`web/cf/src/evaluation.ts`,
+  `GET /api/c/<slug>/eval`, affiché en tête de l'onglet Coaching, atteint ou non) — un blob
+  précalculé au sync serait périmé dès la première annotation laissée depuis le web. Seuils
+  (`_OBJECTIVE_N`=10, `_OBJECTIVE_RATE`=0.70) verrouillés entre les deux runtimes par
+  `tests/test_eval_parity.py`. Les reviews/feedbacks locaux rejoignent KV via
+  `sync_cloudflare.py --push-coaching` (fusion par `ts`, jamais d'écrasement).
   Lancer : `python3 src/04_coaching/coach.py --player spadzze --scope adc [--game|--game-batch N]`,
   `python3 src/04_coaching/feedback.py annotate --player spadzze [--last|--ts|--pending]`. Aucun réseau.
 
@@ -403,7 +440,7 @@ ranked solo (queue 420). Spec : `docs/superpowers/specs/`.
 - **Rang ML estimé (web)** ✅ — onglet Historique de `/c/{slug}` : rang placé par l'ensemble
   xgb+rf sur les dernières games ADC, calibré par `calibrate_rank.py`. Confiance affichée
   explicitement (signal faible) — pas de fausse certitude.
-- **Rang ML per-player (constance)** ✅ — `web/backend/ml_rank.py` utilise le modèle per-player
+- **Rang ML per-player (constance)** ✅ — `src/core/ml_rank.py` utilise le modèle per-player
   (features mean/std/p10/p50/p90 + `win_rate`, seuil `MIN_ADC_GAMES=15`), reprenant l'hypothèse
   validée par `poc/per_player_hypothesis.py` (dispersion/plancher > tendance centrale).
   **`MIN_PLAYER_GAMES=15`** (relevé 5→15 : à 5 games l'AUC s'effondrait à 0.531, bruit de

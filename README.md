@@ -1,6 +1,7 @@
 # Coaching LoL 🎯 — Coach IA & Pipeline Data/ML pour League of Legends
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![CI](https://github.com/JeanVG23/coaching_lol/actions/workflows/ci.yml/badge.svg)](https://github.com/JeanVG23/coaching_lol/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.13+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![Poetry](https://img.shields.io/badge/Poetry-Package%20Manager-60A5FA?style=flat&logo=poetry&logoColor=white)](https://python-poetry.org/)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers%20%2B%20KV-F38020?style=flat&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![XGBoost](https://img.shields.io/badge/ML-XGBoost%20%7C%20LightGBM-EB5424?style=flat)](https://xgboost.readthedocs.io/)
@@ -54,7 +55,7 @@ flowchart TD
 ```text
 coaching_lol/
 ├── src/
-│   ├── core/                  # Socle partagé (client Riot, positionnement, journal, features)
+│   ├── core/                  # Socle partagé (client Riot, positionnement, journal, features, inférence de rang)
 │   ├── collection/            # Scripts de scraping, densification et sync Cloudflare
 │   ├── pipeline_ops/          # Maintenance médaillon (re-extraction, rebuild, zstd, audits)
 │   ├── reporting/             # Comparateur heuristique de profils vs référentiels
@@ -70,10 +71,10 @@ coaching_lol/
 │   ├── 04_dataset/            # Datasets Parquet prêts pour le machine learning
 │   ├── 05_model/              # Modèles entraînés (.pkl) et métriques de calibration
 │   └── 06_shap/               # Explications SHAP locales et globales
+├── config/                    # accounts.json (ignoré) et son gabarit accounts.example.json
 ├── web/
 │   ├── cf/                    # Cloudflare Worker TypeScript (API, KV & SSE de production)
-│   ├── frontend/              # Interface SPA statique servie par le Worker
-│   └── backend/               # [Archivé/Legacy] Ancien backend FastAPI pré-Cloudflare (Fly.io)
+│   └── frontend/              # Interface SPA statique servie par le Worker
 └── tests/                     # Suite de tests automatisés pytest & vitest
 ```
 
@@ -106,12 +107,19 @@ coaching_lol/
 - Diffusion en direct vers le frontend via **Server-Sent Events (SSE)**.
 - **Boucle de feedback** intégrée pour évaluer l'utilité des recommandations générées.
 
+### 5. Évaluation du LLM (harness, pas impressions)
+- **Critère de succès posé à l'avance** : ≥70 % d'erreurs jugées utiles sur ≥10 analyses par-partie annotées.
+- **Annotation insight par insight** (utile/faux + tag de rejet parmi une liste fermée + note libre), en CLI (`feedback.py annotate --pending`) ou depuis le site, les deux écrivant le même format.
+- **Traçabilité de chaque run** : la review persistée porte sa version de prompt (empreinte dérivée du texte, pas un numéro à bumper), son modèle, sa latence, ses tokens et son coût estimé, retries de schéma compris. Sans cette trace, une variation du taux n'est attribuable ni au prompt ni au modèle.
+- **Contrôles automatiques, sans humain** : `grounding.py` vérifie que chaque chiffre et chaque horodatage cités existent dans le payload (indexation par unité, sinon n'importe quel nombre du journal ancrerait n'importe quelle stat), et `counterfactual.py` perturbe une dimension du payload puis régénère pour vérifier que la sortie suit. Le détecteur d'ancrage est lui-même calibré par contrôle négatif : on falsifie des chiffres réels et on mesure le taux de rejet.
+- **Taux publié en continu** : `GET /api/c/<slug>/eval` recalcule la métrique à la lecture (les votes laissés depuis le site comptent immédiatement) et le site l'affiche, atteint ou non. Seuils verrouillés entre les deux runtimes par `tests/test_eval_parity.py`.
+
 ---
 
 ## 🚀 Installation & Démarrage Rapide
 
 ### Prérequis
-- **Python 3.11+** avec [Poetry](https://python-poetry.org/)
+- **Python 3.13+** avec [Poetry](https://python-poetry.org/)
 - **Node.js 20+** et `npm`
 - Une clé API Riot Games ([Riot Developer Portal](https://developer.riotgames.com/))
 
@@ -189,7 +197,7 @@ npx wrangler dev --remote
 
 L'application est accessible en local sur `http://localhost:8787` (et déployée en production sur `https://coaching-lol.jeanvg.fr`).
 
-> ℹ️ **Note d'architecture** : L'ancien backend Python/FastAPI (`web/backend/`) hérité de l'ancien hébergement Fly.io a été retiré de la chaîne active et archivé. Le site et l'API tournent exclusivement sur Cloudflare Worker TypeScript.
+> ℹ️ **Note d'architecture** : L'ancien backend Python/FastAPI (`web/backend/`) hérité de l'hébergement Fly.io a été **supprimé** (l'historique git le conserve). Le site et l'API tournent exclusivement sur Cloudflare Worker TypeScript. Les trois modules qui n'étaient pas du serving et qui restent utilisés par la collecte locale ont été déplacés : `ml_rank.py` et `settings.py` dans `src/core/`, `pipeline.py` dans `src/collection/`.
 
 ---
 
@@ -200,7 +208,10 @@ Le projet intègre une suite de tests unitaires et de cohérence pour garantir l
 ```bash
 # Lancer les tests Python (pytest)
 poetry run pytest tests/web/
-poetry run pytest tests/ -k "not pretrain"
+poetry run pytest tests/
+
+# Linter Python
+poetry run ruff check .
 
 # Lancer les tests TypeScript (vitest)
 npm test --prefix web/cf
@@ -209,13 +220,24 @@ npm test --prefix web/cf
 npm run --prefix web/cf typecheck
 ```
 
+Ces quatre commandes sont exactement celles que joue la CI GitHub Actions
+(`.github/workflows/ci.yml`) à chaque push et chaque pull request. La CI installe le
+socle sans `torch` (`poetry install --without deep`) : les tests du transformer
+séquentiel se sautent alors d'eux-mêmes, et ceux qui ont besoin des agrégats locaux
+aussi, puisque `data/` n'est pas versionné.
+
+> ⚠️ Sur macOS, `torch` et `xgboost` ne cohabitent pas dans le même processus (double
+> chargement de `libomp`, segfault). Lancer la suite complète avec `torch` installé
+> peut donc planter en local, sans que ce soit un échec de test. Voir la même note
+> côté entraînement séquentiel (`--device cpu`).
+
 ---
 
 ## 🔒 Confidentialité & Hygiène des Données
 
 - **Pas de données brutes versionnées** : Les fichiers volumineux de timeline (`data/01_raw/`, `data/02_silver/`, etc.) ainsi que les fichiers d'environnement `.env` sont strictement exclus par `.gitignore`.
 - **Fixtures de test anonymisées** : Les jeux de données présents dans `tests/web/fixtures/` sont des fixtures synthétiques minimales conçues pour valider les endpoints de l'API et les parsers sans dépendre de données réelles.
-- **Gestion des comptes** : `web/backend/accounts.json` n'est pas versionné — les comptes suivis sont des données personnelles. Copiez `web/backend/accounts.example.json` pour créer le vôtre ; à défaut, l'application démarre sur l'exemple.
+- **Gestion des comptes** : `config/accounts.json` n'est pas versionné — les comptes suivis sont des données personnelles. Copiez `config/accounts.example.json` pour créer le vôtre ; à défaut, la chaîne démarre sur l'exemple.
 
 ---
 
