@@ -67,3 +67,18 @@ def test_build_reads_gold_and_flags_low_sample(tmp_path):
 def test_build_raises_file_not_found(tmp_path):
     with pytest.raises(FileNotFoundError):
         PL.build("ghost", "adc", "challenger", "loss", gold_dir=tmp_path)
+
+
+def test_zone_phase_ordering_is_deterministic_on_ties():
+    """Régression 2026-09-04, trouvée par la parité Python/TypeScript.
+
+    `_zone_phase_signals` itérait `set(me) | set(ref)` : à delta égal, l'ordre
+    dépendait du hachage des chaînes, donc du PYTHONHASHSEED. Deux exécutions
+    pouvaient donner deux payloads différents pour la même game, et le TypeScript
+    (qui part de clés triées) divergeait. Seul un ex aequo rendait le défaut visible.
+    """
+    mf = {"by_zone_phase": {"MID|late": 0.2, "JUNGLE/RIVER|late": 0.1,
+                            "JUNGLE/RIVER|early": 0.1, "BOT|early": 0.1}}
+    rf = {"by_zone_phase": {}}
+    keys = [s["key"] for s in PL._zone_phase_signals(mf, rf)]
+    assert keys == ["MID|late", "BOT|early", "JUNGLE/RIVER|early", "JUNGLE/RIVER|late"]

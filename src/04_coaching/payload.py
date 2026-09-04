@@ -87,7 +87,11 @@ def _pos_signals(mf: dict, rf: dict) -> list[dict]:
 def _zone_phase_signals(mf: dict, rf: dict, top: int = 5) -> list[dict]:
     me_zp, rf_zp = mf.get("by_zone_phase", {}), rf.get("by_zone_phase", {})
     rows = []
-    for key in set(me_zp) | set(rf_zp):
+    # `sorted` et non l'ordre d'un set : à delta égal, l'ordre du set dépend du
+    # hachage (donc du PYTHONHASHSEED, donc du run) et le TypeScript, lui, part de
+    # clés triées. Deux payloads différents pour la même game, et une divergence de
+    # parité que seul un ex aequo révèle.
+    for key in sorted(set(me_zp) | set(rf_zp)):
         you, ref = me_zp.get(key, 0.0), rf_zp.get(key, 0.0)
         delta = round(you - ref, 4)
         rows.append({"group": "deaths_zone_phase", "key": key,
