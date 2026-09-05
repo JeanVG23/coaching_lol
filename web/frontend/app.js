@@ -19,6 +19,72 @@ const DDRAGON = (patch, champ) => {
   return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${key}.png`;
 };
 
+const RANK_EMBLEMS = {
+  iron: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/iron.svg",
+  bronze: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/bronze.svg",
+  silver: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/silver.svg",
+  gold: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/gold.svg",
+  platinum: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/platinum.svg",
+  emerald: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/emerald.svg",
+  diamond: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/diamond.svg",
+  master: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/master.svg",
+  grandmaster: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/grandmaster.svg",
+  challenger: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/challenger.svg",
+  unranked: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/unranked.svg",
+};
+
+const POSITION_ICONS = {
+  top: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-top-blue.png",
+  jungle: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-jungle-blue.png",
+  middle: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-middle-blue.png",
+  mid: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-middle-blue.png",
+  bottom: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-bottom-blue.png",
+  bot: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-bottom-blue.png",
+  adc: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-bottom-blue.png",
+  utility: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-utility-blue.png",
+  support: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-utility-blue.png",
+};
+
+const SUMMONER_PROFILES = {
+  spadzze: { icon: 6282, level: 755, tag: "EUW" },
+  two: { icon: 5373, level: 412, tag: "EUW" },
+};
+
+function summonerProfile(slug) {
+  const s = String(slug || "").toLowerCase();
+  return SUMMONER_PROFILES[s] || { icon: 6282, level: 755, tag: "EUW" };
+}
+
+function summonerIcon(slugOrIcon) {
+  if (typeof slugOrIcon === "number") {
+    return `https://ddragon.leagueoflegends.com/cdn/14.17.1/img/profileicon/${slugOrIcon}.png`;
+  }
+  const prof = summonerProfile(slugOrIcon);
+  return `https://ddragon.leagueoflegends.com/cdn/14.17.1/img/profileicon/${prof.icon}.png`;
+}
+
+function summonerLevel(slug) {
+  return summonerProfile(slug).level;
+}
+
+function rankEmblem(tier) {
+  if (!tier) return "";
+  const key = String(tier).toLowerCase().trim();
+  return RANK_EMBLEMS[key] || "";
+}
+
+function rankGlow(tier) {
+  if (!tier) return "";
+  const key = String(tier).toLowerCase().trim();
+  return `glow-${key}`;
+}
+
+function roleIcon(role) {
+  if (!role) return "";
+  const key = String(role).toLowerCase().trim();
+  return POSITION_ICONS[key] || "";
+}
+
 // Un seul casing de tier : `rank.tier` arrive en MAJUSCULES de l'API Riot et
 // `predicted_rank` en minuscules du modèle ML — deux implémentations coexistaient.
 function titleCase(value) {
@@ -130,6 +196,11 @@ function app() {
     toggleSwitcher() { this.switcherOpen = !this.switcherOpen; },
     closeSwitcher() { this.switcherOpen = false; },
     formatDate,
+    summonerIcon,
+    summonerLevel,
+    rankEmblem,
+    rankGlow,
+    roleIcon,
   };
 }
 
@@ -199,6 +270,25 @@ function accountPage(slug, search) {
       return this.loadInto("rank", "rankLoading", `/api/c/${this.slug}/rank`);
     },
 
+    rankTier() {
+      return this.rank?.tier ? titleCase(this.rank.tier) : "";
+    },
+    rankDivision() {
+      return this.rank?.division || "";
+    },
+    rankLp() {
+      return this.rank?.league_points != null ? `${this.rank.league_points} LP` : "";
+    },
+    rankWinrate() {
+      if (!this.rank || this.rank.wins == null || this.rank.losses == null) return null;
+      const w = Number(this.rank.wins) || 0;
+      const l = Number(this.rank.losses) || 0;
+      const total = w + l;
+      if (total === 0) return null;
+      const pct = Math.round((w / total) * 100);
+      return `${w}V ${l}D · ${pct}% WR`;
+    },
+
     rankLabel() {
       if (!this.rank || !this.rank.tier) return "Non renseigné";
       return `${titleCase(this.rank.tier)} ${this.rank.division} · ${this.rank.league_points} LP`;
@@ -210,6 +300,7 @@ function accountPage(slug, search) {
     },
 
     rankTierLabel: titleCase,
+    summoner() { return summonerProfile(this.slug); },
 
     async prevPage() { if (this.page > 1) { this.page--; this.loadGames(); } },
     async nextPage() {
@@ -559,10 +650,27 @@ function accountPage(slug, search) {
     },
 
     kda(g) { return fmtKDA(g.kills, g.deaths, g.assists); },
-    champIcon(g) { return DDRAGON(g.patch, g.champion); },
-    iconFallback(e, champ) { e.target.style.display = "none"; e.target.nextElementSibling.style.display = ""; },
+    champIcon(g) {
+      if (!g) return "";
+      const champ = typeof g === "string" ? g : g.champion;
+      const patch = typeof g === "object" ? g.patch : null;
+      return DDRAGON(patch, champ);
+    },
+    iconFallback(e, champ) {
+      e.target.style.display = "none";
+      if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = "";
+    },
     roleLabel(r) {
       return ({ MIDDLE: "Mid", JUNGLE: "Jungle", BOTTOM: "Bot", TOP: "Top", UTILITY: "Support" })[r] || r;
+    },
+    roleIcon(r) {
+      const roleMap = { MIDDLE: "middle", JUNGLE: "jungle", BOTTOM: "bottom", TOP: "top", UTILITY: "utility" };
+      return roleIcon(roleMap[r] || r);
+    },
+    queueLabel(queueId) {
+      if (queueId === 420) return "Solo/Duo";
+      if (queueId === 440) return "Flex";
+      return "Partie";
     },
   };
 }
