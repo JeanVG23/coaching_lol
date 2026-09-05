@@ -401,13 +401,38 @@
                     </div>
                   </div>
 
-                  <!-- Bloc 3 : Compositions d'Équipes -->
-                  <div class="gd-card">
+                  <!-- Bloc 3 : Compositions d'Équipes & Sides Early (Full Width) -->
+                  <div class="gd-card gd-card-full">
                     <div class="gd-card-header">
                       <span class="gd-icon">👥</span>
-                      <h4>Compositions d'Équipes</h4>
+                      <h4>Compositions d'Équipes & Plan de Jeu Early</h4>
                     </div>
                     <div class="gd-card-body">
+                      <!-- Analyse Strongside / Weakside -->
+                      <div class="gd-sides-banner" x-show="hasSides(g)">
+                        <div class="gd-sides-row">
+                          <div class="gd-side-item ally">
+                            <span class="gd-side-label">Alliés :</span>
+                            <span class="gd-side-val">
+                              <strong x-text="g.sides?.ally_jungler || 'Jungle'"></strong> start <span class="mono" x-text="g.sides?.ally_start"></span> ➔ 
+                              <span class="badge-side" :class="g.sides?.ally_strongside === 'BOT' ? 'badge-strongside' : 'badge-weakside'"
+                                    x-text="'Bot ' + (g.sides?.ally_strongside === 'BOT' ? 'STRONGSIDE' : 'WEAKSIDE')"></span>
+                              <span class="faint" x-text="'· Top ' + (g.sides?.ally_strongside === 'TOP' ? 'Strongside' : 'Weakside')"></span>
+                            </span>
+                          </div>
+                          <div class="gd-side-item enemy">
+                            <span class="gd-side-label">Ennemis :</span>
+                            <span class="gd-side-val">
+                              <strong x-text="g.sides?.enemy_jungler || 'Jungle'"></strong> start <span class="mono" x-text="g.sides?.enemy_start"></span> ➔ 
+                              <span class="badge-side" :class="g.sides?.enemy_strongside === 'BOT' ? 'badge-strongside' : 'badge-weakside'"
+                                    x-text="'Bot ' + (g.sides?.enemy_strongside === 'BOT' ? 'STRONGSIDE' : 'WEAKSIDE')"></span>
+                              <span class="faint" x-text="'· Top ' + (g.sides?.enemy_strongside === 'TOP' ? 'Strongside' : 'Weakside')"></span>
+                            </span>
+                          </div>
+                        </div>
+                        <div class="gd-side-summary" x-show="sideSummary(g)" x-text="sideSummary(g)"></div>
+                      </div>
+
                       <div class="gd-teams-grid">
                         <div class="gd-team-col ally-team">
                           <div class="gd-team-title">Alliés (Équipe bleue)</div>
@@ -444,7 +469,35 @@
                     </div>
                   </div>
 
-                  <!-- Bloc 4 : Journal chronologique des Morts -->
+                  <!-- Bloc 4 : Chronologie des Objectifs & Structures -->
+                  <div class="gd-card">
+                    <div class="gd-card-header">
+                      <span class="gd-icon">🐉</span>
+                      <h4>Objectifs & Structures (<span x-text="objectivesList(g).length"></span>)</h4>
+                    </div>
+                    <div class="gd-card-body">
+                      <template x-if="objectivesList(g).length === 0">
+                        <div class="gd-empty-objectives faint">
+                          Aucun monstre épique ou structure enregistrée sur cette partie.
+                        </div>
+                      </template>
+                      <template x-if="objectivesList(g).length > 0">
+                        <div class="gd-objectives-timeline">
+                          <template x-for="(obj, idx) in objectivesList(g)" :key="idx">
+                            <div class="gd-obj-entry" :class="obj.is_ally ? 'ally' : 'enemy'">
+                              <span class="gd-obj-time" x-text="obj.minute + 'm'"></span>
+                              <span class="gd-obj-icon" x-text="objectiveIcon(obj)"></span>
+                              <span class="gd-obj-name" x-text="objectiveLabel(obj)"></span>
+                              <span class="gd-obj-team-badge" :class="obj.is_ally ? 'badge-ally' : 'badge-enemy'"
+                                    x-text="obj.is_ally ? 'Alliés' : 'Ennemis'"></span>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+
+                  <!-- Bloc 5 : Journal chronologique des Morts -->
                   <div class="gd-card">
                     <div class="gd-card-header">
                       <span class="gd-icon">💀</span>

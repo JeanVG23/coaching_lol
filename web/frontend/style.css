@@ -941,6 +941,9 @@ h3 { font-size: 14px; font-weight: 650; }
   display: flex;
   flex-direction: column;
 }
+.gd-card-full {
+  grid-column: 1 / -1;
+}
 .gd-card-header {
   display: flex;
   align-items: center;
@@ -1052,7 +1055,80 @@ h3 { font-size: 14px; font-weight: 650; }
 .text-danger { color: #ff7588; }
 .text-warning { color: #fbbf24; }
 .text-good { color: #34d399; }
-.text-highlight { color: var(--gold-light); font-weight: 600; }
+/* Sides Banner (Strongside / Weakside) */
+.gd-sides-banner {
+  background: linear-gradient(135deg, rgba(14, 187, 212, 0.07) 0%, rgba(200, 170, 110, 0.05) 50%, rgba(248, 81, 73, 0.07) 100%);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gd-sides-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.gd-side-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.gd-side-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-dim);
+}
+.gd-side-item.ally .gd-side-label {
+  color: #53ecff;
+}
+.gd-side-item.enemy .gd-side-label {
+  color: #ff7588;
+}
+.gd-side-val {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  flex-wrap: wrap;
+}
+.badge-side {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.badge-strongside {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+}
+.badge-weakside {
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+.gd-side-summary {
+  font-size: 12px;
+  color: var(--gold-light);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--gold);
+  line-height: 1.4;
+}
 
 /* Teams composition grid */
 .gd-teams-grid {
@@ -1132,6 +1208,82 @@ h3 { font-size: 14px; font-weight: 650; }
   border-radius: 3px;
   text-transform: uppercase;
   flex-shrink: 0;
+}
+
+/* Timeline des Objectifs & Structures */
+.gd-empty-objectives {
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 12px;
+}
+.gd-objectives-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.gd-obj-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 5px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  transition: background .15s ease;
+}
+.gd-obj-entry:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.gd-obj-entry.ally {
+  border-left: 3px solid #0ebbd4;
+}
+.gd-obj-entry.enemy {
+  border-left: 3px solid #f85149;
+}
+.gd-obj-time {
+  font-weight: 800;
+  color: var(--text-dim);
+  min-width: 28px;
+  font-family: var(--font-mono, monospace);
+}
+.gd-obj-icon {
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+}
+.gd-obj-name {
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gd-obj-team-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  flex-shrink: 0;
+}
+.gd-obj-team-badge.badge-ally {
+  background: rgba(14, 187, 212, 0.15);
+  color: #53ecff;
+  border: 1px solid rgba(14, 187, 212, 0.35);
+}
+.gd-obj-team-badge.badge-enemy {
+  background: rgba(248, 81, 73, 0.15);
+  color: #ff7588;
+  border: 1px solid rgba(248, 81, 73, 0.35);
 }
 
 /* Timeline des morts */
@@ -1986,6 +2138,7 @@ h3 { font-size: 14px; font-weight: 650; }
   .game-details-panel { padding: 12px; }
   .gd-grid { grid-template-columns: 1fr; }
   .gd-teams-grid { grid-template-columns: 1fr; }
+  .gd-sides-row { flex-direction: column; align-items: flex-start; gap: 8px; }
   .gd-action-bar { flex-direction: column; align-items: stretch; gap: 10px; }
   .btn-coach-shortcut { width: 100%; justify-content: center; }
   .coaching-intro { flex-basis: 100%; }

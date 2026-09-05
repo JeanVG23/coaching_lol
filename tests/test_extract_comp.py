@@ -25,16 +25,21 @@ def _timeline():
     return {"info": {"frames": []}}
 
 
-def test_comp_resolves_six_champions():
+def test_comp_resolves_ten_champions():
     g = rl.extract_game(_match(), _timeline(), "puuid0", rank="test")
     comp = g["comp"]
+    assert comp["self_top"] == "Aatrox"
+    assert comp["self_jungle"] == "Graves"
+    assert comp["self_mid"] == "Ahri"
     assert comp["self_adc"] == "Zeri"
     assert comp["self_support"] == "Lulu"
-    assert comp["enemy_adc"] == "Caitlyn"
-    assert comp["enemy_support"] == "Leona"
-    assert comp["self_jungle"] == "Graves"
+    assert comp["enemy_top"] == "Sett"
     assert comp["enemy_jungle"] == "JarvanIV"
     assert comp["enemy_mid"] == "Syndra"
+    assert comp["enemy_adc"] == "Caitlyn"
+    assert comp["enemy_support"] == "Leona"
+    assert "sides" in g
+    assert "objectives" in g
 
 
 def test_extract_game_characterizes_combat_objective_and_economy_metrics():

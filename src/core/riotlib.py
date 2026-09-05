@@ -532,15 +532,99 @@ def _composition(parts: list[dict], pid_champ: dict[int, str], my_team: int,
                 return pid_champ[pid]
         return None
 
+    self_adc = champ_at(True, "BOTTOM") or (me["championName"] if (me.get("teamPosition") or "") == "BOTTOM" else None)
+    if not self_adc and (me.get("teamPosition") or "") in ("BOTTOM", ""):
+        self_adc = me["championName"]
+
     return {
-        "self_adc": me["championName"],
-        "self_support": champ_at(True, "UTILITY"),
-        "enemy_adc": champ_at(False, "BOTTOM"),
-        "enemy_support": champ_at(False, "UTILITY"),
+        "self_top": champ_at(True, "TOP"),
         "self_jungle": champ_at(True, "JUNGLE"),
+        "self_mid": champ_at(True, "MIDDLE"),
+        "self_adc": self_adc or me["championName"],
+        "self_support": champ_at(True, "UTILITY"),
+        "enemy_top": champ_at(False, "TOP"),
         "enemy_jungle": champ_at(False, "JUNGLE"),
         "enemy_mid": champ_at(False, "MIDDLE"),
+        "enemy_adc": champ_at(False, "BOTTOM"),
+        "enemy_support": champ_at(False, "UTILITY"),
     }
+
+
+def _jungle_pathing(parts: list[dict], timeline: dict, my_team: int) -> dict:
+    """Déduit le quadrant de départ des junglers (BOT ou TOP) à partir de la position à 1:00-1:30.
+
+    Sur la Faille de l'Invocateur (y = x) :
+    - y < x : demi-plan Sud-Est (Bot side) -> Red buff bleu ou Blue buff rouge
+    - y > x : demi-plan Nord-Ouest (Top side) -> Blue buff bleu ou Red buff rouge
+
+    Conséquence sur les sides en early game (0-4m) :
+    - Start BOT -> pathing vers TOP -> TOP est Strongside, BOT est Weakside.
+    - Start TOP -> pathing vers BOT -> BOT est Strongside, TOP est Weakside.
+    """
+    frames = timeline.get("info", {}).get("frames", [])
+    if len(frames) < 2:
+        return {}
+    f1 = frames[1].get("participantFrames", {})
+    ally_j = None
+    enemy_j = None
+    for i, p in enumerate(parts, 1):
+        pid = p.get("participantId", i)
+        if p.get("teamPosition") == "JUNGLE":
+            if p.get("teamId") == my_team:
+                ally_j = (pid, p)
+            else:
+                enemy_j = (pid, p)
+
+    def side_of(j_tuple):
+        if not j_tuple:
+            return None
+        pid, p = j_tuple
+        pos = f1.get(str(pid), {}).get("position", {})
+        if "x" not in pos or "y" not in pos:
+            return None
+        return "BOT" if pos["y"] < pos["x"] else "TOP"
+
+    ally_start = side_of(ally_j)
+    enemy_start = side_of(enemy_j)
+
+    return {
+        "ally_start": ally_start,
+        "ally_strongside": "TOP" if ally_start == "BOT" else ("BOT" if ally_start == "TOP" else None),
+        "ally_weakside": "BOT" if ally_start == "BOT" else ("TOP" if ally_start == "TOP" else None),
+        "enemy_start": enemy_start,
+        "enemy_strongside": "TOP" if enemy_start == "BOT" else ("BOT" if enemy_start == "TOP" else None),
+        "enemy_weakside": "BOT" if enemy_start == "BOT" else ("TOP" if enemy_start == "TOP" else None),
+        "ally_jungler": ally_j[1]["championName"] if ally_j else None,
+        "enemy_jungler": enemy_j[1]["championName"] if enemy_j else None,
+    }
+
+
+def _objectives_timeline(timeline: dict, my_team: int) -> list[dict]:
+    """Extrait la chronologie des monstres épiques et premières structures détruites."""
+    objectives = []
+    for e in iter_events(timeline):
+        t = e.get("type")
+        m = e.get("timestamp", 0) // 60000
+        if t == "ELITE_MONSTER_KILL":
+            mt = e.get("monsterType")
+            sub = e.get("monsterSubType")
+            killer_team = e.get("killerTeamId")
+            objectives.append({
+                "minute": m,
+                "type": mt,
+                "sub_type": sub,
+                "is_ally": killer_team == my_team,
+            })
+        elif t == "BUILDING_KILL" and e.get("buildingType") == "TOWER_BUILDING":
+            lost_team = e.get("teamId")
+            objectives.append({
+                "minute": m,
+                "type": "TURRET",
+                "lane": e.get("laneType"),
+                "tower_type": e.get("towerType"),
+                "is_ally": lost_team != my_team,
+            })
+    return sorted(objectives, key=lambda x: x["minute"])
 
 
 def extract_game(match: dict, timeline: dict, puuid: str,
@@ -584,6 +668,8 @@ def extract_game(match: dict, timeline: dict, puuid: str,
     avg_dragon_prox = _dragon_proximity(timeline, my_fr)
     plates_diff_early = _plate_diff_early(timeline, my_team, enemy_team)
     comp = _composition(parts, pid_champ, my_team, me)
+    sides = _jungle_pathing(parts, timeline, my_team)
+    objectives = _objectives_timeline(timeline, my_team)
 
     import positioning  # import paresseux : évite le cycle riotlib<->positioning
     pid_team = {i + 1: p["teamId"] for i, p in enumerate(parts)}
@@ -604,6 +690,8 @@ def extract_game(match: dict, timeline: dict, puuid: str,
         "queue": info.get("queueId"),
         "lane": lane,
         "comp": comp,
+        "sides": sides,
+        "objectives": objectives,
         "deaths": deaths,
         "kills": kills,
         "assists": assists,

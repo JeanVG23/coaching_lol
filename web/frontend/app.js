@@ -738,19 +738,92 @@ function accountPage(slug, search) {
     teamCompAllies(g) {
       if (!g?.comp) return [];
       const res = [];
-      if (g.comp.self_adc) res.push({ role: "BOTTOM", roleName: "ADC", champ: g.comp.self_adc, isSelf: g.champion === g.comp.self_adc });
-      if (g.comp.self_support) res.push({ role: "UTILITY", roleName: "SUP", champ: g.comp.self_support, isSelf: g.champion === g.comp.self_support });
-      if (g.comp.self_jungle) res.push({ role: "JUNGLE", roleName: "JGL", champ: g.comp.self_jungle, isSelf: g.champion === g.comp.self_jungle });
+      const c = g.comp;
+      if (c.self_top) res.push({ role: "TOP", roleName: "TOP", champ: c.self_top, isSelf: g.champion === c.self_top });
+      if (c.self_jungle) res.push({ role: "JUNGLE", roleName: "JGL", champ: c.self_jungle, isSelf: g.champion === c.self_jungle });
+      if (c.self_mid) res.push({ role: "MIDDLE", roleName: "MID", champ: c.self_mid, isSelf: g.champion === c.self_mid });
+      if (c.self_adc) res.push({ role: "BOTTOM", roleName: "ADC", champ: c.self_adc, isSelf: g.champion === c.self_adc });
+      if (c.self_support) res.push({ role: "UTILITY", roleName: "SUP", champ: c.self_support, isSelf: g.champion === c.self_support });
       return res;
     },
     teamCompEnemies(g) {
       if (!g?.comp) return [];
       const res = [];
-      if (g.comp.enemy_adc) res.push({ role: "BOTTOM", roleName: "ADC", champ: g.comp.enemy_adc });
-      if (g.comp.enemy_support) res.push({ role: "UTILITY", roleName: "SUP", champ: g.comp.enemy_support });
-      if (g.comp.enemy_jungle) res.push({ role: "JUNGLE", roleName: "JGL", champ: g.comp.enemy_jungle });
-      if (g.comp.enemy_mid) res.push({ role: "MIDDLE", roleName: "MID", champ: g.comp.enemy_mid });
+      const c = g.comp;
+      if (c.enemy_top) res.push({ role: "TOP", roleName: "TOP", champ: c.enemy_top });
+      if (c.enemy_jungle) res.push({ role: "JUNGLE", roleName: "JGL", champ: c.enemy_jungle });
+      if (c.enemy_mid) res.push({ role: "MIDDLE", roleName: "MID", champ: c.enemy_mid });
+      if (c.enemy_adc) res.push({ role: "BOTTOM", roleName: "ADC", champ: c.enemy_adc });
+      if (c.enemy_support) res.push({ role: "UTILITY", roleName: "SUP", champ: c.enemy_support });
       return res;
+    },
+    hasSides(g) {
+      return Boolean(g?.sides?.ally_start || g?.sides?.enemy_start);
+    },
+    sideSummary(g) {
+      if (!g?.sides) return null;
+      const s = g.sides;
+      if (!s.ally_start && !s.enemy_start) return null;
+      const allyBotWeak = s.ally_weakside === "BOT";
+      const enemyBotWeak = s.enemy_weakside === "BOT";
+      if (allyBotWeak && enemyBotWeak) {
+        return "Double Weakside bot : les deux junglers jouent vers le Top en early (0-4m).";
+      }
+      if (!allyBotWeak && !enemyBotWeak) {
+        return "Double Strongside bot : les deux junglers jouent vers le Bot en early (0-4m).";
+      }
+      if (!allyBotWeak && enemyBotWeak) {
+        return "Avantage Bot : ton jungler joue vers le Bot (Strongside), le jungler adverse joue vers le Top (Weakside).";
+      }
+      return "Attention Bot : ton jungler joue vers le Top (Weakside), le jungler adverse joue vers le Bot (Strongside).";
+    },
+    objectivesList(g) {
+      if (!g?.objectives || !Array.isArray(g.objectives)) return [];
+      return g.objectives;
+    },
+    objectiveIcon(obj) {
+      if (!obj) return "🎯";
+      if (obj.type === "DRAGON") {
+        const sub = obj.sub_type || "";
+        if (sub.includes("FIRE")) return "🔥";
+        if (sub.includes("WATER")) return "💧";
+        if (sub.includes("EARTH")) return "⛰️";
+        if (sub.includes("AIR")) return "💨";
+        if (sub.includes("HEXTECH")) return "⚡";
+        if (sub.includes("CHEMTECH")) return "☣️";
+        if (sub.includes("ELDER")) return "👑";
+        return "🐉";
+      }
+      if (obj.type === "HORDE") return "🐛";
+      if (obj.type === "RIFTHERALD") return "👁️";
+      if (obj.type === "BARON_NASHOR") return "🟣";
+      if (obj.type === "TURRET") return "🛡️";
+      return "🎯";
+    },
+    objectiveLabel(obj) {
+      if (!obj) return "Objectif";
+      if (obj.type === "DRAGON") {
+        const sub = obj.sub_type || "";
+        if (sub.includes("FIRE")) return "Dragon Infernal";
+        if (sub.includes("WATER")) return "Dragon des Océans";
+        if (sub.includes("EARTH")) return "Dragon des Montagnes";
+        if (sub.includes("AIR")) return "Dragon des Nuages";
+        if (sub.includes("HEXTECH")) return "Dragon Hextech";
+        if (sub.includes("CHEMTECH")) return "Dragon Chimico";
+        if (sub.includes("ELDER")) return "Dragon Ancestral";
+        return "Dragon";
+      }
+      if (obj.type === "HORDE") return "Larves du Néant";
+      if (obj.type === "RIFTHERALD") return "Héraut de la Faille";
+      if (obj.type === "BARON_NASHOR") return "Baron Nashor";
+      if (obj.type === "TURRET") {
+        const laneMap = { BOT_LANE: "Bot", MID_LANE: "Mid", TOP_LANE: "Top" };
+        const towerMap = { OUTER_TURRET: "T1", INNER_TURRET: "T2", BASE_TURRET: "T3", NEXUS_TURRET: "T4" };
+        const lane = laneMap[obj.lane] || "Tour";
+        const tower = towerMap[obj.tower_type] || "";
+        return `Tour ${lane} ${tower}`.trim();
+      }
+      return obj.type;
     },
   };
 }
