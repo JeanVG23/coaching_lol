@@ -4,8 +4,20 @@ const NEG_TAGS = ["asymetrie", "stat-inventee", "profondeur-en-faute",
   "trop-vague", "non-actionnable", "autre"];
 // Étapes purement informatives du flux SSE (les 2 autres events changent le statut).
 const SSE_PROGRESS = { payload: "payload construit", llm: "génération LLM…" };
-const DDRAGON = (patch, champ) =>
-  `https://ddragon.leagueofgraphs.com/cdn/${patch}.1/img/champion/${champ}.png`;
+const CHAMP_SLUGS = {
+  "Kai'Sa": "Kaisa", "Kha'Zix": "Khazix", "Cho'Gath": "Chogath",
+  "Vel'Koz": "Velkoz", "Wukong": "MonkeyKing", "LeBlanc": "Leblanc",
+  "Nunu & Willump": "Nunu", "Renata Glasc": "Renata", "Bel'Veth": "Belveth",
+  "K'Sante": "KSante",
+};
+
+const DDRAGON = (patch, champ) => {
+  if (!champ) return "";
+  const key = CHAMP_SLUGS[champ] || String(champ).replace(/['\s.]/g, "");
+  const p = String(patch || "14.17");
+  const version = p.includes(".") && p.split(".").length === 2 ? `${p}.1` : (p || "14.17.1");
+  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${key}.png`;
+};
 
 // Un seul casing de tier : `rank.tier` arrive en MAJUSCULES de l'API Riot et
 // `predicted_rank` en minuscules du modèle ML — deux implémentations coexistaient.
