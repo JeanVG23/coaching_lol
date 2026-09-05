@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="hl" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect width="64" height="64" rx="16" fill="url(#g)"/>
+  <rect width="64" height="64" rx="16" fill="url(#hl)"/>
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="none" stroke="#e0f2fe" stroke-width="1.5" stroke-opacity="0.5"/>
+  <!-- Hextech Crest Shield -->
+  <path d="M32 12 L14 22.5 V41.5 L32 52 L50 41.5 V22.5 Z" fill="none" stroke="#041423" stroke-width="4.8" stroke-linejoin="round"/>
+  <!-- Hextech Jewel Core -->
+  <circle cx="32" cy="32" r="7.5" fill="#041423"/>
+  <circle cx="32" cy="32" r="2.8" fill="#38bdf8"/>
+</svg>
