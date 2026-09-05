@@ -11,8 +11,13 @@ const CHAMP_SLUGS = {
   "K'Sante": "KSante",
 };
 
+const CHAMP_CUSTOM_ICONS = {
+  "Locke": "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/805.png",
+};
+
 const DDRAGON = (patch, champ) => {
   if (!champ) return "";
+  if (CHAMP_CUSTOM_ICONS[champ]) return CHAMP_CUSTOM_ICONS[champ];
   const key = CHAMP_SLUGS[champ] || String(champ).replace(/['\s.]/g, "");
   const p = String(patch || "14.17");
   const version = p.includes(".") && p.split(".").length === 2 ? `${p}.1` : (p || "14.17.1");
@@ -659,6 +664,11 @@ function accountPage(slug, search) {
       return DDRAGON(patch, champ);
     },
     iconFallback(e, champ) {
+      if (champ === "Locke" && !e.target.dataset.triedCd) {
+        e.target.dataset.triedCd = "1";
+        e.target.src = "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/805.png";
+        return;
+      }
       e.target.style.display = "none";
       if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = "";
     },

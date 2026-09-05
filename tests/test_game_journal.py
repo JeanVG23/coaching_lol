@@ -70,7 +70,7 @@ def _basic_timeline(events_by_frame=None):
         t = minute * 60000
         frames.append(_frame(
             t,
-            {1: _pf(gold_total=400 * minute + 500, gold_current=1234, level=minute + 1),
+            {1: _pf(gold_total=500 * minute + 500, gold_current=1234, level=minute + 1),
              6: _pf(gold_total=300 * minute + 500, gold_current=800, level=minute + 1)},
             events_by_frame.get(minute, []),
         ))
@@ -93,7 +93,7 @@ def test_meta_fields():
 
 
 def test_death_anchored_fields():
-    # Mort à 4:30 en BOT, solo-kill de l'ADC ennemi, gold diff +400 -> ahead.
+    # Mort à 4:30 en BOT, solo-kill de l'ADC ennemi, gold diff +800 -> ahead.
     tl = _basic_timeline({4: [_kill(270000, victim=1, killer=6)]})
     j = J.game_journal(_match(), tl, ME)
     assert len(j["deaths"]) == 1

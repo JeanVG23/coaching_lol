@@ -50,7 +50,7 @@ QUEUE_FLEX = 440                # ranked flex
 
 PHASES = [("early", 0, 14), ("mid", 15, 24), ("late", 25, 999)]
 EARLY_END_MINUTE = 14           # borne de la phase early (cf. PHASES)
-GOLD_STATE_MARGIN = 300         # seuil ±g d'avance/retard économique de lane
+GOLD_STATE_MARGIN = 600         # seuil ±g d'avance/retard économique de lane
 # Rectangle de base par équipe, en coordonnées brutes de la Faille (côté ~3500 unités).
 BASE_RECT = {100: (0, 3500, 0, 3500), 200: (11300, MAP_W, 11300, MAP_H)}
 
@@ -364,7 +364,7 @@ _frames_by_minute = frames_by_minute
 
 
 def _gold_state(gd: int | None) -> str | None:
-    """Avance/retard/égalité économique vs adversaire de lane (seuil ±300g)."""
+    """Avance/retard/égalité économique vs adversaire de lane (seuil ±600g)."""
     if gd is None:
         return None
     return ("ahead" if gd > GOLD_STATE_MARGIN

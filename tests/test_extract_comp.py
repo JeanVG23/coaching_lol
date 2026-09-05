@@ -50,7 +50,7 @@ def test_extract_game_characterizes_combat_objective_and_economy_metrics():
                    "jungleMinionsKilled": 0}
         for pid in range(1, 11)
     }
-    positions["1"].update({"position": {"x": 1000, "y": 1000}, "totalGold": 2000})
+    positions["1"].update({"position": {"x": 1000, "y": 1000}, "totalGold": 2300})
     positions["6"].update({"position": {"x": 13000, "y": 2000}, "totalGold": 1500})
     combat_events = [
         {"type": "CHAMPION_KILL", "timestamp": 300000, "victimId": 1,
