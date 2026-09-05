@@ -758,33 +758,473 @@ h3 { font-size: 14px; font-weight: 650; }
    Game Rows (Recent Matches List)
    ========================================================================== */
 
-.game-row {
-  display: grid;
-  grid-template-columns: 44px minmax(180px, 1fr) 160px 76px;
-  gap: 14px;
-  align-items: center;
-  min-height: 68px;
-  padding: 10px 16px;
+.game-card {
   background: var(--panel-glass);
   border: 1px solid var(--border-soft);
   border-left: 4px solid var(--border);
   border-radius: 10px;
-  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease;
+  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  overflow: hidden;
 }
-.game-row:hover {
-  background: var(--panel-hover);
-  transform: translateX(3px);
-  border-color: var(--border-active);
-}
-.game-row + .game-row { margin-top: 8px; }
+.game-card + .game-card { margin-top: 8px; }
 
-.game-row.w {
+.game-card.w {
   border-left-color: var(--win);
   background: linear-gradient(90deg, var(--win-soft) 0%, var(--panel-glass) 35%);
 }
-.game-row.l {
+.game-card.l {
   border-left-color: var(--loss);
   background: linear-gradient(90deg, var(--loss-soft) 0%, var(--panel-glass) 35%);
+}
+.game-card:hover {
+  border-color: var(--border-active);
+}
+.game-card.is-expanded {
+  border-color: rgba(200, 170, 110, 0.5);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 16px rgba(200, 170, 110, 0.12);
+}
+
+.game-row {
+  display: grid;
+  grid-template-columns: 44px minmax(180px, 1fr) 130px 65px 75px;
+  gap: 12px;
+  align-items: center;
+  min-height: 68px;
+  padding: 10px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  transition: background 150ms ease;
+}
+.game-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.gr-expand-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  transition: color 150ms ease;
+}
+.game-row:hover .gr-expand-action {
+  color: var(--gold);
+}
+.gr-expand-chevron {
+  display: inline-block;
+  font-size: 13px;
+  transition: transform 200ms ease;
+}
+.gr-expand-chevron.open {
+  transform: rotate(180deg);
+  color: var(--gold);
+}
+.gr-badge-coach {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(14, 187, 212, 0.14);
+  border: 1px solid rgba(14, 187, 212, 0.35);
+  color: #53ecff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+/* Volet de détails de la partie (style OP.GG / U.GG) */
+.game-details-panel {
+  border-top: 1px solid var(--border-soft);
+  background: rgba(10, 12, 16, 0.88);
+  padding: 16px 20px 20px;
+  animation: gdFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes gdFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Action bar */
+.gd-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.gd-meta-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.gd-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.gd-coach-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.gd-coach-status.ready {
+  color: #53ecff;
+}
+.gd-coach-status.empty {
+  color: var(--text-dim);
+}
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #53ecff;
+  box-shadow: 0 0 8px #53ecff;
+  animation: pulseDot 2s infinite ease-in-out;
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* Bouton Raccourci Coaching LLM */
+.btn-coach-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(200, 170, 110, 0.25) 0%, rgba(14, 187, 212, 0.25) 100%);
+  border: 1px solid rgba(200, 170, 110, 0.5);
+  border-radius: 8px;
+  color: var(--gold-light);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 180ms ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.btn-coach-shortcut:hover {
+  background: linear-gradient(135deg, rgba(200, 170, 110, 0.45) 0%, rgba(14, 187, 212, 0.45) 100%);
+  border-color: var(--gold-light);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(14, 187, 212, 0.25), 0 0 12px rgba(200, 170, 110, 0.3);
+}
+
+/* Grille 2x2 des 4 blocs */
+.gd-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.gd-card {
+  background: var(--panel-glass);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+}
+.gd-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.gd-card-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: .02em;
+}
+.gd-card-body {
+  flex: 1;
+}
+
+/* Matchup box */
+.gd-matchup-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.gd-matchup-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gd-matchup-side strong {
+  font-size: 13px;
+  display: block;
+}
+.gd-matchup-side .faint {
+  font-size: 11px;
+}
+.gd-matchup-vs {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: .05em;
+}
+
+/* Mini champion icons in drawer */
+.gd-mini-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* Stats list */
+.gd-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gd-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+}
+.gd-stat-row:last-child {
+  border-bottom: none;
+}
+.gd-stat-label {
+  color: var(--text-dim);
+}
+.gd-stat-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.gd-diff-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.gd-diff-pill.diff-pos {
+  background: rgba(14, 187, 212, 0.12);
+  border-color: rgba(14, 187, 212, 0.35);
+  color: #53ecff;
+}
+.gd-diff-pill.diff-neg {
+  background: rgba(248, 81, 73, 0.12);
+  border-color: rgba(248, 81, 73, 0.35);
+  color: #ff7588;
+}
+
+.text-pink { color: #f472b6; }
+.text-danger { color: #ff7588; }
+.text-warning { color: #fbbf24; }
+.text-good { color: #34d399; }
+.text-highlight { color: var(--gold-light); font-weight: 600; }
+
+/* Teams composition grid */
+.gd-teams-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.gd-team-col {
+  background: var(--panel-2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  min-width: 0;
+}
+.gd-team-col.ally-team {
+  border-top: 3px solid #0ebbd4;
+}
+.gd-team-col.enemy-team {
+  border-top: 3px solid #f85149;
+}
+.gd-team-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 8px;
+  color: var(--text-dim);
+}
+.gd-team-players {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gd-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  min-width: 0;
+}
+.gd-player-row.is-self {
+  background: rgba(200, 170, 110, 0.15);
+  border: 1px solid rgba(200, 170, 110, 0.4);
+}
+.gd-role-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  padding: 2px 5px;
+  background: var(--panel-glass);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  letter-spacing: .04em;
+  flex-shrink: 0;
+  text-align: center;
+  min-width: 28px;
+}
+.gd-pname {
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.gd-self-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 4px;
+  background: var(--gold);
+  color: #0b0e14;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* Timeline des morts */
+.gd-flawless {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px;
+  text-align: center;
+  gap: 6px;
+}
+.flawless-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+.gd-flawless strong {
+  color: var(--gold-light);
+  font-size: 14px;
+}
+
+.gd-deaths-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.gd-death-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 5px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid #f85149;
+  border-radius: 4px;
+}
+.gd-death-time {
+  font-weight: 800;
+  color: #ff7588;
+  min-width: 26px;
+}
+.gd-death-killer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 90px;
+}
+.gd-killer-name {
+  font-weight: 600;
+  color: var(--text);
+}
+.gd-death-zone {
+  color: var(--text-dim);
+  font-size: 10px;
+  flex: 1;
+}
+.gd-death-tags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.gd-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.tag-solo {
+  background: rgba(248, 81, 73, 0.15);
+  color: #ff7588;
+  border: 1px solid rgba(248, 81, 73, 0.3);
+}
+.tag-gank {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+.tag-2v2 {
+  background: rgba(14, 187, 212, 0.15);
+  color: #53ecff;
+  border: 1px solid rgba(14, 187, 212, 0.3);
+}
+.tag-behind {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
 .gr-champ-wrap {
@@ -1513,6 +1953,7 @@ h3 { font-size: 14px; font-weight: 650; }
 @media (max-width: 860px) {
   .profile-hero { align-items: stretch; flex-direction: column; }
   .profile-stats { width: 100%; }
+  .gd-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
@@ -1536,12 +1977,17 @@ h3 { font-size: 14px; font-weight: 650; }
   .game-chat-heading, .game-chat-form { align-items: stretch; flex-direction: column; }
   .game-chat-heading small { max-width: none; text-align: left; }
   .tabs { margin-bottom: 20px; }
-  .tab { padding: 8px 12px; font-size: 12px; }
-  .game-row { grid-template-columns: 44px minmax(110px, 1fr) auto; gap: 10px; padding: 10px; }
+  .game-row { grid-template-columns: 44px minmax(100px, 1fr) auto auto; gap: 8px; padding: 10px 12px; }
   .gr-kda { grid-column: 2 / 3; align-items: flex-start; text-align: left; }
-  .gr-patch { grid-column: 3; grid-row: 1 / 3; align-items: flex-end; justify-content: center; }
+  .gr-patch { grid-column: 3; align-items: flex-end; justify-content: center; }
+  .gr-expand-action { grid-column: 4; }
+  .gr-expand-label { display: none; }
   .gr-label { font-size: 8px; }
-  .action-bar { align-items: stretch; }
+  .game-details-panel { padding: 12px; }
+  .gd-grid { grid-template-columns: 1fr; }
+  .gd-teams-grid { grid-template-columns: 1fr; }
+  .gd-action-bar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .btn-coach-shortcut { width: 100%; justify-content: center; }
   .coaching-intro { flex-basis: 100%; }
   .field-label { flex: 1 1 calc(50% - 8px); }
   .select { width: 100%; min-width: 0; }

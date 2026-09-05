@@ -220,6 +220,7 @@ function accountPage(slug, search) {
     ownerView: ownerViewFrom(search === undefined ? location.search : search),
     tab: deep.tab || "history",
     pendingReviewId: deep.review,
+    expandedGameId: null,
     games: [], page: 1, size: 20, total: 0,
     gamesLoading: true, gamesError: null,
     job: null, // {type, status, progress, error}
@@ -241,6 +242,7 @@ function accountPage(slug, search) {
 
     init() {
       this.loadGames(); this.loadRank(); this.loadPredictedRank();
+      this.loadReviews();
       // setTab porte déjà le chargement paresseux de chaque onglet : on le rejoue
       // pour l'onglet ouvert par le lien profond plutôt que de dupliquer la logique.
       if (this.tab !== "history") this.setTab(this.tab);
@@ -671,6 +673,84 @@ function accountPage(slug, search) {
       if (queueId === 420) return "Solo/Duo";
       if (queueId === 440) return "Flex";
       return "Partie";
+    },
+
+    toggleGame(matchId) {
+      this.expandedGameId = this.expandedGameId === matchId ? null : matchId;
+    },
+    hasReview(matchId) {
+      if (!matchId || !this.gameReviews) return false;
+      return this.gameReviews.some(r => this.gameMatchId(r) === matchId);
+    },
+    async goToGameReview(matchId) {
+      this.pendingReviewId = matchId;
+      this.setTab("coaching");
+      await this.setCoachingView("games");
+      if (this.gameReviews.length === 0 && this.reviewsLoading) {
+        await this.loadReviews();
+      }
+      const target = await this.resolvePendingReview();
+      if (target) {
+        await this.selectGameReview(target);
+      }
+      this.$nextTick(() => {
+        const el = this.$root.querySelector(".game-reviews") || this.$root.querySelector(".coach-view-tabs");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    },
+    fmtDiff(val, suffix = "") {
+      if (val === null || val === undefined) return "—";
+      const sign = val > 0 ? "+" : "";
+      return `${sign}${val}${suffix}`;
+    },
+    diffClass(val) {
+      if (val === null || val === undefined || val === 0) return "diff-neutral";
+      return val > 0 ? "diff-pos" : "diff-neg";
+    },
+    fmtPct(val) {
+      if (val === null || val === undefined) return "—";
+      return `${Math.round(val * 100)} %`;
+    },
+    fmtNum(val, digits = 1) {
+      if (val === null || val === undefined) return "—";
+      return Number(val).toFixed(digits);
+    },
+    fmtGold(val) {
+      if (val === null || val === undefined) return "—";
+      return `${Math.round(val)} g`;
+    },
+    zoneLabel(z) {
+      if (!z) return "Zone inconnue";
+      const map = {
+        "MID": "Mid lane",
+        "BOT": "Bot lane",
+        "TOP": "Top lane",
+        "JUNGLE/RIVER": "Jungle / Rivière",
+        "BASE": "Base alliée",
+        "ENEMY_BASE": "Base ennemie",
+      };
+      return map[z] || z;
+    },
+    phaseLabel(p) {
+      const map = { early: "Early (0-14m)", mid: "Mid (14-25m)", late: "Late (25m+)" };
+      return map[p] || p;
+    },
+    teamCompAllies(g) {
+      if (!g?.comp) return [];
+      const res = [];
+      if (g.comp.self_adc) res.push({ role: "BOTTOM", roleName: "ADC", champ: g.comp.self_adc, isSelf: g.champion === g.comp.self_adc });
+      if (g.comp.self_support) res.push({ role: "UTILITY", roleName: "SUP", champ: g.comp.self_support, isSelf: g.champion === g.comp.self_support });
+      if (g.comp.self_jungle) res.push({ role: "JUNGLE", roleName: "JGL", champ: g.comp.self_jungle, isSelf: g.champion === g.comp.self_jungle });
+      return res;
+    },
+    teamCompEnemies(g) {
+      if (!g?.comp) return [];
+      const res = [];
+      if (g.comp.enemy_adc) res.push({ role: "BOTTOM", roleName: "ADC", champ: g.comp.enemy_adc });
+      if (g.comp.enemy_support) res.push({ role: "UTILITY", roleName: "SUP", champ: g.comp.enemy_support });
+      if (g.comp.enemy_jungle) res.push({ role: "JUNGLE", roleName: "JGL", champ: g.comp.enemy_jungle });
+      if (g.comp.enemy_mid) res.push({ role: "MIDDLE", roleName: "MID", champ: g.comp.enemy_mid });
+      return res;
     },
   };
 }

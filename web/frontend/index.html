@@ -204,37 +204,284 @@
       <template x-if="!gamesLoading && games.length > 0">
         <div>
           <template x-for="g in games" :key="g.match_id">
-            <div class="game-row" :class="g.win ? 'w' : 'l'">
-              <div class="gr-champ-wrap">
-                <img class="champ-icon" :src="champIcon(g)" :alt="g.champion"
-                     @error="iconFallback($event, g.champion)" loading="lazy">
-                <span class="champ-fallback" style="display:none" x-text="g.champion"></span>
-              </div>
-              <div class="gr-main">
-                <div class="gr-top-row">
-                  <span class="outcome-pill" :class="g.win ? 'pill-win' : 'pill-loss'"
-                        x-text="g.win ? 'VICTOIRE' : 'DÉFAITE'"></span>
-                  <span class="gr-champ" x-text="g.champion"></span>
-                  <div class="gr-role-tag" x-show="g.role">
-                    <img class="role-icon" :src="roleIcon(g.role)" alt="" x-show="roleIcon(g.role)" loading="lazy">
-                    <span x-text="roleLabel(g.role)"></span>
-                  </div>
-                  <template x-if="g.lane && g.lane.opponent">
-                    <div class="gr-matchup" title="Adversaire de lane direct">
-                      <span class="gr-vs">VS</span>
-                      <img class="gr-opp-icon" :src="champIcon(g.lane.opponent)" :alt="g.lane.opponent" loading="lazy">
-                      <span class="gr-opp-name" x-text="g.lane.opponent"></span>
+            <div class="game-card" :class="[g.win ? 'w' : 'l', expandedGameId === g.match_id ? 'is-expanded' : '']">
+              <div class="game-row" @click="toggleGame(g.match_id)" role="button" tabindex="0"
+                   :aria-expanded="(expandedGameId === g.match_id).toString()"
+                   :title="expandedGameId === g.match_id ? 'Cliquer pour replier les détails' : 'Cliquer pour voir tous les détails et stats de la partie'">
+                <div class="gr-champ-wrap">
+                  <img class="champ-icon" :src="champIcon(g)" :alt="g.champion"
+                       @error="iconFallback($event, g.champion)" loading="lazy">
+                  <span class="champ-fallback" style="display:none" x-text="g.champion"></span>
+                </div>
+                <div class="gr-main">
+                  <div class="gr-top-row">
+                    <span class="outcome-pill" :class="g.win ? 'pill-win' : 'pill-loss'"
+                          x-text="g.win ? 'VICTOIRE' : 'DÉFAITE'"></span>
+                    <span class="gr-champ" x-text="g.champion"></span>
+                    <div class="gr-role-tag" x-show="g.role">
+                      <img class="role-icon" :src="roleIcon(g.role)" alt="" x-show="roleIcon(g.role)" loading="lazy">
+                      <span x-text="roleLabel(g.role)"></span>
                     </div>
-                  </template>
+                    <template x-if="g.lane && g.lane.opponent">
+                      <div class="gr-matchup" title="Adversaire de lane direct">
+                        <span class="gr-vs">VS</span>
+                        <img class="gr-opp-icon" :src="champIcon(g.lane.opponent)" :alt="g.lane.opponent" loading="lazy">
+                        <span class="gr-opp-name" x-text="g.lane.opponent"></span>
+                      </div>
+                    </template>
+                  </div>
+                  <div class="gr-sub-row faint">
+                    <span class="gr-queue-badge" x-text="queueLabel(g.queue)"></span>
+                    <span x-show="g.lane && g.lane.gd14 != null" class="gr-diff" :class="g.lane.gd14 >= 0 ? 'diff-pos' : 'diff-neg'"
+                          x-text="(g.lane.gd14 >= 0 ? '+' : '') + g.lane.gd14 + 'g à 14m'"></span>
+                    <span class="gr-badge-coach" x-show="hasReview(g.match_id)">✦ Coaching LLM prêt</span>
+                  </div>
                 </div>
-                <div class="gr-sub-row faint">
-                  <span class="gr-queue-badge" x-text="queueLabel(g.queue)"></span>
-                  <span x-show="g.lane && g.lane.gd14 != null" class="gr-diff" :class="g.lane.gd14 >= 0 ? 'diff-pos' : 'diff-neg'"
-                        x-text="(g.lane.gd14 >= 0 ? '+' : '') + g.lane.gd14 + 'g à 14m'"></span>
+                <div class="gr-kda num"><span class="gr-label">KDA</span><span x-text="kda(g)"></span></div>
+                <div class="gr-patch faint"><span class="gr-label">Patch</span><span x-text="g.patch"></span></div>
+                <div class="gr-expand-action">
+                  <span class="gr-expand-label" x-text="expandedGameId === g.match_id ? 'Fermer' : 'Détails'"></span>
+                  <span class="gr-expand-chevron" :class="expandedGameId === g.match_id ? 'open' : ''">▾</span>
                 </div>
               </div>
-              <div class="gr-kda num"><span class="gr-label">KDA</span><span x-text="kda(g)"></span></div>
-              <div class="gr-patch faint"><span class="gr-label">Patch</span><span x-text="g.patch"></span></div>
+
+              <!-- Volet de détails étendu (Style OP.GG / U.GG) -->
+              <div class="game-details-panel" x-show="expandedGameId === g.match_id" x-transition.opacity.duration.150ms>
+                <!-- Barre d'action & Raccourci Coaching LLM -->
+                <div class="gd-action-bar">
+                  <div class="gd-meta-info">
+                    <span class="gd-meta-tag mono" x-text="g.match_id"></span>
+                    <span class="gd-meta-tag" x-text="queueLabel(g.queue)"></span>
+                    <template x-if="hasReview(g.match_id)">
+                      <span class="gd-coach-status ready">
+                        <span class="pulse-dot"></span> Analyse LLM disponible pour ce match
+                      </span>
+                    </template>
+                    <template x-if="!hasReview(g.match_id)">
+                      <span class="gd-coach-status empty">
+                        ◌ Non analysée individuellement
+                      </span>
+                    </template>
+                  </div>
+                  <button type="button" class="btn-coach-shortcut" @click.stop="goToGameReview(g.match_id)">
+                    <span class="coach-icon">🎯</span>
+                    <span class="coach-txt" x-text="hasReview(g.match_id) ? 'Voir l\'analyse coaching LLM →' : 'Accéder au coaching IA →'"></span>
+                  </button>
+                </div>
+
+                <!-- Grille de stats avancées 4 blocs -->
+                <div class="gd-grid">
+                  <!-- Bloc 1 : Face-à-face de Lane & Écarts de phase -->
+                  <div class="gd-card">
+                    <div class="gd-card-header">
+                      <span class="gd-icon">⚔️</span>
+                      <h4>Face-à-face & Phase de Lane</h4>
+                    </div>
+                    <div class="gd-card-body">
+                      <!-- Matchup confrontation -->
+                      <div class="gd-matchup-box" x-show="g.lane && g.lane.opponent">
+                        <div class="gd-matchup-side self">
+                          <img class="gd-mini-icon" :src="champIcon(g)" :alt="g.champion">
+                          <div>
+                            <strong x-text="g.champion"></strong>
+                            <span class="faint">Toi</span>
+                          </div>
+                        </div>
+                        <span class="gd-matchup-vs">VS</span>
+                        <div class="gd-matchup-side opp">
+                          <img class="gd-mini-icon" :src="champIcon(g.lane?.opponent)" :alt="g.lane?.opponent">
+                          <div>
+                            <strong x-text="g.lane?.opponent"></strong>
+                            <span class="faint">Adversaire direct</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="gd-stats-list">
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Écart d'or (GD)</span>
+                          <div class="gd-stat-group">
+                            <span class="gd-diff-pill" :class="diffClass(g.lane?.gd10)" title="Gold Diff @ 10 min">
+                              10m: <strong x-text="fmtDiff(g.lane?.gd10, 'g')"></strong>
+                            </span>
+                            <span class="gd-diff-pill" :class="diffClass(g.lane?.gd14)" title="Gold Diff @ 14 min">
+                              14m: <strong x-text="fmtDiff(g.lane?.gd14, 'g')"></strong>
+                            </span>
+                            <span class="gd-diff-pill" x-show="g.lane?.gd20 != null" :class="diffClass(g.lane?.gd20)" title="Gold Diff @ 20 min">
+                              20m: <strong x-text="fmtDiff(g.lane?.gd20, 'g')"></strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Écart de sbires (CSD)</span>
+                          <div class="gd-stat-group">
+                            <span class="gd-diff-pill" :class="diffClass(g.lane?.csd10)" title="CS Diff @ 10 min">
+                              10m: <strong x-text="fmtDiff(g.lane?.csd10, ' cs')"></strong>
+                            </span>
+                            <span class="gd-diff-pill" :class="diffClass(g.lane?.csd14)" title="CS Diff @ 14 min">
+                              14m: <strong x-text="fmtDiff(g.lane?.csd14, ' cs')"></strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Écart d'expérience (XPD)</span>
+                          <div class="gd-stat-group">
+                            <span class="gd-diff-pill" :class="diffClass(g.lane?.xpd10)" title="XP Diff @ 10 min">
+                              10m: <strong x-text="fmtDiff(g.lane?.xpd10, ' xp')"></strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Rythme à 14m</span>
+                          <span class="num text-highlight">
+                            <span x-text="fmtNum(g.lane?.csm14) + ' cs/min'"></span> · 
+                            <span x-text="fmtNum(g.lane?.gpm14, 0) + ' g/min'"></span>
+                          </span>
+                        </div>
+
+                        <div class="gd-stat-row" x-show="g.plates_diff_early != null">
+                          <span class="gd-stat-label">Diff. plaques early</span>
+                          <span class="gd-diff-pill" :class="diffClass(g.plates_diff_early)">
+                            <strong x-text="fmtDiff(g.plates_diff_early)"></strong> plaques
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Bloc 2 : Vision & Contrôle de Carte -->
+                  <div class="gd-card">
+                    <div class="gd-card-header">
+                      <span class="gd-icon">👁️</span>
+                      <h4>Vision & Contrôle de Carte</h4>
+                    </div>
+                    <div class="gd-card-body">
+                      <div class="gd-stats-list">
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Balises posées</span>
+                          <span class="num">
+                            <strong x-text="g.position?.wards_placed ?? '—'"></strong>
+                            <span class="faint" x-show="g.position?.wards_placed_early != null" x-text="' (' + g.position.wards_placed_early + ' en early)'"></span>
+                          </span>
+                        </div>
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Balises de contrôle (Pink)</span>
+                          <span class="num">
+                            <strong class="text-pink" x-text="g.position?.control_wards_placed ?? 0"></strong>
+                          </span>
+                        </div>
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Balises détruites</span>
+                          <span class="num">
+                            <strong x-text="g.position?.wards_killed ?? 0"></strong>
+                          </span>
+                        </div>
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Temps en sur-extension</span>
+                          <span class="num" :class="(g.position?.frac_overextended || 0) > 0.15 ? 'text-danger' : 'text-good'">
+                            <strong x-text="fmtPct(g.position?.frac_overextended)"></strong>
+                          </span>
+                        </div>
+                        <div class="gd-stat-row">
+                          <span class="gd-stat-label">Morts subies dans le brouillard</span>
+                          <span class="num" :class="(g.position?.frac_deaths_in_fog || 0) > 0.5 ? 'text-warning' : ''">
+                            <strong x-text="fmtPct(g.position?.frac_deaths_in_fog)"></strong>
+                          </span>
+                        </div>
+                        <div class="gd-stat-row" x-show="g.position?.gold_dead_time != null">
+                          <span class="gd-stat-label">Or perdu pendant les morts</span>
+                          <span class="num text-danger">
+                            <strong x-text="fmtGold(g.position.gold_dead_time)"></strong>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Bloc 3 : Compositions d'Équipes -->
+                  <div class="gd-card">
+                    <div class="gd-card-header">
+                      <span class="gd-icon">👥</span>
+                      <h4>Compositions d'Équipes</h4>
+                    </div>
+                    <div class="gd-card-body">
+                      <div class="gd-teams-grid">
+                        <div class="gd-team-col ally-team">
+                          <div class="gd-team-title">Alliés (Équipe bleue)</div>
+                          <div class="gd-team-players">
+                            <template x-for="p in teamCompAllies(g)" :key="p.role + p.champ">
+                              <div class="gd-player-row" :class="p.isSelf ? 'is-self' : ''">
+                                <img class="gd-mini-icon" :src="champIcon(p.champ)" :alt="p.champ" loading="lazy">
+                                <span class="gd-role-badge" x-text="p.roleName"></span>
+                                <span class="gd-pname" x-text="p.champ"></span>
+                                <span class="gd-self-badge" x-show="p.isSelf">Toi</span>
+                              </div>
+                            </template>
+                            <div x-show="teamCompAllies(g).length === 0" class="faint" style="font-size:11px;padding:8px 0">
+                              Composition non renseignée
+                            </div>
+                          </div>
+                        </div>
+                        <div class="gd-team-col enemy-team">
+                          <div class="gd-team-title">Adversaires (Équipe rouge)</div>
+                          <div class="gd-team-players">
+                            <template x-for="p in teamCompEnemies(g)" :key="p.role + p.champ">
+                              <div class="gd-player-row">
+                                <img class="gd-mini-icon" :src="champIcon(p.champ)" :alt="p.champ" loading="lazy">
+                                <span class="gd-role-badge" x-text="p.roleName"></span>
+                                <span class="gd-pname" x-text="p.champ"></span>
+                              </div>
+                            </template>
+                            <div x-show="teamCompEnemies(g).length === 0" class="faint" style="font-size:11px;padding:8px 0">
+                              Composition non renseignée
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Bloc 4 : Journal chronologique des Morts -->
+                  <div class="gd-card">
+                    <div class="gd-card-header">
+                      <span class="gd-icon">💀</span>
+                      <h4>Journal des Morts (<span x-text="g.deaths ? g.deaths.length : 0"></span>)</h4>
+                    </div>
+                    <div class="gd-card-body">
+                      <template x-if="!g.deaths || g.deaths.length === 0">
+                        <div class="gd-flawless">
+                          <span class="flawless-icon">🏆</span>
+                          <strong>Aucune mort subie !</strong>
+                          <span class="faint">Partie sans faute sur le plan des éliminations.</span>
+                        </div>
+                      </template>
+                      <template x-if="g.deaths && g.deaths.length > 0">
+                        <div class="gd-deaths-timeline">
+                          <template x-for="(d, idx) in g.deaths" :key="idx">
+                            <div class="gd-death-entry">
+                              <span class="gd-death-time" x-text="d.minute + 'm'"></span>
+                              <div class="gd-death-killer">
+                                <img class="gd-mini-icon" :src="champIcon(d.killer_champ)" :alt="d.killer_champ || 'Inconnu'" loading="lazy">
+                                <span class="gd-killer-name" x-text="d.killer_champ || 'Inconnu'"></span>
+                              </div>
+                              <span class="gd-death-zone" x-text="zoneLabel(d.zone)"></span>
+                              <div class="gd-death-tags">
+                                <span class="gd-tag tag-solo" x-show="d.is_solo">Solo</span>
+                                <span class="gd-tag tag-gank" x-show="d.is_ganked_by_jungle">Gank Jungle</span>
+                                <span class="gd-tag tag-2v2" x-show="d.is_2v2">2v2 Bot</span>
+                                <span class="gd-tag tag-behind" x-show="d.gold_state === 'behind'">En retard</span>
+                              </div>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </template>
           <div class="row" style="justify-content:space-between;margin-top:16px">
