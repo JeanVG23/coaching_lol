@@ -497,35 +497,53 @@
                     </div>
                   </div>
 
-                  <!-- Bloc 5 : Journal chronologique des Morts -->
+                  <!-- Bloc 5 : Journal chronologique des Combats (Kills, Morts, Assists) -->
                   <div class="gd-card">
-                    <div class="gd-card-header">
-                      <span class="gd-icon">💀</span>
-                      <h4>Journal des Morts (<span x-text="g.deaths ? g.deaths.length : 0"></span>)</h4>
+                    <div class="gd-card-header gd-combat-header">
+                      <div class="gd-combat-title-wrap">
+                        <span class="gd-icon">⚔️</span>
+                        <h4>Journal des Combats (<span x-text="combatCount(g, 'all')"></span>)</h4>
+                      </div>
+                      <!-- Filtres rapides K / D / A -->
+                      <div class="gd-combat-filters">
+                        <button type="button" class="combat-filter-btn" :class="combatFilter === 'all' ? 'active' : ''"
+                                @click="setCombatFilter('all')">Tous (<span x-text="combatCount(g, 'all')"></span>)</button>
+                        <button type="button" class="combat-filter-btn filter-kill" :class="combatFilter === 'kill' ? 'active' : ''"
+                                @click="setCombatFilter('kill')">K (<span x-text="combatCount(g, 'kill')"></span>)</button>
+                        <button type="button" class="combat-filter-btn filter-death" :class="combatFilter === 'death' ? 'active' : ''"
+                                @click="setCombatFilter('death')">D (<span x-text="combatCount(g, 'death')"></span>)</button>
+                        <button type="button" class="combat-filter-btn filter-assist" :class="combatFilter === 'assist' ? 'active' : ''"
+                                @click="setCombatFilter('assist')">A (<span x-text="combatCount(g, 'assist')"></span>)</button>
+                      </div>
                     </div>
                     <div class="gd-card-body">
-                      <template x-if="!g.deaths || g.deaths.length === 0">
+                      <template x-if="combatEvents(g).length === 0">
                         <div class="gd-flawless">
-                          <span class="flawless-icon">🏆</span>
-                          <strong>Aucune mort subie !</strong>
-                          <span class="faint">Partie sans faute sur le plan des éliminations.</span>
+                          <span class="flawless-icon">🕊️</span>
+                          <strong>Aucun combat enregistré</strong>
+                          <span class="faint">Aucune élimination, mort ou assistance dans cette sélection.</span>
                         </div>
                       </template>
-                      <template x-if="g.deaths && g.deaths.length > 0">
-                        <div class="gd-deaths-timeline">
-                          <template x-for="(d, idx) in g.deaths" :key="idx">
-                            <div class="gd-death-entry">
-                              <span class="gd-death-time" x-text="d.minute + 'm'"></span>
-                              <div class="gd-death-killer">
-                                <img class="gd-mini-icon" :src="champIcon(d.killer_champ)" :alt="d.killer_champ || 'Inconnu'" loading="lazy">
-                                <span class="gd-killer-name" x-text="d.killer_champ || 'Inconnu'"></span>
+                      <template x-if="combatEvents(g).length > 0">
+                        <div class="gd-combat-timeline">
+                          <template x-for="(ev, idx) in combatEvents(g)" :key="idx">
+                            <div class="gd-combat-entry" :class="'entry-' + ev.type">
+                              <span class="gd-combat-time" x-text="ev.minute + 'm'"></span>
+                              <span class="gd-combat-type-badge" :class="'badge-' + ev.type"
+                                    x-text="ev.type === 'kill' ? 'KILL' : (ev.type === 'death' ? 'MORT' : 'ASSIST')"></span>
+                              <div class="gd-combat-target">
+                                <img class="gd-mini-icon" :src="champIcon(ev.champ)" :alt="ev.champ || 'Inconnu'" loading="lazy">
+                                <div class="gd-combat-names">
+                                  <span class="gd-combat-champ" x-text="ev.champ"></span>
+                                  <span class="gd-combat-sub faint" x-show="ev.type === 'assist' && ev.killer_champ" x-text="'par ' + ev.killer_champ"></span>
+                                </div>
                               </div>
-                              <span class="gd-death-zone" x-text="zoneLabel(d.zone)"></span>
-                              <div class="gd-death-tags">
-                                <span class="gd-tag tag-solo" x-show="d.is_solo">Solo</span>
-                                <span class="gd-tag tag-gank" x-show="d.is_ganked_by_jungle">Gank Jungle</span>
-                                <span class="gd-tag tag-2v2" x-show="d.is_2v2">2v2 Bot</span>
-                                <span class="gd-tag tag-behind" x-show="d.gold_state === 'behind'">En retard</span>
+                              <span class="gd-combat-zone" x-text="zoneLabel(ev.zone)"></span>
+                              <div class="gd-combat-tags">
+                                <span class="gd-tag tag-solo" x-show="ev.is_solo">Solo</span>
+                                <span class="gd-tag tag-gank" x-show="ev.is_ganked_by_jungle">Gank Jungle</span>
+                                <span class="gd-tag tag-2v2" x-show="ev.is_2v2">2v2 Bot</span>
+                                <span class="gd-tag tag-behind" x-show="ev.gold_state === 'behind'">En retard</span>
                               </div>
                             </div>
                           </template>

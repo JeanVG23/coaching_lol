@@ -443,13 +443,15 @@ def _combat_metrics(timeline: dict, *, my_pid: int, support_pid: int | None,
             killer_pid = event.get("killerId")
             assisters = event.get("assistingParticipantIds", [])
             involved = {killer_pid, *assisters} - {None}
+            victim_pid = event.get("victimId")
+            position = event.get("position") or {}
+            zone = approx_zone(position.get("x", 0), position.get("y", 0))
 
-            if event.get("victimId") == my_pid:
-                position = event.get("position", {})
+            if victim_pid == my_pid:
                 deaths.append({
                     "minute": minute,
                     "phase": phase_of(minute),
-                    "zone": approx_zone(position.get("x", 0), position.get("y", 0)),
+                    "zone": zone,
                     "killer_role": pid_role.get(killer_pid, "?"),
                     "killer_champ": pid_champ.get(killer_pid, "?"),
                     "gold_state": _gold_state_from_frames(my_fr, opp_fr, minute),
@@ -458,23 +460,31 @@ def _combat_metrics(timeline: dict, *, my_pid: int, support_pid: int | None,
                     and enemy_jungle_pid in involved,
                     "is_2v2": bool(involved) and involved.issubset(enemy_bot_pids),
                 })
-            elif event.get("victimId") == support_pid:
+            elif victim_pid == support_pid:
                 support_deaths.append(minute)
 
             if killer_pid == my_pid:
                 kills.append({
                     "minute": minute,
                     "phase": phase_of(minute),
+                    "zone": zone,
+                    "victim_role": pid_role.get(victim_pid, "?"),
+                    "victim_champ": pid_champ.get(victim_pid, "?"),
                     "is_solo": len(assisters) == 0,
                     "is_2v2": bool(involved) and involved.issubset(my_bot_pids)
-                    and event.get("victimId") in enemy_bot_pids,
+                    and victim_pid in enemy_bot_pids,
                 })
             elif my_pid in assisters:
                 assists.append({
                     "minute": minute,
                     "phase": phase_of(minute),
+                    "zone": zone,
+                    "killer_role": pid_role.get(killer_pid, "?"),
+                    "killer_champ": pid_champ.get(killer_pid, "?"),
+                    "victim_role": pid_role.get(victim_pid, "?"),
+                    "victim_champ": pid_champ.get(victim_pid, "?"),
                     "is_2v2": bool(involved) and involved.issubset(my_bot_pids)
-                    and event.get("victimId") in enemy_bot_pids,
+                    and victim_pid in enemy_bot_pids,
                 })
     return deaths, kills, assists, support_deaths
 

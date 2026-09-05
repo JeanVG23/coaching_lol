@@ -86,9 +86,17 @@ def test_extract_game_characterizes_combat_objective_and_economy_metrics():
         "gold_state": "ahead", "is_solo": False,
         "is_ganked_by_jungle": True, "is_2v2": False,
     }]
-    assert game["kills"] == [{"minute": 5, "phase": "early",
-                               "is_solo": False, "is_2v2": True}]
-    assert game["assists"] == [{"minute": 5, "phase": "early", "is_2v2": True}]
+    assert game["kills"] == [{
+        "minute": 5, "phase": "early", "zone": "MID",
+        "victim_role": "BOTTOM", "victim_champ": "Caitlyn",
+        "is_solo": False, "is_2v2": True,
+    }]
+    assert game["assists"] == [{
+        "minute": 5, "phase": "early", "zone": "MID",
+        "killer_role": "UTILITY", "killer_champ": "Lulu",
+        "victim_role": "UTILITY", "victim_champ": "Leona",
+        "is_2v2": True,
+    }]
     assert game["plates_diff_early"] == 1
     assert game["frames_in_base_early"] == 1
     assert game["avg_dragon_prox"] == 12042

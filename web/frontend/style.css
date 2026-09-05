@@ -1286,7 +1286,60 @@ h3 { font-size: 14px; font-weight: 650; }
   border: 1px solid rgba(248, 81, 73, 0.35);
 }
 
-/* Timeline des morts */
+/* Journal des Combats (KDA) */
+.gd-combat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gd-combat-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gd-combat-filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.combat-filter-btn {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.combat-filter-btn:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+.combat-filter-btn.active {
+  background: var(--panel-hover);
+  color: #fff;
+  border-color: var(--gold);
+}
+.combat-filter-btn.filter-kill.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10b981;
+  color: #34d399;
+}
+.combat-filter-btn.filter-death.active {
+  background: rgba(248, 81, 73, 0.2);
+  border-color: #f85149;
+  color: #ff7588;
+}
+.combat-filter-btn.filter-assist.active {
+  background: rgba(14, 187, 212, 0.2);
+  border-color: #0ebbd4;
+  color: #53ecff;
+}
+
 .gd-flawless {
   display: flex;
   flex-direction: column;
@@ -1305,6 +1358,7 @@ h3 { font-size: 14px; font-weight: 650; }
   font-size: 14px;
 }
 
+.gd-combat-timeline,
 .gd-deaths-timeline {
   display: flex;
   flex-direction: column;
@@ -1313,6 +1367,8 @@ h3 { font-size: 14px; font-weight: 650; }
   overflow-y: auto;
   padding-right: 4px;
 }
+
+.gd-combat-entry,
 .gd-death-entry {
   display: flex;
   align-items: center;
@@ -1321,29 +1377,96 @@ h3 { font-size: 14px; font-weight: 650; }
   padding: 5px 8px;
   background: var(--panel-2);
   border: 1px solid var(--border-soft);
-  border-left: 3px solid #f85149;
   border-radius: 4px;
+  transition: background .15s ease;
 }
+.gd-combat-entry:hover,
+.gd-death-entry:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.gd-combat-entry.entry-kill {
+  border-left: 3px solid #10b981;
+}
+.gd-combat-entry.entry-death,
+.gd-death-entry {
+  border-left: 3px solid #f85149;
+}
+.gd-combat-entry.entry-assist {
+  border-left: 3px solid #0ebbd4;
+}
+
+.gd-combat-time,
 .gd-death-time {
   font-weight: 800;
-  color: #ff7588;
-  min-width: 26px;
+  color: var(--text-dim);
+  min-width: 28px;
+  font-family: var(--font-mono, monospace);
 }
+
+.gd-combat-type-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  flex-shrink: 0;
+  min-width: 44px;
+  text-align: center;
+}
+.gd-combat-type-badge.badge-kill {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.gd-combat-type-badge.badge-death {
+  background: rgba(248, 81, 73, 0.15);
+  color: #ff7588;
+  border: 1px solid rgba(248, 81, 73, 0.4);
+}
+.gd-combat-type-badge.badge-assist {
+  background: rgba(14, 187, 212, 0.15);
+  color: #53ecff;
+  border: 1px solid rgba(14, 187, 212, 0.4);
+}
+
+.gd-combat-target,
 .gd-death-killer {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 90px;
 }
+.gd-combat-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.gd-combat-champ,
 .gd-killer-name {
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.gd-combat-sub {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.gd-combat-zone,
 .gd-death-zone {
   color: var(--text-dim);
   font-size: 10px;
   flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.gd-combat-tags,
 .gd-death-tags {
   display: flex;
   align-items: center;

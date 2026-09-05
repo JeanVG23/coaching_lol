@@ -825,6 +825,73 @@ function accountPage(slug, search) {
       }
       return obj.type;
     },
+    combatFilter: "all",
+    setCombatFilter(f) {
+      this.combatFilter = f;
+    },
+    combatEvents(g) {
+      if (!g) return [];
+      const events = [];
+      const kills = g.kills || [];
+      const deaths = g.deaths || [];
+      const assists = g.assists || [];
+
+      for (const k of kills) {
+        events.push({
+          type: "kill",
+          minute: k.minute,
+          champ: k.victim_champ || "Ennemi",
+          role: k.victim_role,
+          zone: k.zone,
+          is_solo: k.is_solo,
+          is_2v2: k.is_2v2,
+        });
+      }
+
+      for (const d of deaths) {
+        events.push({
+          type: "death",
+          minute: d.minute,
+          champ: d.killer_champ || "Ennemi",
+          role: d.killer_role,
+          zone: d.zone,
+          is_solo: d.is_solo,
+          is_ganked_by_jungle: d.is_ganked_by_jungle,
+          is_2v2: d.is_2v2,
+          gold_state: d.gold_state,
+        });
+      }
+
+      for (const a of assists) {
+        events.push({
+          type: "assist",
+          minute: a.minute,
+          champ: a.victim_champ || "Ennemi",
+          killer_champ: a.killer_champ,
+          role: a.victim_role,
+          zone: a.zone,
+          is_2v2: a.is_2v2,
+        });
+      }
+
+      const typeRank = { kill: 1, assist: 2, death: 3 };
+      events.sort((a, b) => {
+        if (a.minute !== b.minute) return a.minute - b.minute;
+        return (typeRank[a.type] || 0) - (typeRank[b.type] || 0);
+      });
+
+      if (this.combatFilter === "kill") return events.filter(e => e.type === "kill");
+      if (this.combatFilter === "death") return events.filter(e => e.type === "death");
+      if (this.combatFilter === "assist") return events.filter(e => e.type === "assist");
+      return events;
+    },
+    combatCount(g, type) {
+      if (!g) return 0;
+      if (type === "kill") return g.kills?.length || 0;
+      if (type === "death") return g.deaths?.length || 0;
+      if (type === "assist") return g.assists?.length || 0;
+      return (g.kills?.length || 0) + (g.deaths?.length || 0) + (g.assists?.length || 0);
+    },
   };
 }
 function readmePage() {
