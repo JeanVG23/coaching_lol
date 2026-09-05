@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="hextech">
+<html lang="fr">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -44,31 +44,6 @@
         </div>
       </div>
       <div class="spacer"></div>
-      <div class="theme-picker" @click.outside="themePickerOpen = false">
-        <button class="theme-picker-btn" type="button" @click="themePickerOpen = !themePickerOpen" aria-label="Choisir le thème">
-          <span class="theme-indicator" :class="'theme-' + currentTheme"></span>
-          <span class="theme-label" x-text="themeName(currentTheme)"></span>
-          <span class="faint">▾</span>
-        </button>
-        <div class="theme-picker-menu" x-show="themePickerOpen" x-transition>
-          <button type="button" :class="{ active: currentTheme === 'hextech' }" @click="setTheme('hextech'); themePickerOpen = false">
-            <span class="theme-indicator theme-hextech"></span>
-            <div><strong>Hextech Cyan</strong><small>LoL Esport (Recommandé)</small></div>
-          </button>
-          <button type="button" :class="{ active: currentTheme === 'indigo' }" @click="setTheme('indigo'); themePickerOpen = false">
-            <span class="theme-indicator theme-indigo"></span>
-            <div><strong>Indigo Pro</strong><small>Tracker & Analytics</small></div>
-          </button>
-          <button type="button" :class="{ active: currentTheme === 'tactical' }" @click="setTheme('tactical'); themePickerOpen = false">
-            <span class="theme-indicator theme-tactical"></span>
-            <div><strong>Tactical Mint</strong><small>Performance & Coach</small></div>
-          </button>
-          <button type="button" :class="{ active: currentTheme === 'legacy' }" @click="setTheme('legacy'); themePickerOpen = false">
-            <span class="theme-indicator theme-legacy"></span>
-            <div><strong>Ancien (Sombre/Or)</strong><small>Pour comparaison</small></div>
-          </button>
-        </div>
-      </div>
       <a class="nav" href="/readme" @click.prevent="go('/readme')">À propos</a>
     </div>
   </nav>

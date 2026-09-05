@@ -108,32 +108,11 @@ function coachErrorMessage(error) {
 }
 
 function app() {
-  let initialTheme = "hextech";
-  try {
-    initialTheme = localStorage.getItem("coachlol:theme") || "hextech";
-  } catch (e) {}
-  document.documentElement.setAttribute("data-theme", initialTheme);
-
   return {
     path: location.pathname,
     accounts: [],
     accountsLoading: true,
     get route() { return routeOf(this.path); },
-
-    currentTheme: initialTheme,
-    themePickerOpen: false,
-    setTheme(t) {
-      this.currentTheme = t;
-      try { localStorage.setItem("coachlol:theme", t); } catch (e) {}
-      document.documentElement.setAttribute("data-theme", t);
-    },
-    themeName(t) {
-      if (t === "hextech") return "Hextech";
-      if (t === "indigo") return "Indigo";
-      if (t === "tactical") return "Tactique";
-      if (t === "legacy") return "Ancien (Or)";
-      return "Thème";
-    },
 
     init() {
       window.addEventListener("popstate", () => { this.path = location.pathname; });
