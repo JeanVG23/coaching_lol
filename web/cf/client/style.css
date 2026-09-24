@@ -418,6 +418,27 @@ global-coaching { display: block; }
 .row.wrap { flex-wrap: wrap; }
 .spacer { flex: 1; }
 
+/* Icônes : trait Lucide (<AppIcon>) et masques d'objectifs du jeu. Les deux
+   prennent la taille et la couleur du texte, jamais une couleur propre. */
+.icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -0.125em;
+}
+.obj-glyph {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+  vertical-align: -0.2em;
+  background-color: currentColor;
+  -webkit-mask: var(--obj-mask) center / contain no-repeat;
+  mask: var(--obj-mask) center / contain no-repeat;
+}
+/* Dans un bouton flex, l'espace qui suit l'icône est absorbé par le rendu. */
+.btn > .icon:first-child:not(:only-child) { margin-inline-end: 0.4em; }
+
 /* Contrôles */
 .btn {
   display: inline-flex;

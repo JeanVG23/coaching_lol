@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { rankEmblem, titleCase, type PredictedRank } from "../account-profile";
 import { withAuthHeaders } from "../auth";
@@ -165,7 +166,7 @@ function coachButtonText(game: GameSummary): string {
     };
     return labels[info.analysis_unavailable_reason || ""] || "Game journal unavailable";
   }
-  if (!props.authenticated) return "🔒 Sign in to analyze";
+  if (!props.authenticated) return "Sign in to analyze";
   return pedagogicTarget(game) ? "Analyze this recommended game →" : "Analyze this game with AI →";
 }
 
@@ -263,7 +264,7 @@ onMounted(loadGames);
             <div class="gd-meta-info">
               <span class="gd-meta-tag mono">{{ game.match_id }}</span>
               <span class="gd-meta-tag">{{ queueLabel(game.queue) }}</span>
-              <span v-if="game.game_ts" class="gd-meta-tag gd-meta-date" :title="formatFullDate(game.game_ts)">📅 {{ formatGameDate(game.game_ts) }}</span>
+              <span v-if="game.game_ts" class="gd-meta-tag gd-meta-date" :title="formatFullDate(game.game_ts)"><AppIcon name="calendar" /> {{ formatGameDate(game.game_ts) }}</span>
               <span v-if="hasReview(game.match_id)" class="gd-coach-status ready">
                 <span class="pulse-dot"></span>
                 <span>{{ matchCoachInfo(game.match_id)?.review_status === "stale" ? "Existing LLM analysis (older version)" : "LLM analysis available for this match" }}</span>
@@ -284,7 +285,7 @@ onMounted(loadGames);
               :disabled="coachBusy || Boolean(!hasReview(game.match_id) && matchCoachInfo(game.match_id) && !matchCoachInfo(game.match_id)?.analyzable)"
               @click.stop="emit('coachGame', game)"
             >
-              <span class="coach-icon">{{ hasReview(game.match_id) || authenticated ? "🎯" : "🔒" }}</span>
+              <AppIcon class="coach-icon" :name="hasReview(game.match_id) || authenticated ? 'target' : 'lock'" />
               <span class="coach-txt">{{ coachButtonText(game) }}</span>
             </button>
             <button
@@ -294,12 +295,12 @@ onMounted(loadGames);
               :disabled="coachBusy"
               title="This action makes a new Ollama request"
               @click.stop="emit('regenerateGame', game)"
-            >{{ authenticated ? "Regenerate" : "🔒 Regenerate" }}</button>
+            ><AppIcon v-if="!authenticated" name="lock" /> Regenerate</button>
           </div>
 
           <div class="gd-grid">
             <div class="gd-card">
-              <div class="gd-card-header"><span class="gd-icon">⚔️</span><h4>Matchup &amp; Laning Phase</h4></div>
+              <div class="gd-card-header"><AppIcon name="swords" class="gd-icon" /><h4>Matchup &amp; Laning Phase</h4></div>
               <div class="gd-card-body">
                 <div v-if="game.lane?.opponent" class="gd-matchup-box">
                   <div class="gd-matchup-side self">
@@ -339,7 +340,7 @@ onMounted(loadGames);
             </div>
 
             <div class="gd-card">
-              <div class="gd-card-header"><span class="gd-icon">👁️</span><h4>Vision &amp; Map Control</h4></div>
+              <div class="gd-card-header"><AppIcon name="eye" class="gd-icon" /><h4>Vision &amp; Map Control</h4></div>
               <div class="gd-card-body"><div class="gd-stats-list">
                 <div class="gd-stat-row"><span class="gd-stat-label">Wards placed</span><span class="num"><strong>{{ game.position?.wards_placed ?? "—" }}</strong><span v-if="game.position?.wards_placed_early != null" class="faint"> ({{ game.position.wards_placed_early }} early)</span></span></div>
                 <div class="gd-stat-row"><span class="gd-stat-label">Control wards</span><span class="num"><strong class="text-pink">{{ game.position?.control_wards_placed ?? 0 }}</strong></span></div>
@@ -351,12 +352,12 @@ onMounted(loadGames);
             </div>
 
             <div class="gd-card gd-card-full">
-              <div class="gd-card-header"><span class="gd-icon">👥</span><h4>Team Compositions &amp; Early Game Plan</h4></div>
+              <div class="gd-card-header"><AppIcon name="users" class="gd-icon" /><h4>Team Compositions &amp; Early Game Plan</h4></div>
               <div class="gd-card-body">
                 <div v-if="sideSummary(game)" class="gd-sides-banner">
                   <div class="gd-sides-row">
-                    <div class="gd-side-item ally"><span class="gd-side-label">Allies:</span><span class="gd-side-val"><strong>{{ game.sides?.ally_jungler || "Jungle" }}</strong> start <span class="mono">{{ game.sides?.ally_start }}</span> ➔ <span class="badge-side" :class="game.sides?.ally_strongside === 'BOT' ? 'badge-strongside' : 'badge-weakside'">Bot {{ game.sides?.ally_strongside === "BOT" ? "STRONGSIDE" : "WEAKSIDE" }}</span><span class="faint">· Top {{ game.sides?.ally_strongside === "TOP" ? "Strongside" : "Weakside" }}</span></span></div>
-                    <div class="gd-side-item enemy"><span class="gd-side-label">Enemies:</span><span class="gd-side-val"><strong>{{ game.sides?.enemy_jungler || "Jungle" }}</strong> start <span class="mono">{{ game.sides?.enemy_start }}</span> ➔ <span class="badge-side" :class="game.sides?.enemy_strongside === 'BOT' ? 'badge-strongside' : 'badge-weakside'">Bot {{ game.sides?.enemy_strongside === "BOT" ? "STRONGSIDE" : "WEAKSIDE" }}</span><span class="faint">· Top {{ game.sides?.enemy_strongside === "TOP" ? "Strongside" : "Weakside" }}</span></span></div>
+                    <div class="gd-side-item ally"><span class="gd-side-label">Allies:</span><span class="gd-side-val"><strong>{{ game.sides?.ally_jungler || "Jungle" }}</strong> start <span class="mono">{{ game.sides?.ally_start }}</span> → <span class="badge-side" :class="game.sides?.ally_strongside === 'BOT' ? 'badge-strongside' : 'badge-weakside'">Bot {{ game.sides?.ally_strongside === "BOT" ? "STRONGSIDE" : "WEAKSIDE" }}</span><span class="faint">· Top {{ game.sides?.ally_strongside === "TOP" ? "Strongside" : "Weakside" }}</span></span></div>
+                    <div class="gd-side-item enemy"><span class="gd-side-label">Enemies:</span><span class="gd-side-val"><strong>{{ game.sides?.enemy_jungler || "Jungle" }}</strong> start <span class="mono">{{ game.sides?.enemy_start }}</span> → <span class="badge-side" :class="game.sides?.enemy_strongside === 'BOT' ? 'badge-strongside' : 'badge-weakside'">Bot {{ game.sides?.enemy_strongside === "BOT" ? "STRONGSIDE" : "WEAKSIDE" }}</span><span class="faint">· Top {{ game.sides?.enemy_strongside === "TOP" ? "Strongside" : "Weakside" }}</span></span></div>
                   </div>
                   <div class="gd-side-summary">{{ sideSummary(game) }}</div>
                 </div>
@@ -384,12 +385,12 @@ onMounted(loadGames);
             </div>
 
             <div class="gd-card">
-              <div class="gd-card-header"><span class="gd-icon">🐉</span><h4>Objectives &amp; Structures ({{ game.objectives?.length || 0 }})</h4></div>
+              <div class="gd-card-header"><span class="obj-glyph gd-icon" style="--obj-mask: url(/images/objectives/dragon.png)"></span><h4>Objectives &amp; Structures ({{ game.objectives?.length || 0 }})</h4></div>
               <div class="gd-card-body">
                 <div v-if="!game.objectives?.length" class="gd-empty-objectives faint">No epic monsters or structures recorded in this game.</div>
                 <div v-else class="gd-objectives-timeline">
                   <div v-for="(objective, index) in game.objectives" :key="index" class="gd-obj-entry" :class="objective.is_ally ? 'ally' : 'enemy'">
-                    <span class="gd-obj-time">{{ objective.minute }}m</span><span class="gd-obj-icon">{{ objectiveIcon(objective) }}</span><span class="gd-obj-name">{{ objectiveLabel(objective) }}</span><span class="gd-obj-team-badge" :class="objective.is_ally ? 'badge-ally' : 'badge-enemy'">{{ objective.is_ally ? "Allies" : "Enemies" }}</span>
+                    <span class="gd-obj-time">{{ objective.minute }}m</span><span class="obj-glyph gd-obj-icon" :style="{ '--obj-mask': `url(${objectiveIcon(objective)})` }"></span><span class="gd-obj-name">{{ objectiveLabel(objective) }}</span><span class="gd-obj-team-badge" :class="objective.is_ally ? 'badge-ally' : 'badge-enemy'">{{ objective.is_ally ? "Allies" : "Enemies" }}</span>
                   </div>
                 </div>
               </div>
@@ -397,7 +398,7 @@ onMounted(loadGames);
 
             <div class="gd-card">
               <div class="gd-card-header gd-combat-header">
-                <div class="gd-combat-title-wrap"><span class="gd-icon">⚔️</span><h4>Combat Log ({{ combatCount(game, "all") }})</h4></div>
+                <div class="gd-combat-title-wrap"><AppIcon name="swords" class="gd-icon" /><h4>Combat Log ({{ combatCount(game, "all") }})</h4></div>
                 <div class="gd-combat-filters">
                   <button type="button" class="combat-filter-btn" :class="{ active: combatFilter === 'all' }" @click="combatFilter = 'all'">All ({{ combatCount(game, "all") }})</button>
                   <button type="button" class="combat-filter-btn filter-kill" :class="{ active: combatFilter === 'kill' }" @click="combatFilter = 'kill'">K ({{ combatCount(game, "kill") }})</button>
@@ -406,7 +407,7 @@ onMounted(loadGames);
                 </div>
               </div>
               <div class="gd-card-body">
-                <div v-if="combatEvents(game, combatFilter).length === 0" class="gd-flawless"><span class="flawless-icon">🕊️</span><strong>No combat recorded</strong><span class="faint">No kills, deaths, or assists in this selection.</span></div>
+                <div v-if="combatEvents(game, combatFilter).length === 0" class="gd-flawless"><AppIcon name="feather" class="flawless-icon" /><strong>No combat recorded</strong><span class="faint">No kills, deaths, or assists in this selection.</span></div>
                 <div v-else class="gd-combat-timeline">
                   <div v-for="(event, index) in combatEvents(game, combatFilter)" :key="index" class="gd-combat-entry" :class="`entry-${event.type}`">
                     <span class="gd-combat-time">{{ event.minute }}m</span><span class="gd-combat-type-badge" :class="`badge-${event.type}`">{{ event.type === "kill" ? "KILL" : event.type === "death" ? "DEATH" : "ASSIST" }}</span>
@@ -612,6 +613,7 @@ onMounted(loadGames);
 }
 .gd-meta-tag {
   display: inline-flex;
+  gap: 5px;
   align-items: center;
   padding: 3px 8px;
   background: var(--panel-2);

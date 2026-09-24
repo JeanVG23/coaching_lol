@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  championIcon,
   combatEvents,
   formatFullDate,
   formatGameDate,
@@ -46,5 +47,10 @@ describe("game history formatters", () => {
     expect(formatGameDate(null)).toBe("");
     expect(formatGameDate(undefined)).toBe("");
     expect(formatGameDate("invalide")).toBe("");
+  });
+
+  it("résout le nom Match-V5 vers le fichier Data Dragon", () => {
+    expect(championIcon("FiddleSticks", "16.17")).toBe("https://ddragon.leagueoflegends.com/cdn/16.17.1/img/champion/Fiddlesticks.png");
+    expect(championIcon("Kai'Sa", "16.17")).toMatch(/\/Kaisa\.png$/);
   });
 });

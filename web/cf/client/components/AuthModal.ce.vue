@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import {
   notifyAuthChange,
@@ -89,7 +90,7 @@ onBeforeUnmount(() => {
       <div class="auth-modal-header">
         <div class="auth-modal-header-left">
           <div class="auth-modal-icon-wrap">
-            <span class="auth-modal-icon">🔐</span>
+            <AppIcon name="key-round" class="auth-modal-icon" />
           </div>
           <div>
             <h3 id="auth-modal-title" class="auth-modal-title">AI Coach Access</h3>
@@ -117,7 +118,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="error" class="auth-error-banner" role="alert">
-          <span class="auth-error-icon">⚠️</span>
+          <AppIcon name="triangle-alert" class="auth-error-icon" />
           <span>{{ error }}</span>
         </div>
 
@@ -125,7 +126,7 @@ onBeforeUnmount(() => {
           <button type="button" class="btn btn-secondary auth-cancel-btn" @click="close">Cancel</button>
           <button type="submit" class="btn btn-primary auth-submit-btn" :disabled="loading || !password.trim()">
             <span>{{ loading ? "Checking…" : "Unlock" }}</span>
-            <span v-if="!loading" aria-hidden="true">🔓</span>
+            <AppIcon v-if="!loading" name="lock-open" />
           </button>
         </div>
       </form>

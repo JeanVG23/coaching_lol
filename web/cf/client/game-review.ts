@@ -1,11 +1,5 @@
 import { LATEST_DDRAGON } from "./account-profile";
-
-const CHAMP_SLUGS: Record<string, string> = {
-  "Kai'Sa": "Kaisa", "Kha'Zix": "Khazix", "Cho'Gath": "Chogath",
-  "Vel'Koz": "Velkoz", Wukong: "MonkeyKing", LeBlanc: "Leblanc",
-  "Nunu & Willump": "Nunu", "Renata Glasc": "Renata", "Bel'Veth": "Belveth",
-  "K'Sante": "KSante",
-};
+import { championKey } from "./game-history";
 
 const COMMUNITY_DRAGON_IDS: Record<string, number> = {
   Annie: 1, Olaf: 2, Galio: 3, "Twisted Fate": 4, "Xin Zhao": 5, Urgot: 6,
@@ -82,10 +76,6 @@ export function gameKda(review?: GameReview | null): string | null {
   return `${kills}/${deaths}/${assists} · ${deaths === 0 ? "Perfect" : ((kills + assists) / deaths).toFixed(2)}`;
 }
 
-function championKey(champion: string): string {
-  return CHAMP_SLUGS[champion] || champion.replace(/['\s.]/g, "");
-}
-
 export function gameIcon(review?: GameReview | null): string {
   const meta = gameMeta(review);
   if (!meta.champion) return "";
@@ -99,7 +89,7 @@ export function gameIcon(review?: GameReview | null): string {
 
 export function iconFallback(event: Event, champion: string): void {
   const image = event.target as HTMLImageElement;
-  const id = COMMUNITY_DRAGON_IDS[champion] || COMMUNITY_DRAGON_IDS[CHAMP_SLUGS[champion]];
+  const id = COMMUNITY_DRAGON_IDS[champion] || COMMUNITY_DRAGON_IDS[championKey(champion)];
   if (id && !image.dataset.triedCd) {
     image.dataset.triedCd = "1";
     image.src = `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/${id}.png`;

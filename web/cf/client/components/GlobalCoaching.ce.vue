@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed, ref, watch } from "vue";
 import { formatDate } from "../account-profile";
 import { categoryLabel, insightBody, insightTitle } from "../coaching";
@@ -177,11 +178,12 @@ watch([() => props.slug, () => props.review?.ts], loadFeedback, { immediate: tru
 <template>
   <div v-if="loading" class="state">Loading analyses…</div>
   <div v-else-if="!review" class="state empty-state coach-empty-card">
-    <div class="coach-empty-icon">🎯</div>
+    <AppIcon name="target" class="coach-empty-icon" />
     <strong>{{ scope ? "No global coaching saved yet" : "Main role not detected yet" }}</strong>
     <p class="coach-empty-copy">{{ scope ? `Generate one synthesis for your main role (${scopeName}), combining wins and losses.` : "Refresh the account first so coaching and ML & SHAP use the same main role." }}</p>
     <button class="btn btn-primary" :disabled="busy || !scope" @click="emit('generate')">
-      {{ busy ? "Generating…" : (authenticated ? "Generate global coaching →" : "🔒 Sign in to generate →") }}
+      <AppIcon v-if="!busy && !authenticated" name="lock" />
+      {{ busy ? "Generating…" : (authenticated ? "Generate global coaching →" : "Sign in to generate →") }}
     </button>
   </div>
 
@@ -269,7 +271,7 @@ watch([() => props.slug, () => props.review?.ts], loadFeedback, { immediate: tru
 
       <div class="insight-grid shared-insights">
       <div class="card insight-col">
-        <div class="col-head"><span class="col-icon">🛡️</span><h3>Strengths</h3></div>
+        <div class="col-head"><AppIcon name="shield-check" class="col-icon" /><h3>Strengths</h3></div>
         <div
           v-for="(item, index) in review.review.strengths || []"
           :key="`strength-${index}`"
@@ -291,7 +293,7 @@ watch([() => props.slug, () => props.review?.ts], loadFeedback, { immediate: tru
         </div>
       </div>
       <div class="card insight-col">
-        <div class="col-head"><span class="col-icon">⚠️</span><h3>Recurring mistakes</h3></div>
+        <div class="col-head"><AppIcon name="triangle-alert" class="col-icon" /><h3>Recurring mistakes</h3></div>
         <div
           v-for="(item, index) in review.review.mistakes || []"
           :key="`mistake-${index}`"
@@ -313,7 +315,7 @@ watch([() => props.slug, () => props.review?.ts], loadFeedback, { immediate: tru
         </div>
       </div>
       <div class="card insight-col">
-        <div class="col-head"><span class="col-icon">🔄</span><h3>Habits</h3></div>
+        <div class="col-head"><AppIcon name="repeat" class="col-icon" /><h3>Habits</h3></div>
         <div
           v-for="(habit, index) in review.review.habits || []"
           :key="`habit-${index}`"

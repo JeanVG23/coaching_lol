@@ -3,6 +3,7 @@
 Les interactions sont couvertes par Vitest dans web/cf/client ; ce fichier
 verrouille surtout l'architecture livrée et les contrats entre composants.
 """
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -213,6 +214,25 @@ def test_timestamp_reading_has_a_single_owner():
     for name in ("client/game-timeline.ts", "client/components/GameReviews.vue",
                  "client/components/GlobalCoaching.ce.vue", "src/index.ts"):
         assert "[0-5]\\d" not in _read(name), name
+
+
+# Pictogrammes couleur : chaque OS les dessine à sa façon et ils ignorent la
+# palette. Les icônes passent par <AppIcon> (trait Lucide, currentColor) ou par
+# les masques d'objectifs. Restent permis les glyphes typographiques qu'Inter
+# dessine lui-même (flèches, coches, ✦ ornement de la DA).
+_EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F]")
+_TYPOGRAPHIC = set("✦✓✕✗✎")
+
+
+def test_client_uses_icons_not_emojis():
+    offenders = []
+    for path in sorted((WEB / "client").rglob("*")):
+        if path.suffix not in {".ts", ".vue", ".css"}:
+            continue
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            if any(char not in _TYPOGRAPHIC for char in _EMOJI.findall(line)):
+                offenders.append(f"{path.relative_to(WEB)}:{number}")
+    assert not offenders, offenders
 
 
 def test_shap_renders_the_breakdown_without_a_canvas():

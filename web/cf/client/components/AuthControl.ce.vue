@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import {
   authToken,
@@ -63,12 +64,12 @@ onBeforeUnmount(() => {
     title="Sign in to unlock LLM features"
     @click="openCoachAuth()"
   >
-    <span class="auth-lock-icon">🔒</span>
+    <AppIcon name="lock" class="auth-lock-icon" />
     <span>Coach sign-in</span>
   </button>
   <div v-else class="topbar-auth-logged">
     <span class="topbar-auth-pill" title="Coach mode unlocked">
-      <span class="auth-unlock-icon">🔓</span>
+      <AppIcon name="lock-open" class="auth-unlock-icon" />
       <span>Coach active</span>
     </span>
     <button type="button" class="topbar-logout-btn" title="Sign out" @click="logout">

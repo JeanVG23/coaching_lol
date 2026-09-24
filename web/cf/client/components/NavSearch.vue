@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { onBeforeUnmount } from "vue";
 import { RIOT_PLATFORMS, useAccountRegistration } from "../account-registration";
 
@@ -86,7 +87,7 @@ onBeforeUnmount(() => {
 
     <!-- Bulle d'erreur contextuelle -->
     <div v-if="error" class="nav-search-error-toast" role="alert">
-      <span class="nav-search-error-icon" aria-hidden="true">⚠️</span>
+      <AppIcon name="triangle-alert" class="nav-search-error-icon" />
       <span class="nav-search-error-msg">{{ error }}</span>
       <button type="button" class="nav-search-error-close" aria-label="Dismiss error" @click="clearError">×</button>
     </div>

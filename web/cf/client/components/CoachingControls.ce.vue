@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { rankEmblem } from "../account-profile";
 
 type CoachingView = "overall" | "games";
@@ -72,7 +73,8 @@ const emit = defineEmits<{
           <div><span>Reference</span><strong>Challenger players</strong></div>
         </div>
         <button class="btn btn-primary coach-generate" :disabled="busy || !roleReady" @click="emit('generate')">
-          <span>{{ busy ? "Analyzing…" : (authenticated ? "Generate coaching" : "🔒 Unlock coaching") }}</span>
+          <AppIcon v-if="!busy && !authenticated" name="lock" />
+          <span>{{ busy ? "Analyzing…" : (authenticated ? "Generate coaching" : "Unlock coaching") }}</span>
           <span v-if="!busy" aria-hidden="true">→</span>
         </button>
       </div>
@@ -319,6 +321,10 @@ const emit = defineEmits<{
 .coach-generate span {
   margin-left: 5px;
   font-size: var(--fs-lead);
+}
+
+.coach-generate .icon + span {
+  margin-left: 0;
 }
 
 @media (max-width: 640px) {

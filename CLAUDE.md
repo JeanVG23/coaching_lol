@@ -211,6 +211,13 @@ web/
                   L'onglet ML rend ces groupes en DOM natif (jauge, verdict, lignes de
                   thème) : Chart.js est retiré du bundle (`web/cf/package.json`) et
                   ShapProfile.ce.vue n'a plus de `<canvas>`.
+                  Icônes : aucun emoji dans le client (chaque OS les dessine à sa façon,
+                  hors palette). `icons.ts` recopie les seuls tracés Lucide utilisés,
+                  rendus par `<AppIcon>` en `currentColor` ; les objectifs (drakes,
+                  Baron, Atakhan…) sont des masques monochromes CSS sur
+                  `public/images/objectives/*.png`. `championKey` (game-history.ts) est
+                  l'unique table des noms Data Dragon. `tests/web/test_frontend.py`
+                  échoue si un emoji réapparaît (glyphes typographiques ✦✓✕✗✎ permis).
                   game-timeline.ts = frises, côté vue. Celle d'UNE partie place un repère
                   par instant cité (jamais un insight planté à zéro faute de date) ;
                   `PHASE_BANDS` découpe en minutes ABSOLUES (0-5 / 5-15 / 15-25 / 25+) parce
@@ -603,8 +610,13 @@ Historique complet des runs, métriques et decisions (dates, chiffres, specs) :
   GM+CHALLENGER depuis le 2026-09-18 : médiane held-out EBM 0.77 à 0.87 selon le
   rôle sur 10 tirages, marge positive sur 4 rôles (TOP négatif, un tirage à 0.566
   gonflant la dispersion).
-  Les cinq rôles sont FERMÉS au public (`corpus: "research"`) : l'ouverture demande une
-  certification manuelle, pas une marge positive. Détail et chiffres : `docs/PROGRESS.md`.
+  Trois rôles sont OUVERTS au public depuis leur certification manuelle du 2026-09-20
+  (`config/role_corpus.json`, `corpus: "production"`) : JUNGLE (marge +0.097), BOTTOM
+  (+0.048), SUPPORT (+0.052). TOP (marge négative) et MIDDLE (+0.004, positive mais non
+  certifiée) restent en `research`. L'ouverture demande une certification manuelle, pas
+  une marge positive, et elle tombe d'elle-même au prochain `model_id` : une recapture
+  du ladder (labels à 82 jours au 2026-09-24) referme donc les trois rôles jusqu'à
+  nouvelle lecture. Détail et chiffres : `docs/PROGRESS.md`.
 - **Rang servi = per-player** (ensemble xgb+rf+ebm, hypothèse constance sur tout
   l'historique, `MIN_PLAYER_GAMES=15`), test held-out AUC 0.688. **Per-game rang
   ABANDONNÉ** (2026-09-08, acté) : frontière master/GM illisible à N=1
@@ -660,10 +672,10 @@ Historique complet des runs, métriques et decisions (dates, chiffres, specs) :
 
 ### Prochaines étapes
 
-1. **Coaching (axe prioritaire)** : décider si la cohorte homogène `07692894c681`
-   peut être synchronisée sans nouvelle annotation humaine. Les gates automatiques passent
-   (91,8 % d'ancrage, 91,7 % de sensibilité), mais l'utilité n'a pas été remesurée ; la
-   preuve humaine disponible reste la cohorte Kimi précédente. Ensuite
+1. **Coaching (axe prioritaire)** : annoter la cohorte `07692894c681`, déjà servie par
+   le site sans annotation humaine. Les gates automatiques passent (91,8 % d'ancrage,
+   91,7 % de sensibilité), mais l'utilité n'a pas été remesurée ; la preuve humaine
+   disponible reste la cohorte Kimi précédente. Ensuite
    **coacher le plancher** — cibler les games du
    pire décile p10 (insight ML per-player : le rang = le plancher, pas la
    moyenne) et boucle de focus inter-games (adhérence au `next_focus`).

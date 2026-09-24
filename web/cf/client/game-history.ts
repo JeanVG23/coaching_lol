@@ -65,7 +65,14 @@ const CHAMPION_SLUGS: Record<string, string> = {
   "Vel'Koz": "Velkoz", Wukong: "MonkeyKing", LeBlanc: "Leblanc",
   "Nunu & Willump": "Nunu", "Renata Glasc": "Renata", "Bel'Veth": "Belveth",
   "K'Sante": "KSante",
+  // Match-V5 écrit « FiddleSticks » ; Data Dragon ne connaît que « Fiddlesticks ».
+  FiddleSticks: "Fiddlesticks",
 };
+
+// Nom de fichier Data Dragon d'un champion, tel que Match-V5 ou l'affichage le nomment.
+export function championKey(champion: string): string {
+  return CHAMPION_SLUGS[champion] || champion.replace(/['\s.]/g, "");
+}
 
 const COMMUNITY_DRAGON_IDS: Record<string, number> = {
   Ambessa: 799, Mel: 800, Yunara: 804, Locke: 805, Zaahen: 904,
@@ -79,7 +86,7 @@ export function championIcon(champion: string | undefined, patch?: string): stri
   if (communityId) {
     return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/${communityId}.png`;
   }
-  const key = CHAMPION_SLUGS[champion] || champion.replace(/['\s.]/g, "");
+  const key = championKey(champion);
   const rawPatch = String(patch || LATEST_DDRAGON);
   const version = rawPatch.split(".").length === 2 ? `${rawPatch}.1` : rawPatch;
   return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${key}.png`;
@@ -90,8 +97,7 @@ export function fallbackChampionIcon(event: Event, champion?: string): void {
   if (!image) return;
   if (champion && !image.dataset.triedLatest) {
     image.dataset.triedLatest = "1";
-    const key = CHAMPION_SLUGS[champion] || champion.replace(/['\s.]/g, "");
-    image.src = `https://ddragon.leagueoflegends.com/cdn/${LATEST_DDRAGON}/img/champion/${key}.png`;
+    image.src = `https://ddragon.leagueoflegends.com/cdn/${LATEST_DDRAGON}/img/champion/${championKey(champion)}.png`;
     return;
   }
   image.style.display = "none";
@@ -191,19 +197,19 @@ export function sideSummary(game: GameSummary): string | null {
   return "Bot warning: your jungler paths top (weakside), while the enemy jungler paths bot (strongside).";
 }
 
+// Masques monochromes tirés des icônes de minimap du jeu (CommunityDragon, trait
+// seul) : la couleur vient du CSS, jamais du fichier.
 export function objectiveIcon(objective: GameObjective): string {
+  let slug: string | undefined = ({ HORDE: "grubs", RIFTHERALD: "herald", BARON_NASHOR: "baron", ATAKHAN: "atakhan", TURRET: "turret" } as Record<string, string>)[objective.type || ""];
   if (objective.type === "DRAGON") {
     const sub = objective.sub_type || "";
-    if (sub.includes("FIRE")) return "🔥";
-    if (sub.includes("WATER")) return "💧";
-    if (sub.includes("EARTH")) return "⛰️";
-    if (sub.includes("AIR")) return "💨";
-    if (sub.includes("HEXTECH")) return "⚡";
-    if (sub.includes("CHEMTECH")) return "☣️";
-    if (sub.includes("ELDER")) return "👑";
-    return "🐉";
+    const variants: Array<[string, string]> = [
+      ["FIRE", "infernal"], ["WATER", "ocean"], ["EARTH", "mountain"],
+      ["AIR", "cloud"], ["HEXTECH", "hextech"], ["CHEMTECH", "chemtech"], ["ELDER", "elder"],
+    ];
+    slug = variants.find(([key]) => sub.includes(key))?.[1];
   }
-  return ({ HORDE: "🐛", RIFTHERALD: "👁️", BARON_NASHOR: "🟣", TURRET: "🛡️" } as Record<string, string>)[objective.type || ""] || "🎯";
+  return `/images/objectives/${slug || "dragon"}.png`;
 }
 
 export function objectiveLabel(objective: GameObjective): string {
@@ -219,6 +225,7 @@ export function objectiveLabel(objective: GameObjective): string {
   if (objective.type === "HORDE") return "Void Grubs";
   if (objective.type === "RIFTHERALD") return "Rift Herald";
   if (objective.type === "BARON_NASHOR") return "Baron Nashor";
+  if (objective.type === "ATAKHAN") return "Atakhan";
   if (objective.type === "TURRET") {
     const lane = ({ BOT_LANE: "Bot", MID_LANE: "Mid", TOP_LANE: "Top" } as Record<string, string>)[objective.lane || ""] || "Turret";
     const tower = ({ OUTER_TURRET: "T1", INNER_TURRET: "T2", BASE_TURRET: "T3", NEXUS_TURRET: "T4" } as Record<string, string>)[objective.tower_type || ""] || "";

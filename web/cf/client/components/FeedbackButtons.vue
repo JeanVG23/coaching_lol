@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { NEGATIVE_FEEDBACK_TAGS } from "../coaching";
 
 interface FeedbackState {
@@ -43,18 +44,20 @@ const tagLabels: Record<string, string> = {
       type="button"
       class="fb-btn-compact"
       title="This recommendation is useful"
+      aria-label="Useful"
       :class="{ 'active-win': state?.useful === true }"
       :disabled="busy"
       @click="emit('vote', kind, index, true)"
-    >👍</button>
+    ><AppIcon name="thumbs-up" /></button>
     <button
       type="button"
       class="fb-btn-compact"
       title="This recommendation is not useful"
+      aria-label="Not useful"
       :class="{ 'active-loss': state?.useful === false }"
       :disabled="busy"
       @click="emit('vote', kind, index, false)"
-    >👎</button>
+    ><AppIcon name="thumbs-down" /></button>
     <div v-if="openKey === key" class="tag-menu">
       <span class="tag-menu-title">Why is it not useful?</span>
       <button

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { formatDate } from "../account-profile";
+import { formatDate, rankEmblem } from "../account-profile";
 import { withAuthHeaders } from "../auth";
 import { formatFeatureValue } from "../feature-catalog";
 import type { IngestSync } from "../ingest-sync";
@@ -232,7 +232,7 @@ onMounted(loadAnalysis);
         <span class="demo-guidance-title">Explore the SHAP explainability model live on calibrated profiles:</span>
         <div class="demo-guidance-buttons">
           <a class="btn btn-demo-shap" href="/c/spadzze?tab=shap" @click.prevent="goToAccount('spadzze')">
-            <span class="demo-shap-avatar">🛡️</span>
+            <img class="demo-shap-avatar" :src="rankEmblem('diamond')" alt="" loading="lazy">
             <div class="demo-shap-info">
               <span class="demo-shap-name">Spadzze#euw</span>
               <span class="demo-shap-desc">Estimated tier: Diamond · 24 SHAP factors explained</span>
@@ -240,7 +240,7 @@ onMounted(loadAnalysis);
             <span class="demo-shap-arrow" aria-hidden="true">→</span>
           </a>
           <a class="btn btn-demo-shap" href="/c/aceofspadzze?tab=shap" @click.prevent="goToAccount('aceofspadzze')">
-            <span class="demo-shap-avatar">👑</span>
+            <img class="demo-shap-avatar" :src="rankEmblem('grandmaster')" alt="" loading="lazy">
             <div class="demo-shap-info">
               <span class="demo-shap-name">AceOfSpadzze#EQ4</span>
               <span class="demo-shap-desc">Estimated tier: Grandmaster · EBM calibration</span>
@@ -565,7 +565,10 @@ onMounted(loadAnalysis);
 }
 
 .demo-shap-avatar {
-  font-size: 18px;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  object-fit: contain;
 }
 
 .demo-shap-info {

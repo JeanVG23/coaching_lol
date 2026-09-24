@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from "./AppIcon.vue";
 import { computed, nextTick, ref, watch } from "vue";
 import { formatDate } from "../account-profile";
 import { authToken, openCoachAuth, setStoredAuthToken, withAuthHeaders } from "../auth";
@@ -358,7 +359,7 @@ watch([filterResult, filterChampion], applyFilter);
              intégrale (~550 caractères par insight) attendent le clic. -->
         <div class="game-insight-grid shared-insights">
           <section class="game-insight-section strengths">
-            <div class="col-head"><span class="col-icon">🛡️</span><h3>What worked well</h3></div>
+            <div class="col-head"><AppIcon name="shield-check" class="col-icon" /><h3>What worked well</h3></div>
             <p v-if="!(selected.review.strengths || []).length" class="game-empty-copy">No sufficiently clear strength was identified for this game.</p>
             <article
               v-for="(item, index) in selected.review.strengths || []"
@@ -392,7 +393,7 @@ watch([filterResult, filterChampion], applyFilter);
             </article>
           </section>
           <section class="game-insight-section mistakes">
-            <div class="col-head"><span class="col-icon">⚠️</span><h3>Mistakes to remember</h3></div>
+            <div class="col-head"><AppIcon name="triangle-alert" class="col-icon" /><h3>Mistakes to remember</h3></div>
             <article
               v-for="(item, index) in selected.review.mistakes || []"
               :key="`mistake-${index}`"
@@ -448,8 +449,8 @@ watch([filterResult, filterChampion], applyFilter);
             </div>
             <form class="game-chat-form" @submit.prevent="sendChat">
               <label class="sr-only" for="game-chat-input">Question for the coach</label>
-              <textarea id="game-chat-input" v-model="chatDraft" rows="2" maxlength="2000" :placeholder="authenticated ? 'Example: was this choice really a mistake?' : '🔒 Sign in to chat with the AI coach…'"></textarea>
-              <button type="submit" :disabled="chatBusy || (authenticated && !chatDraft.trim())">{{ chatBusy ? "The coach is thinking…" : (authenticated ? "Send" : "🔒 Sign in") }}</button>
+              <textarea id="game-chat-input" v-model="chatDraft" rows="2" maxlength="2000" :placeholder="authenticated ? 'Example: was this choice really a mistake?' : 'Sign in to chat with the AI coach…'"></textarea>
+              <button type="submit" :disabled="chatBusy || (authenticated && !chatDraft.trim())"><AppIcon v-if="!chatBusy && !authenticated" name="lock" /> {{ chatBusy ? "The coach is thinking…" : (authenticated ? "Send" : "Sign in") }}</button>
             </form>
             <p v-if="chatError" class="feedback-error">{{ chatError }}</p>
           </div>
