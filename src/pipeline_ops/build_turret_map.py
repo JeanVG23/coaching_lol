@@ -23,7 +23,6 @@ Usage :
 """
 from __future__ import annotations
 
-import json
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -91,20 +90,19 @@ def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     limit = int_arg("--limit", 200, argv)
     dry = flag("--dry-run", argv)
+    raw_dir = rl.raw_dir()
     names = sorted(p.name.split(".json")[0]
-                   for p in rl.RAW_DIR.glob("*_timeline.json*"))[:limit]
+                   for p in raw_dir.glob("*_timeline.json*"))[:limit]
     if not names:
-        sys.exit(f"✗ aucune timeline dans {rl.RAW_DIR}")
+        sys.exit(f"✗ aucune timeline dans {raw_dir}")
     table = validate(scan(rl._read_raw, names))
     out = rows(table)
     dest = cprof.STATIC_DIR / "sr_turrets.json"
-    payload = json.dumps(out, ensure_ascii=False, indent=2) + "\n"
     if dry:
         print(f"[dry-run] {len(names)} timelines -> {len(out)} positions "
               f"({len(table)} cles) vers {dest}")
         return 0
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(payload, encoding="utf-8")
+    rl.dump_json_atomic(dest, out, indent=2)
     print(f"✔ {len(out)} positions ({len(table)} cles) ecrites dans {dest}")
     return 0
 

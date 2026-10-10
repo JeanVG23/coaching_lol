@@ -204,6 +204,20 @@ def test_model_crosscheck_held_out_schema_falls_back_to_cv_train_auc_without_tes
     assert s["auc_cv"] == 0.635  # repli sur cv_train.auc
 
 
+def test_model_crosscheck_intersects_split_with_dataset_puuids():
+    metrics = _held_out_metrics(n_train=700, n_calib=150, n_test=190)
+    # 1040 total dans le split, mais le dataset per-player n'en a que 3
+    split_assignment = {"p1": "train", "p2": "test", "p3": "calibration", "p4": "train"}
+    dataset_puuids = {"p1", "p2", "p3"}
+    s = dr.model_crosscheck(metrics, n_players_dataset=3,
+                            dataset_puuids=dataset_puuids,
+                            split_assignment=split_assignment)
+    assert s["n_players_model"] == 3
+    assert s["n_players_dataset"] == 3
+    assert s["drift"] is False
+
+
+
 # --- report / render ----------------------------------------------------------
 
 def _report(metrics):

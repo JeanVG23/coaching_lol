@@ -1,5 +1,5 @@
 import { readAccount } from "./accounts";
-import { jsonError, notFound, unprocessable } from "./http";
+import { jsonError, notFound, readJsonBody, unprocessable } from "./http";
 import { KEYS, readJsonl, upsertJsonl } from "./readers";
 import { NEG_TAGS, validateGameReview, validateReview, type Review } from "./schema";
 import type { Env } from "./index";
@@ -49,11 +49,11 @@ function badResponse(key: string, why: string): Response {
 
 export async function apiFeedback(request: Request, env: Env): Promise<Response> {
   if (foreignOrigin(request)) return jsonError(403, "origin not allowed");
-  const body = await request.json().catch(() => null) as {
+  const body = await readJsonBody<{
     slug?: unknown;
     ts?: unknown;
     responses?: unknown;
-  } | null;
+  }>(request);
   if (!body || typeof body.slug !== "string" || typeof body.ts !== "string"
       || typeof body.responses !== "object" || body.responses === null
       || Array.isArray(body.responses)) {

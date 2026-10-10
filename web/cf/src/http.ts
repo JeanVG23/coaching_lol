@@ -45,3 +45,16 @@ export function paginate<T>(items: T[], { page, size }: Paging): Page<T> {
   const start = (page - 1) * size;
   return { items: items.slice(start, start + size), page, size, total: items.length };
 }
+
+/** Parse de manière sécurisée le corps JSON d'une requête sans propager d'exception. */
+export async function readJsonBody<T = Record<string, unknown>>(
+  request: Request,
+): Promise<T | null> {
+  try {
+    const data = await request.json();
+    return data !== null && typeof data === "object" ? (data as T) : null;
+  } catch {
+    return null;
+  }
+}
+

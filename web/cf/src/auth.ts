@@ -1,4 +1,4 @@
-import { jsonError, unauthorized, unprocessable } from "./http";
+import { jsonError, readJsonBody, unauthorized, unprocessable } from "./http";
 import type { Env } from "./index";
 
 export const COACH_COOKIE_NAME = "coach_token";
@@ -95,7 +95,7 @@ export async function apiLogin(request: Request, env: Env): Promise<Response> {
     return jsonError(500, "COACH_AUTH_PASSWORD is not configured on the server");
   }
 
-  const body = await request.json().catch(() => null) as { password?: unknown } | null;
+  const body = await readJsonBody<{ password?: unknown }>(request);
   if (!body || typeof body.password !== "string" || !body.password) {
     return unprocessable("password is required");
   }

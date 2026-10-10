@@ -6,7 +6,6 @@ rien : juste un point d'entrée callable avec on_progress.
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import Callable
 
@@ -31,8 +30,7 @@ def _write_rank(player: str, entries: list[dict]) -> None:
         "fetched_at": datetime.now().isoformat(timespec="seconds"),
     }
     path = rl.SILVER_DIR / "personal" / player / "rank.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2))
+    rl.dump_json_atomic(path, data, indent=2)
 
 
 def fetch_games(account: dict, n: int = 20,
@@ -75,7 +73,7 @@ def fetch_games(account: dict, n: int = 20,
     silver_path = rl.SILVER_DIR / "personal" / player / "games.jsonl"
     if only_new:
         known_ids = {
-            row.get("match_id") for row in rl.read_jsonl(silver_path)
+            row.get("match_id") for row in rl.iter_jsonl(silver_path)
             if row.get("match_id")
         }
         match_ids = [mid for mid in match_ids if mid not in known_ids]

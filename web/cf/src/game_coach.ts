@@ -3,7 +3,7 @@ import { generateJson } from "./llm_client";
 import { renderGame, SYSTEM_GAME, versionOf } from "./prompt";
 import { appendJsonl, KEYS, readGamePayloadBundle, readJsonl, type KVLike } from "./readers";
 import { gameReviewJsonSchema, validateGameReview, type GameReview } from "./schema";
-import { jsonError, notFound, unprocessable } from "./http";
+import { jsonError, notFound, readJsonBody, unprocessable } from "./http";
 import type { Env } from "./index";
 import { GAME_REVIEW_SCHEMA_VERSION } from "./generated/shared";
 
@@ -99,9 +99,9 @@ export async function* gameCoachFlow(
 }
 
 export async function apiGameCoach(request: Request, env: Env): Promise<Response> {
-  const body = await request.json().catch(() => null) as {
+  const body = await readJsonBody<{
     slug?: unknown; match_id?: unknown; model?: unknown; force?: unknown;
-  } | null;
+  }>(request);
   if (!body || typeof body.slug !== "string" || typeof body.match_id !== "string") {
     return unprocessable("invalid slug or match_id");
   }

@@ -49,3 +49,26 @@ def test_partition_filters_by_bucket():
     df = pd.DataFrame({"puuid": ["a", "b", "c", "d"], "v": [1, 2, 3, 4]})
     assert set(ds.partition(df, split, "train")["puuid"]) == {"a", "c"}
     assert set(ds.partition(df, split, "test")["puuid"]) == {"b"}
+
+
+def test_compute_dataset_identity_deterministic():
+    puuids = ["p2", "p1", "p3"]
+    features = ["feat_b", "feat_a"]
+    split = {"p1": "train", "p2": "test", "p3": "calibration"}
+    id1 = ds.compute_dataset_identity(puuids, features, split, min_player_games=15)
+    id2 = ds.compute_dataset_identity(["p1", "p3", "p2"], ["feat_a", "feat_b"], split, min_player_games=15)
+    assert id1 == id2
+    assert id1["n_players"] == 3
+    assert len(id1["fingerprint"]) == 16
+
+
+def test_compute_dataset_identity_sensitive_to_changes():
+    base = ds.compute_dataset_identity(["p1", "p2"], ["feat_a"], min_player_games=15)
+    diff_puuids = ds.compute_dataset_identity(["p1", "p3"], ["feat_a"], min_player_games=15)
+    diff_feats = ds.compute_dataset_identity(["p1", "p2"], ["feat_b"], min_player_games=15)
+    diff_min_games = ds.compute_dataset_identity(["p1", "p2"], ["feat_a"], min_player_games=20)
+
+    assert base["fingerprint"] != diff_puuids["fingerprint"]
+    assert base["fingerprint"] != diff_feats["fingerprint"]
+    assert base["fingerprint"] != diff_min_games["fingerprint"]
+

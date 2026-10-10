@@ -131,10 +131,51 @@ export async function readJsonl<T = Record<string, unknown>>(
 ): Promise<T[]> {
   const raw = await kv.get(key);
   if (raw === null) return [];
-  return raw
-    .split("\n")
-    .filter((line) => line.trim() !== "")
-    .map((line) => JSON.parse(line) as T);
+  const items: T[] = [];
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      items.push(JSON.parse(trimmed) as T);
+    } catch {
+      // Ignorer une ligne corrompue pour éviter un crash 500 sur l'ensemble du dataset
+    }
+  }
+  return items;
+}
+
+export async function countJsonl(
+  kv: KVLike,
+  key: string,
+): Promise<number> {
+  const raw = await kv.get(key);
+  if (raw === null) return 0;
+  let count = 0;
+  for (const line of raw.split("\n")) {
+    if (line.trim() !== "") count++;
+  }
+  return count;
+}
+
+export async function findLastJsonl<T = Record<string, unknown>>(
+  kv: KVLike,
+  key: string,
+  predicate: (item: T) => boolean,
+): Promise<T | null> {
+  const raw = await kv.get(key);
+  if (raw === null) return null;
+  const lines = raw.split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed) as T;
+      if (predicate(parsed)) return parsed;
+    } catch {
+      // Ignorer une ligne corrompue
+    }
+  }
+  return null;
 }
 
 export async function readJson<T = unknown>(

@@ -19,7 +19,6 @@ Usage : poetry run python3 src/02_data_science/calibrate_rank.py
 """
 from __future__ import annotations
 
-import json
 import pickle
 import sys
 from pathlib import Path
@@ -35,7 +34,7 @@ MODEL_DIR = rl.DATA / "05_model"
 
 
 def main() -> int:
-    features = json.loads((MODEL_DIR / "features.json").read_text())
+    features = rl.read_json(MODEL_DIR / "features.json")
     models = {}
     for name in ("xgb", "rf"):
         with open(MODEL_DIR / f"{name}_highelo.pkl", "rb") as f:
@@ -59,7 +58,7 @@ def main() -> int:
         print(f"    {rank:<12} mean={row['mean_proba']:.3f} "
               f"median={row['median_proba']:.3f}  n={row['n']}")
 
-    (MODEL_DIR / "rank_calibration.json").write_text(json.dumps(calibration, indent=2))
+    rl.dump_json_atomic(MODEL_DIR / "rank_calibration.json", calibration, indent=2)
     print(f"\n✓ Calibration écrite dans {MODEL_DIR}/rank_calibration.json")
     return 0
 

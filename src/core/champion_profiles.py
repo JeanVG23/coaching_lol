@@ -38,12 +38,20 @@ def fetch_ddragon(version: str | None = None) -> Path:
     return dest
 
 
+def _read_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (ValueError, OSError):
+        return {}
+
+
 @lru_cache(maxsize=1)
 def load_ddragon() -> dict:
     path = STATIC_DIR / "ddragon" / DDRAGON_VERSION / "championFull.json"
-    if not path.exists():
-        return {}
-    raw = json.loads(path.read_text())["data"]
+    raw = _read_json(path).get("data", {})
     out = {}
     for champ in raw.values():
         out[champ["id"]] = {
@@ -98,16 +106,13 @@ def _parse_items(raw: dict) -> dict:
 @lru_cache(maxsize=1)
 def load_items() -> dict:
     path = STATIC_DIR / "ddragon" / DDRAGON_VERSION / "item.json"
-    if not path.exists():
-        return {}
-    return _parse_items(json.loads(path.read_text())["data"])
+    raw = _read_json(path).get("data", {})
+    return _parse_items(raw)
 
 
 @lru_cache(maxsize=1)
 def load_traits() -> dict:
-    if not TRAITS_PATH.exists():
-        return {}
-    data = json.loads(TRAITS_PATH.read_text())
+    data = _read_json(TRAITS_PATH)
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
@@ -161,9 +166,13 @@ def _invalidate_catalogs() -> None:
     laissait servir un catalogue vide mis en cache avant le téléchargement.
     """
     load_ddragon.cache_clear()
+    load_items.cache_clear()
     load_traits.cache_clear()
     _default_index.cache_clear()
     _cached_vector.cache_clear()
+
+
+clear_static_cache = _invalidate_catalogs
 
 
 def champion_vector(name: str, traits: dict | None = None,

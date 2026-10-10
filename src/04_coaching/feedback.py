@@ -79,20 +79,15 @@ def persist_feedback(player: str, fb: schema_mod.Feedback,
                      root=None) -> tuple[Path, bool]:
     """Append/écrase : un ts apparaît au plus une fois. Retourne (path, overwrote)."""
     path = _feedback_path(player, root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    kept: list[str] = []
+    kept: list[dict] = []
     overwrote = False
-    if path.exists():
-        for l in path.read_text().splitlines():
-            if not l.strip():
-                continue
-            if json.loads(l).get("ts") == fb.ts:
-                overwrote = True
-                continue
-            kept.append(l)
-    kept.append(json.dumps(fb.model_dump(), ensure_ascii=False))
-    with path.open("w") as f:
-        f.write("\n".join(kept) + "\n")
+    for row in rl.iter_jsonl(path):
+        if row.get("ts") == fb.ts:
+            overwrote = True
+            continue
+        kept.append(row)
+    kept.append(fb.model_dump())
+    rl.write_jsonl(path, kept)
     return path, overwrote
 
 

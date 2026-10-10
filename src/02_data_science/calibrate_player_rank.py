@@ -12,7 +12,6 @@ Usage : poetry run python3 src/02_data_science/calibrate_player_rank.py
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -32,7 +31,7 @@ def main() -> int:
             f"{oof_path} absent. Lance d'abord "
             "`train_player_ensemble.py` (il exporte les OOF du train)."
         )
-    train_oof = json.loads(oof_path.read_text())
+    train_oof = rl.read_json(oof_path)
     df = pd.read_parquet(DATASET)
     df = df[df["puuid"].isin(train_oof)].copy()
     df["ensemble_proba"] = df["puuid"].map(train_oof)
@@ -49,7 +48,7 @@ def main() -> int:
         print(f"    {rank:<12} mean={row['mean_proba']:.3f} "
               f"median={row['median_proba']:.3f}  n={row['n']}")
 
-    (MODEL_DIR / "player_rank_calibration.json").write_text(json.dumps(calibration, indent=2))
+    rl.dump_json_atomic(MODEL_DIR / "player_rank_calibration.json", calibration, indent=2)
     print(f"\n✓ Calibration écrite dans {MODEL_DIR}/player_rank_calibration.json")
     return 0
 

@@ -2,7 +2,6 @@
 """Décide l'ouverture publique de chaque rôle à partir du held-out."""
 from __future__ import annotations
 
-import json
 import statistics
 import sys
 from pathlib import Path
@@ -37,10 +36,7 @@ def load_corpus_table(path=None) -> dict:
     deux échecs rendent la table vide, donc `research` partout.
     """
     path = Path(path) if path is not None else CORPUS_FILE
-    try:
-        raw = json.loads(path.read_text())
-    except (OSError, ValueError):
-        return {}
+    raw = rl.read_json(path)
     if not isinstance(raw, dict):
         return {}
     return {rf.normalize_role(role): entry for role, entry in raw.items()
@@ -136,7 +132,7 @@ def main() -> int:
         if not path.exists():
             print(f"  ⚠ {role} : métriques absentes ({path.name})")
             continue
-        metrics = json.loads(path.read_text())
+        metrics = rl.read_json(path)
         # Le rôle du NOM DE FICHIER, pas celui des métriques : c'est le fichier
         # que `make roles` régénère, et donc l'entrée que l'on certifie.
         corpus = resolve_corpus(role, metrics.get("model_id"), table)
@@ -150,7 +146,7 @@ def main() -> int:
                   f"train_role_ensemble.py --role {role.lower()}")
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    (MODEL_DIR / "role_readiness.json").write_text(json.dumps(rows, indent=2))
+    rl.dump_json_atomic(MODEL_DIR / "role_readiness.json", rows, indent=2)
     print(f"{'rôle':<9}{'AUC méd.':>9}{'bruit':>8}{'marge':>9}"
           f"{'tirages>0':>11}{'âge label':>11}  ouverture")
     for row in sorted(rows, key=lambda item: -item["margin"]):

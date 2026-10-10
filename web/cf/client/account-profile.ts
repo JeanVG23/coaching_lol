@@ -23,7 +23,8 @@ export interface SummonerProfile {
 }
 
 
-export const LATEST_DDRAGON = "16.17.1";
+export { LATEST_DDRAGON } from "./champion-assets";
+import { LATEST_DDRAGON } from "./champion-assets";
 
 const RANK_EMBLEMS: Record<string, string> = {
   iron: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-mini-crests/iron.svg",
@@ -229,10 +230,21 @@ export function formatAccountRank(rank: CurrentRank | null): string {
   return `${tierName}${div}${lp}`;
 }
 
-export function formatDate(value?: string): string {
-  if (!value) return "—";
+export function parseDateValue(value?: number | string | null): Date | null {
+  if (value == null || value === "" || value === 0) return null;
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isNaN(num)) {
+    if (num <= 0) return null;
+    return new Date(num);
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatDate(value?: number | string | null): string {
+  if (value == null || value === "") return "—";
+  const date = parseDateValue(value);
+  if (!date) return String(value).slice(0, 10);
   return new Intl.DateTimeFormat("en-US", {
     day: "numeric", month: "short", year: "numeric",
   }).format(date);

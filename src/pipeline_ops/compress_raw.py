@@ -46,7 +46,8 @@ def _read_original(path):
 def _compress_one(path_str: str) -> tuple[str, int, int, str]:
     """Compresse un fichier .json/.json.gz -> .json.zst avec vérification.
     Retourne (path, orig_bytes, zst_bytes, statut)."""
-    path = rl.RAW_DIR / path_str
+    raw_dir = rl.raw_dir()
+    path = raw_dir / path_str
     name = path.name
     if name.endswith(".json"):
         zst_name = name + ".zst"
@@ -54,7 +55,7 @@ def _compress_one(path_str: str) -> tuple[str, int, int, str]:
         zst_name = name[:-3] + ".zst"  # foo.json.gz -> foo.json.zst
     else:
         return (path_str, 0, 0, "skip-not-json")
-    zst_path = rl.RAW_DIR / zst_name
+    zst_path = raw_dir / zst_name
     if zst_path.exists():
         return (path_str, 0, 0, "already-zst")
     try:
@@ -79,15 +80,16 @@ def main() -> int:
                     help="nb workers (défaut: cores-1)")
     args = ap.parse_args()
 
-    if not rl.RAW_DIR.exists():
-        print(f"✗ {rl.RAW_DIR} introuvable.", file=sys.stderr)
+    raw_dir = rl.raw_dir()
+    if not raw_dir.exists():
+        print(f"✗ {raw_dir} introuvable.", file=sys.stderr)
         return 1
 
     # Cible : tous les .json et .json.gz (pas les .json.zst déjà faits).
-    files = [p.name for p in rl.RAW_DIR.iterdir()
+    files = [p.name for p in raw_dir.iterdir()
              if p.is_file() and (p.name.endswith(".json") or p.name.endswith(".json.gz"))]
     # Exclure ceux déjà migrés (le .json.zst correspondant existe).
-    files = [n for n in files if not (rl.RAW_DIR / (n + ".zst" if n.endswith(".json")
+    files = [n for n in files if not (raw_dir / (n + ".zst" if n.endswith(".json")
                                   else n[:-3] + ".zst")).exists()]
     print(f"{len(files)} fichiers à compresser ({args.jobs} workers)"
           + (" [DRY-RUN]" if args.dry_run else ""))
@@ -103,7 +105,7 @@ def main() -> int:
     if args.dry_run:
         results = []
         for n in files:
-            p = rl.RAW_DIR / n
+            p = raw_dir / n
             try:
                 ob = len(_read_original(p))
                 cb = len(_CCTX.compress(_read_original(p)))

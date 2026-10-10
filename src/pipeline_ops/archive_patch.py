@@ -5,7 +5,6 @@ archive_patch — archive les données du patch courant avant de passer au suiva
 Déplace le contenu complet des dossiers raw, silver, gold et dataset vers
 un sous-dossier d'archive spécifique au patch.
 """
-import json
 import shutil
 import sys
 from pathlib import Path
@@ -15,11 +14,11 @@ import riotlib as rl
 
 def main():
     # Déterminer le patch actuel depuis sources.json
-    sources_path = rl.SILVER_DIR / rl.KIND_REF / "challenger" / "sources.json"
+    sources_path = rl.silver_dir() / rl.KIND_REF / "challenger" / "sources.json"
     if not sources_path.exists():
         # Essayer un autre rang si challenger n'existe pas
         for rank in ["grandmaster", "master", "diamond"]:
-            alt = rl.SILVER_DIR / rl.KIND_REF / rank / "sources.json"
+            alt = rl.silver_dir() / rl.KIND_REF / rank / "sources.json"
             if alt.exists():
                 sources_path = alt
                 break
@@ -28,11 +27,8 @@ def main():
         print("✗ Aucune donnée silver trouvée (pas de sources.json). Rien à archiver.", file=sys.stderr)
         return 1
         
-    try:
-        sources = json.loads(sources_path.read_text())
-        patch = sources.get("patch")
-    except json.JSONDecodeError:
-        patch = None
+    sources = rl.read_json(sources_path) or {}
+    patch = sources.get("patch")
         
     if not patch:
         print("✗ Impossible de déterminer le patch à partir des données actuelles.", file=sys.stderr)
@@ -50,9 +46,9 @@ def main():
     
     # Déplacer les dossiers temporairement
     folders_to_archive = [
-        rl.RAW_DIR,
-        rl.SILVER_DIR,
-        rl.GOLD_DIR,
+        rl.raw_dir(),
+        rl.silver_dir(),
+        rl.gold_dir(),
         rl.DATA / "04_dataset"
     ]
     

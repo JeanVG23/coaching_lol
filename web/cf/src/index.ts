@@ -21,6 +21,8 @@ import {
   unprocessable,
 } from "./http";
 import {
+  countJsonl,
+  findLastJsonl,
   KEYS,
   readGames,
   readJsonl,
@@ -156,13 +158,16 @@ async function apiAccounts(env: Env): Promise<Response> {
     : DEFAULT_CURATED_ACCOUNTS;
   // Les comptes sont indépendants : lectures KV en parallèle plutôt qu'en série.
   const out = await Promise.all(registry.map(async (account) => {
-    const [games, reviews] = await Promise.all([
-      readGames(env.DATA, account.slug, 1, 1),
-      readJsonl<{ ts?: string; kind?: string }>(env.DATA, KEYS.reviews(account.slug)),
+    const [gamesCountRaw, latestGlobalReview] = await Promise.all([
+      countJsonl(env.DATA, KEYS.games(account.slug)),
+      findLastJsonl<{ ts?: string; kind?: string }>(
+        env.DATA,
+        KEYS.reviews(account.slug),
+        (review) => review.kind !== "game",
+      ),
     ]);
-    const latestGlobalReview = [...reviews].reverse().find((review) => review.kind !== "game");
     const group = account.group ?? (account.slug === "spadzze" || account.slug === "aceofspadzze" ? "owner" : "permanent");
-    const gamesCount = games.total || (account.slug === "spadzze" ? 60 : 20);
+    const gamesCount = gamesCountRaw || (account.slug === "spadzze" ? 60 : 20);
     const lastReviewTs = latestGlobalReview?.ts ?? (account.slug === "spadzze" ? "2026-09-06T12:00:00Z" : null);
     const item: Record<string, unknown> = {
       slug: account.slug,

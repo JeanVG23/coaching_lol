@@ -117,25 +117,31 @@ def per_player_stats(pdf: pd.DataFrame) -> dict:
     }
 
 
-def model_crosscheck(metrics: dict | None, n_players_dataset: int) -> dict:
+def model_crosscheck(metrics: dict | None, n_players_dataset: int,
+                     dataset_puuids: set[str] | None = None,
+                     split_assignment: dict[str, str] | None = None) -> dict:
     """Compare le dataset per-player actuel au dernier modèle entraîné : une
     dérive (n différents) signifie que player_metrics.json / les .pkl servis
     ne reflètent plus le dataset -> ré-entraîner avant d'en citer les chiffres.
     Schéma held-out (`split`/`test`/`cv_train`) supporté en priorité, ancien
     schéma racine (`n_players`/`auc_cv`) en repli ; population du modèle =
     somme de tous les buckets (train+calibration+test, tous rangs) du split
-    quand disponible, car le held-out ne fit le modèle que sur ~70 % du total."""
+    intersecté avec la population réellement consommée."""
     if metrics is None:
         return {"available": False}
 
-    split = metrics.get("split")
-    if split is not None:
-        n_by_bucket = split.get("n_by_bucket_by_rank", {})
-        n_players_model = sum(
-            n for by_rank in n_by_bucket.values() for n in by_rank.values()
-        )
+    if dataset_puuids is not None and split_assignment is not None:
+        # Population réellement consommée par le modèle (intersection split × dataset)
+        n_players_model = sum(1 for p in dataset_puuids if p in split_assignment)
     else:
-        n_players_model = metrics.get("n_players")
+        split = metrics.get("split")
+        if split is not None:
+            n_by_bucket = split.get("n_by_bucket_by_rank", {})
+            n_players_model = sum(
+                n for by_rank in n_by_bucket.values() for n in by_rank.values()
+            )
+        else:
+            n_players_model = metrics.get("n_players")
 
     auc_cv = (
         metrics.get("test", {}).get("auc")
@@ -233,12 +239,26 @@ def build_report() -> dict:
     metrics_path = MODEL_DIR / "player_metrics.json"
     metrics = json.loads(metrics_path.read_text()) if metrics_path.exists() else None
     ref = df[df["source"] == "referentiel"]
+
+    split_assignment = None
+    split_path = DATASET_DIR / "split.json"
+    if split_path.exists():
+        try:
+            split_assignment = json.loads(split_path.read_text()).get("assignment")
+        except Exception:
+            pass
+
     return {
         "per_game": per_game_stats(df),
         "depth": depth_stats(ref),
         "temporal": temporal_stats(ref),
         "per_player": per_player_stats(pdf),
-        "model": model_crosscheck(metrics, len(pdf)),
+        "model": model_crosscheck(
+            metrics,
+            len(pdf),
+            dataset_puuids=set(pdf["puuid"]) if "puuid" in pdf.columns else None,
+            split_assignment=split_assignment,
+        ),
     }
 
 

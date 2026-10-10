@@ -14,8 +14,9 @@ import json
 import os
 import sys
 import time
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from urllib.parse import quote
 
 import requests
@@ -1000,15 +1001,57 @@ def aggregate(games: list[dict], scope: str, **labels) -> dict:
     }
 
 
-def write_jsonl(path: Path, rows: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+def iter_jsonl(path: Path) -> Iterator[dict]:
+    """Itère paresseusement sur un JSONL sans charger tout le fichier en mémoire."""
+    if not path.exists():
+        return
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                yield json.loads(line)
 
 
 def read_jsonl(path: Path) -> list[dict]:
+    """Charge un JSONL complet en mémoire via streaming ligne à ligne."""
+    return list(iter_jsonl(path))
+
+
+def write_jsonl(path: Path, rows: Iterable[dict]) -> None:
+    """Écrit un JSONL en streaming de manière atomique (fichier temporaire + rename)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+    with tmp_path.open("w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    tmp_path.replace(path)
+
+
+def append_jsonl(path: Path, row: dict) -> None:
+    """Ajoute une ligne à la fin d'un fichier JSONL."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def read_json(path: Path) -> Any:
+    """Charge un JSON en UTF-8, renvoie None si le fichier n'existe pas ou est corrompu."""
     if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None
+
+
+def dump_json_atomic(path: Path, data: Any, indent: int = 2, **kwargs) -> None:
+    """Écrit un JSON de manière atomique (fichier temporaire + rename)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(f"{path.suffix}.tmp")
+    ensure_ascii = kwargs.pop("ensure_ascii", False)
+    payload = json.dumps(data, indent=indent, ensure_ascii=ensure_ascii, **kwargs) + "\n"
+    tmp_path.write_text(payload, encoding="utf-8")
+    tmp_path.replace(path)
 
 
 def merge_jsonl(path: Path, new_rows: list[dict]) -> list[dict]:
@@ -1037,7 +1080,6 @@ def write_gold(base: Path, games: list[dict], scopes: list[str],
     for scope in scopes:
         agg = aggregate(games, scope, **labels)
         out = base / scope / "aggregate.json"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(agg, indent=2))
+        dump_json_atomic(out, agg, indent=2)
         out_aggs[scope] = agg
     return out_aggs

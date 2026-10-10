@@ -11,10 +11,10 @@ tourelle » alors qu'elle est tombee a la minute 12 serait faux.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import champion_profiles as cprof
+import riotlib as rl
 
 OUTER = "OUTER_TURRET"
 
@@ -32,6 +32,11 @@ LANE_OF_ROLE: dict[str, str | None] = {
 _CACHE: dict[Path, list[dict]] = {}
 
 
+def clear_cache() -> None:
+    """Vide le cache mémoire des tables de tourelles."""
+    _CACHE.clear()
+
+
 def _path(static_dir=None) -> Path:
     base = Path(static_dir) if static_dir is not None else cprof.STATIC_DIR
     return base / "sr_turrets.json"
@@ -45,8 +50,7 @@ def load(static_dir=None) -> list[dict]:
     """
     path = _path(static_dir)
     if path not in _CACHE:
-        _CACHE[path] = (json.loads(path.read_text(encoding="utf-8"))
-                        if path.exists() else [])
+        _CACHE[path] = rl.read_json(path) or []
     return _CACHE[path]
 
 

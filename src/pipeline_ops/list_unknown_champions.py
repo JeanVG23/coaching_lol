@@ -20,7 +20,7 @@ def main() -> int:
     seen = collections.Counter()
     for _kind, root in rl.silver_roots():
         for d in sorted(root.iterdir()):
-            for g in rl.read_jsonl(d / "games.jsonl"):
+            for g in rl.iter_jsonl(d / "games.jsonl"):
                 comp = g.get("comp") or {}
                 for role in ROLES:
                     name = comp.get(role)

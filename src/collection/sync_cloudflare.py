@@ -33,7 +33,7 @@ ACCOUNTS_FILE = ROOT / "config" / "accounts.json"
 
 def load_accounts() -> list[dict[str, str]]:
     """Charge les comptes préconfigurés qui constituent la source Python."""
-    return json.loads(ACCOUNTS_FILE.read_text())
+    return rl.read_json(ACCOUNTS_FILE) or []
 
 
 def _match_seq(match_id: str) -> int:
@@ -94,7 +94,7 @@ def push_coaching(kv: KV, slug: str) -> None:
         if not path.exists():
             continue
         key = kv_key(name, slug=slug)
-        kv.put(key, merge_jsonl(kv.get(key), parse_jsonl(path.read_text())))
+        kv.put(key, merge_jsonl(kv.get(key), rl.read_jsonl(path)))
 
 
 # Garde-fou asymétrie côté PUBLICATION. Les features per-player sont nommées
@@ -168,10 +168,9 @@ def sync_account(kv: KV, slug: str, *, seed_reviews: bool = False,
                                 if path.is_dir() and path.name in rl.ROLE_SCOPES):
             aggregate = scope_dir / "aggregate.json"
             if aggregate.exists():
-                put_json(
-                    kv,
+                kv.put(
                     kv_key("gold", slug=slug, scope=scope_dir.name),
-                    json.loads(aggregate.read_text()),
+                    aggregate.read_text(encoding="utf-8"),
                 )
 
     if games and game_payloads:
@@ -209,10 +208,9 @@ def sync_referential(kv: KV) -> None:
                                 if path.is_dir() and path.name in rl.ROLE_SCOPES):
             aggregate = scope_dir / "aggregate.json"
             if aggregate.exists():
-                put_json(
-                    kv,
+                kv.put(
                     kv_key("ref", rank=rank_dir.name, scope=scope_dir.name),
-                    json.loads(aggregate.read_text()),
+                    aggregate.read_text(encoding="utf-8"),
                 )
 
 

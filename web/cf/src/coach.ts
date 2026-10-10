@@ -2,7 +2,7 @@ import { readAccount } from "./accounts";
 import { generateJson } from "./llm_client";
 import { addGameReviewCauses, buildPayload, ROLE_SCOPES, type Outcome } from "./payload";
 import { render, SYSTEM, SYSTEM_GAME, versionOf } from "./prompt";
-import { jsonError, notFound, unprocessable } from "./http";
+import { jsonError, notFound, readJsonBody, unprocessable } from "./http";
 import { mainRoleFromAnalysis } from "./main_role";
 import {
   appendJsonl, KEYS, readJson, readJsonl, readRoleShap, type KVLike,
@@ -126,11 +126,11 @@ export async function* coachFlow(
 }
 
 export async function apiCoach(request: Request, env: Env): Promise<Response> {
-  const body = await request.json().catch(() => null) as {
+  const body = await readJsonBody<{
     slug?: string;
     target?: string;
     model?: string;
-  } | null;
+  }>(request);
   const slug = body?.slug ?? "";
   if (!await readAccount(env.DATA, slug)) return notFound("unknown account");
   if (!env.OLLAMA_API_KEY) return jsonError(500, "OLLAMA_API_KEY is not configured");

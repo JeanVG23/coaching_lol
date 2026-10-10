@@ -34,7 +34,7 @@ import riotlib as rl
 
 STATIC_DIR = rl.ROOT / "data" / "00_static"
 DERIVED_DIR = STATIC_DIR / "derived"
-SILVER_REF_DIR = rl.ROOT / "data" / "02_silver" / "referentiel"
+SILVER_REF_DIR = rl.silver_dir() / rl.KIND_REF
 DEFAULT_OUT = DERIVED_DIR / "champion_axis_validation.json"
 
 # Axes curés + leur rôle "porteur" (où l'axe a du sens).
@@ -55,22 +55,34 @@ MIN_GAMES_DEFAULT = 20
 
 # ---------- Chargement silver référentiel ----------
 
-def load_silver_referentials(ranks: list[str] | None = None) -> list[dict]:
-    """Charge toutes les games silver des dossiers référentiels.
+def load_silver_referentials(ranks: list[str] | None = None, limit: int | None = None) -> list[dict]:
+    """Charge les games silver des dossiers référentiels.
 
     Args:
         ranks: liste de ranks à inclure (None = tous, ex. ['challenger']).
+        limit: nombre maximum de games à charger (pour smoke test / échantillonnage rapide).
 
     Returns:
         Liste de games silver (dicts).
     """
     games = []
+    if not SILVER_REF_DIR.exists():
+        return games
     for rank_dir in sorted(SILVER_REF_DIR.iterdir()):
         if not rank_dir.is_dir():
             continue
         if ranks and rank_dir.name not in ranks:
             continue
-        games.extend(rl.read_jsonl(rank_dir / "games.jsonl"))
+        path = rank_dir / "games.jsonl"
+        if not path.exists():
+            continue
+        if limit is not None:
+            for g in rl.iter_jsonl(path):
+                games.append(g)
+                if len(games) >= limit:
+                    return games
+        else:
+            games.extend(rl.read_jsonl(path))
     return games
 
 

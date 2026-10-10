@@ -6,7 +6,6 @@ reste ainsi exacte : aucune contribution cachée n'est retirée après coup.
 """
 from __future__ import annotations
 
-import json
 import math
 import pickle
 import statistics
@@ -66,7 +65,7 @@ def dataset_provenance(player_path: Path) -> dict:
     l'ouverture publique.
     """
     meta = player_path.with_suffix(".meta.json")
-    return json.loads(meta.read_text()) if meta.exists() else {}
+    return rl.read_json(meta) or {}
 
 
 def ebm_feature_columns(role: str) -> list[str]:
@@ -415,10 +414,12 @@ def save_role_artifacts(player_df: pd.DataFrame, role: str, metrics: dict, *,
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     with (MODEL_DIR / f"{role.lower()}_player_ebm.pkl").open("wb") as handle:
         pickle.dump({"model": ebm, "features": columns}, handle)
-    (MODEL_DIR / f"{role.lower()}_player_metrics.json").write_text(
-        json.dumps(metrics, indent=2, allow_nan=False))
-    (MODEL_DIR / f"{role.lower()}_ebm_export.json").write_text(
-        json.dumps(export, indent=2, allow_nan=False))
+    rl.dump_json_atomic(
+        MODEL_DIR / f"{role.lower()}_player_metrics.json",
+        metrics, indent=2, allow_nan=False)
+    rl.dump_json_atomic(
+        MODEL_DIR / f"{role.lower()}_ebm_export.json",
+        export, indent=2, allow_nan=False)
     return metrics
 
 

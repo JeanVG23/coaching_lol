@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   accountRank,
   formatAccountRank,
+  formatDate,
   formatPseudo,
   isOwnerAccount,
+  parseDateValue,
   regionTag,
   summonerIcon,
   summonerLevel,
@@ -130,6 +132,20 @@ describe("account-profile", () => {
       expect(formatAccountRank({ tier: "MASTER", division: "I", league_points: 2 })).toBe("Master · 2 LP");
       expect(formatAccountRank({ tier: "GOLD", division: "I", league_points: 83 })).toBe("Gold I · 83 LP");
       expect(formatAccountRank({ tier: "EMERALD", division: "III", league_points: 42 })).toBe("Emerald III · 42 LP");
+    });
+  });
+
+  describe("parseDateValue & formatDate", () => {
+    it("parse et formate des chaînes ISO, timestamps numériques et gère les vides", () => {
+      expect(formatDate(undefined)).toBe("—");
+      expect(formatDate(null)).toBe("—");
+      expect(formatDate("")).toBe("—");
+      expect(formatDate("2026-09-06T12:00:00Z")).toBe("Sep 6, 2026");
+      expect(formatDate(1725624000000)).toBe("Sep 6, 2024");
+      expect(parseDateValue(null)).toBeNull();
+      expect(parseDateValue(0)).toBeNull();
+      expect(parseDateValue("invalid")).toBeNull();
+      expect(parseDateValue("2026-09-06")?.getUTCFullYear()).toBe(2026);
     });
   });
 });

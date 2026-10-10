@@ -36,7 +36,6 @@ Usage : poetry run python3 src/02_data_science/train_player_ensemble.py
 """
 from __future__ import annotations
 
-import json
 import pickle
 import sys
 from pathlib import Path
@@ -46,9 +45,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # cv_common
 import numpy as np
 import pandas as pd
 import riotlib as rl
-from ranks import HIGH_ELO
-import ml_features as mf
+import cli
 import dataset_split as ds
+import ml_features as mf
+from ranks import HIGH_ELO
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, accuracy_score
 import shap
@@ -119,6 +119,25 @@ def main() -> int:
     ref = ref[(ref["source"] == "referentiel")
               & ref["puuid"].isin(set(df["puuid"]))].copy()
     features = mf.player_feature_names(mf.FEATURES)
+
+    identity = ds.compute_dataset_identity(
+        df["puuid"],
+        features=features,
+        split_assignment=split.get("assignment"),
+        min_player_games=15,
+    )
+    if not cli.flag("--force") and (MODEL_DIR / "player_metrics.json").exists():
+        existing_metrics = rl.read_json(MODEL_DIR / "player_metrics.json") or {}
+        existing_identity = existing_metrics.get("dataset_identity")
+        models_exist = all(
+            (MODEL_DIR / f"{name}_player_highelo.pkl").exists()
+            for name in ("xgb", "rf", "ebm")
+        )
+        if existing_identity == identity and models_exist:
+            print(f"✓ Modèles per-player déjà à jour pour cette identité de dataset "
+                  f"(fingerprint {identity['fingerprint']}). Passer --force pour réentraîner.")
+            return 0
+
     y_of = dict(zip(df["puuid"], df["rank"].isin(HIGH_ELO).astype(int)))
 
     pop = set(df["puuid"])
@@ -174,15 +193,16 @@ def main() -> int:
             pickle.dump(model, f)
     # OOF du train exporté pour calibrate_player_rank.py (calibration hors in-sample)
     train_oof = {p: float(v) for p, v in zip(df_train["puuid"], ens_oof)}
-    (MODEL_DIR / "player_train_oof.json").write_text(json.dumps(train_oof, indent=2))
+    rl.dump_json_atomic(MODEL_DIR / "player_train_oof.json", train_oof, indent=2)
 
     dispersion = shap_dispersion_analysis(
         Xtr_final_feat.fillna(Xtr_final_feat.median()), y_final, final_models)
     print(f"  dispersion (std/p10/p90) = {dispersion['shap_dispersion_share']:.1%} "
           f"du signal | EBM cross-check = {dispersion['ebm_dispersion_share']:.1%}")
 
-    (MODEL_DIR / "player_features.json").write_text(json.dumps(features, indent=2))
-    (MODEL_DIR / "player_metrics.json").write_text(json.dumps({
+    rl.dump_json_atomic(MODEL_DIR / "player_features.json", features, indent=2)
+    rl.dump_json_atomic(MODEL_DIR / "player_metrics.json", {
+        "dataset_identity": identity,
         "cv_train": {"auc": round(auc_cv, 4), "acc": round(acc_cv, 4),
                      "per_model": per_model, "n": len(df_train),
                      "n_pos": int(y_train.sum()), "n_neg": int((1 - y_train).sum())},
@@ -193,7 +213,7 @@ def main() -> int:
                   "n_by_bucket_by_rank": split["n_by_bucket_by_rank"]},
         "features": features,
         "dispersion_analysis": dispersion,
-    }, indent=2))
+    }, indent=2)
     print("\n✓ Modèles per-player écrits (HEADLINE = TEST held-out ; "
           "calibration réservée AOS4)")
     return 0

@@ -11,7 +11,6 @@ Usage : python3 src/04_coaching/coach.py --player spadzze --scope adc \
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -270,8 +269,7 @@ def persist(player: str, model: str, pl: dict, review, ts: str,
     else:                                    # review agrégée (Review)
         record["outcome_focus"] = meta["outcome_focus"]
     path = out / "reviews.jsonl"
-    with path.open("a") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    rl.append_jsonl(path, record)
     return path
 
 
@@ -322,7 +320,7 @@ def _save_failed(player: str, ts: str, raw, root=None) -> Path:
     out = root / player / "failed"
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"{ts.replace(':', '-')}.json"
-    path.write_text(json.dumps(raw, ensure_ascii=False, indent=2))
+    rl.dump_json_atomic(path, raw, indent=2)
     return path
 
 

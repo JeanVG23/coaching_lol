@@ -1,3 +1,5 @@
+import { parseDateValue } from "./account-profile";
+
 export type CombatFilter = "all" | "kill" | "death" | "assist";
 
 export interface TimelineEvent {
@@ -60,51 +62,37 @@ export interface TeamPlayer {
   isSelf?: boolean;
 }
 
-const CHAMPION_SLUGS: Record<string, string> = {
-  "Kai'Sa": "Kaisa", "Kha'Zix": "Khazix", "Cho'Gath": "Chogath",
-  "Vel'Koz": "Velkoz", Wukong: "MonkeyKing", LeBlanc: "Leblanc",
-  "Nunu & Willump": "Nunu", "Renata Glasc": "Renata", "Bel'Veth": "Belveth",
-  "K'Sante": "KSante",
-  // Match-V5 écrit « FiddleSticks » ; Data Dragon ne connaît que « Fiddlesticks ».
-  FiddleSticks: "Fiddlesticks",
-};
+export {
+  CHAMPION_SLUGS,
+  COMMUNITY_DRAGON_IDS,
+  LATEST_DDRAGON,
+  championIcon,
+  championKey,
+  fallbackChampionIcon,
+} from "./champion-assets";
 
-// Nom de fichier Data Dragon d'un champion, tel que Match-V5 ou l'affichage le nomment.
-export function championKey(champion: string): string {
-  return CHAMPION_SLUGS[champion] || champion.replace(/['\s.]/g, "");
-}
+import {
+  championIcon,
+  championKey,
+  fallbackChampionIcon,
+  LATEST_DDRAGON,
+} from "./champion-assets";
 
-const COMMUNITY_DRAGON_IDS: Record<string, number> = {
-  Ambessa: 799, Mel: 800, Yunara: 804, Locke: 805, Zaahen: 904,
-};
+export {
+  diffClass,
+  formatDiff,
+  formatNumber,
+  formatPercent,
+} from "./formatters";
 
-export const LATEST_DDRAGON = "16.17.1";
-
-export function championIcon(champion: string | undefined, patch?: string): string {
-  if (!champion) return "";
-  const communityId = COMMUNITY_DRAGON_IDS[champion];
-  if (communityId) {
-    return `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/${communityId}.png`;
-  }
-  const key = championKey(champion);
-  const rawPatch = String(patch || LATEST_DDRAGON);
-  const version = rawPatch.split(".").length === 2 ? `${rawPatch}.1` : rawPatch;
-  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${key}.png`;
-}
-
-export function fallbackChampionIcon(event: Event, champion?: string): void {
-  const image = event.currentTarget as HTMLImageElement | null;
-  if (!image) return;
-  if (champion && !image.dataset.triedLatest) {
-    image.dataset.triedLatest = "1";
-    image.src = `https://ddragon.leagueoflegends.com/cdn/${LATEST_DDRAGON}/img/champion/${championKey(champion)}.png`;
-    return;
-  }
-  image.style.display = "none";
-  if (image.nextElementSibling?.classList.contains("champ-fallback")) {
-    (image.nextElementSibling as HTMLElement).style.display = "";
-  }
-}
+import {
+  countKdaValue as count,
+  diffClass,
+  formatDiff,
+  formatKda as formatKdaValue,
+  formatNumber,
+  formatPercent,
+} from "./formatters";
 
 const POSITION_ICONS: Record<string, string> = {
   top: "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/icon-position-top-blue.png",
@@ -129,33 +117,8 @@ export function queueLabel(queue?: number): string {
   return "Game";
 }
 
-const count = (value: number | unknown[] | undefined): number => Array.isArray(value) ? value.length : Number(value || 0);
-
 export function formatKda(game: GameSummary): string {
-  const kills = count(game.kills);
-  const deaths = count(game.deaths);
-  const assists = count(game.assists);
-  const ratio = deaths === 0 ? "Perfect" : ((kills + assists) / deaths).toFixed(2);
-  return `${kills}/${deaths}/${assists} · ${ratio}`;
-}
-
-export function formatDiff(value: unknown, suffix = ""): string {
-  if (value === null || value === undefined) return "—";
-  const number = Number(value);
-  return `${number > 0 ? "+" : ""}${value}${suffix}`;
-}
-
-export function diffClass(value: unknown): string {
-  if (value === null || value === undefined || Number(value) === 0) return "diff-neutral";
-  return Number(value) > 0 ? "diff-pos" : "diff-neg";
-}
-
-export function formatPercent(value: unknown): string {
-  return value === null || value === undefined ? "—" : `${Math.round(Number(value) * 100)} %`;
-}
-
-export function formatNumber(value: unknown, digits = 1): string {
-  return value === null || value === undefined ? "—" : Number(value).toFixed(digits);
+  return formatKdaValue(game) || "0/0/0 · Perfect";
 }
 
 export function formatGold(value: unknown): string {
@@ -254,10 +217,8 @@ export function combatCount(game: GameSummary, filter: CombatFilter): number {
 }
 
 export function formatGameDate(value?: number | string | null): string {
-  if (value == null || value === "") return "";
-  const num = typeof value === "number" ? value : Number(value);
-  const date = !Number.isNaN(num) && num > 0 ? new Date(num) : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+  const date = parseDateValue(value);
+  if (!date) return "";
   return new Intl.DateTimeFormat("en-US", {
     day: "numeric",
     month: "short",
@@ -266,10 +227,8 @@ export function formatGameDate(value?: number | string | null): string {
 }
 
 export function formatFullDate(value?: number | string | null): string {
-  if (value == null || value === "") return "";
-  const num = typeof value === "number" ? value : Number(value);
-  const date = !Number.isNaN(num) && num > 0 ? new Date(num) : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+  const date = parseDateValue(value);
+  if (!date) return "";
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     day: "numeric",

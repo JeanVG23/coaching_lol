@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   appendJsonl,
+  countJsonl,
+  findLastJsonl,
   KEYS,
   matchSeq,
   readGames,
@@ -149,5 +151,37 @@ describe("readJsonl / appendJsonl / readJson", () => {
     expect(await readJson(kv, "x")).toBeNull();
     await kv.put("x", "{\"ok\":true}");
     expect(await readJson(kv, "x")).toEqual({ ok: true });
+  });
+
+  it("readJsonl : ignore les lignes malformées sans lever d'erreur", async () => {
+    const kv = new MemoryKV();
+    await kv.put("k", `{"valid":1}\n{ligne-cassee\n{"valid":2}\n`);
+    expect(await readJsonl(kv, "k")).toEqual([{ valid: 1 }, { valid: 2 }]);
+  });
+
+  it("countJsonl : compte les lignes non vides sans parser le JSON", async () => {
+    const kv = new MemoryKV();
+    expect(await countJsonl(kv, "absent")).toBe(0);
+    await kv.put("k", "\nline1\n\nline2\nline3\n  \n");
+    expect(await countJsonl(kv, "k")).toBe(3);
+  });
+
+  it("findLastJsonl : scanne depuis la fin et ignore les lignes corrompues", async () => {
+    const kv = new MemoryKV();
+    expect(await findLastJsonl(kv, "absent", () => true)).toBeNull();
+    await kv.put("reviews", [
+      JSON.stringify({ id: 1, kind: "global" }),
+      JSON.stringify({ id: 2, kind: "game" }),
+      "{broken json line",
+      JSON.stringify({ id: 3, kind: "game" }),
+    ].join("\n"));
+    const lastGlobal = await findLastJsonl<{ id: number; kind: string }>(
+      kv, "reviews", (r) => r.kind === "global",
+    );
+    expect(lastGlobal).toEqual({ id: 1, kind: "global" });
+    const lastGame = await findLastJsonl<{ id: number; kind: string }>(
+      kv, "reviews", (r) => r.kind === "game",
+    );
+    expect(lastGame).toEqual({ id: 3, kind: "game" });
   });
 });

@@ -27,8 +27,7 @@ boto3 = ">=1.35"
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-# Backend FastAPI archivé (cf. web/cf pour la production) : plus maintenu, pas linté.
-exclude = ["web/backend", ".venv"]
+exclude = [".venv"]
 
 [tool.ruff.lint]
 # On garde les règles qui attrapent des bugs (F : imports morts, variables non

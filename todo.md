@@ -73,16 +73,16 @@ catégorie, le contrefactuel `no_opponent_spike` et l'affichage web sont en plac
 
 ## 🔎 Priorité 1 — corriger le diagnostic ML avant de réentraîner
 
-- [ ] **Corriger le faux positif `dataset_report` 1 345 → 982.** Le split canonique contient
+- [x] **Corriger le faux positif `dataset_report` 1 345 → 982.** Le split canonique contient
   l'union des datasets rang + LP (1 345 joueurs), alors que le classifieur de rang consomme
-  `adc_player_dataset.parquet` (982 joueurs). `model_crosscheck` additionne aujourd'hui toute
-  l'union au lieu de l'intersecter avec la population réellement consommée.
-  - Population rang actuelle attendue après intersection : train 687, calibration 148,
-    test 147, total 982.
-  - Ne pas conclure à une dérive ni réentraîner sur la seule différence 1 345/982.
-- [ ] **Ajouter une identité de dataset aux artefacts ML** (empreinte des `puuid`, features,
+  `adc_player_dataset.parquet` (982 joueurs). `model_crosscheck` intersecte désormais
+  la population du split avec les `puuid` réellement consommés par le modèle (687 train +
+  148 calibration + 147 test = 982). L'alerte de dérive fallacieuse est supprimée.
+- [x] **Ajouter une identité de dataset aux artefacts ML** (empreinte des `puuid`, features,
   seuil `MIN_PLAYER_GAMES`, split et fenêtre de données). Déclencher un réentraînement
-  seulement si cette identité ou le protocole diffère réellement du modèle servi.
+  seulement si cette identité ou le protocole diffère réellement du modèle servi
+  (`compute_dataset_identity` dans `dataset_split.py`, court-circuit d'idempotence
+  avec flag `--force` dans `train_player_ensemble.py`).
 - [ ] **Décider explicitement de la politique temporelle.** Les données actuelles viennent
   uniquement du patch 16.13 et ont environ 60–73 jours : soit le modèle est une étude figée
   sur ce patch et on le documente, soit il est servi comme produit courant et il faut définir

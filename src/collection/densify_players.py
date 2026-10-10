@@ -87,7 +87,7 @@ def _known_match_ids() -> set[str]:
         path = rl.silver_games(rl.KIND_REF, rank)
         if not path.exists():
             continue
-        seen.update(row["match_id"] for row in rl.read_jsonl(path) if row.get("match_id"))
+        seen.update(row["match_id"] for row in rl.iter_jsonl(path) if row.get("match_id"))
     return seen
 
 
@@ -166,7 +166,7 @@ def main() -> int:
     target_file = arg("--target-list") if has_flag("--target-list") else None
 
     for rank in ranks:
-        silver_base = rl.SILVER_DIR / rl.KIND_REF / rank
+        silver_base = rl.silver_dir() / rl.KIND_REF / rank
         path = silver_base / "games.jsonl"
         if not path.exists():
             print(f"  ⚠ {rank}: aucun games.jsonl trouvé, skip.", file=sys.stderr)

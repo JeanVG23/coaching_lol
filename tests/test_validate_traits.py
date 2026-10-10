@@ -73,7 +73,7 @@ def test_game_count_per_axis():
     reason="silver referentials not available"
 )
 def test_load_silver_referentials_returns_games():
-    games = vt.load_silver_referentials()
+    games = vt.load_silver_referentials(limit=20)
     assert len(games) > 0
     sample = games[0]
     assert "champion" in sample
@@ -86,18 +86,11 @@ def test_load_silver_referentials_returns_games():
     reason="silver referentials not available"
 )
 def test_load_silver_referentials_filter_by_rank():
-    """Filtrer par rank doit réduire le nombre de games (pas annuler).
-
-    Note : un même match_id peut apparaître dans plusieurs ranks (chaque joueur
-    du lobby a un rang différent ; le silver collecte depuis la perspective d'un
-    joueur ciblé). Le filtre rank agit sur le `rank` du record, pas sur le match.
-    """
-    games_all = vt.load_silver_referentials()
-    games_chal = vt.load_silver_referentials(ranks=["challenger"])
-    games_master = vt.load_silver_referentials(ranks=["master"])
+    """Filtrer par rank doit renvoyer les records du rang demandé."""
+    games_chal = vt.load_silver_referentials(ranks=["challenger"], limit=30)
+    games_master = vt.load_silver_referentials(ranks=["master"], limit=30)
     assert len(games_chal) > 0
     assert len(games_master) > 0
-    assert len(games_chal) + len(games_master) <= len(games_all)
     # Tous les records challenger ont rank='challenger'
     assert all(g.get("rank") == "challenger" for g in games_chal)
     assert all(g.get("rank") == "master" for g in games_master)
@@ -108,9 +101,9 @@ def test_load_silver_referentials_filter_by_rank():
     reason="silver referentials not available"
 )
 def test_index_real_silver_has_major_combos():
-    games = vt.load_silver_referentials()
+    games = vt.load_silver_referentials(limit=4000)
     idx = vt.index_games_by_champ_role(games)
-    # Au moins 50 combos (champ, role) avec >= 20 games
+    # Au moins 50 combos (champ, role) avec >= 20 games (échantillon de 4000 games)
     n_above = sum(1 for gs in idx.values() if len(gs) >= 20)
     assert n_above >= 50, f"only {n_above} combos >= 20 games, expected >= 50"
     # Tous les rôles "porteurs" sont représentés

@@ -35,7 +35,7 @@ def known_puuids(rank: str) -> set[str]:
     """Puuids déjà présents dans le silver du rang (évite le re-échantillonnage
     des mêmes top joueurs à chaque run — densification réelle par deeper paging)."""
     path = rl.silver_games(rl.KIND_REF, rank)
-    seen_path = rl.SILVER_DIR / rl.KIND_REF / rank / "seen_puuids.txt"
+    seen_path = rl.silver_dir() / rl.KIND_REF / rank / "seen_puuids.txt"
     known = set()
     
     if path.exists():
@@ -218,24 +218,21 @@ def main() -> int:
 
     # Check for patch mismatch before collecting
     for rank in ranks:
-        sources_file = rl.SILVER_DIR / rl.KIND_REF / rank / "sources.json"
+        sources_file = rl.silver_dir() / rl.KIND_REF / rank / "sources.json"
         if sources_file.exists():
-            try:
-                existing = json.loads(sources_file.read_text())
-                existing_patch = existing.get("patch")
-                if existing_patch and existing_patch != patch:
-                    print(f"✗ Erreur : Le patch détecté ({patch}) est différent du patch actuel en base ({existing_patch}).", file=sys.stderr)
-                    print("Veuillez d'abord archiver les données avec 'python src/archive_patch.py'.", file=sys.stderr)
-                    return 1
-            except json.JSONDecodeError:
-                pass
+            existing = rl.read_json(sources_file) or {}
+            existing_patch = existing.get("patch")
+            if existing_patch and existing_patch != patch:
+                print(f"✗ Erreur : Le patch détecté ({patch}) est différent du patch actuel en base ({existing_patch}).", file=sys.stderr)
+                print("Veuillez d'abord archiver les données avec 'python src/archive_patch.py'.", file=sys.stderr)
+                return 1
 
     for rank in ranks:
         skip = known_puuids(rank) if skip_known else None
         if skip is not None:
             print(f"  [{rank}] skip-known: {len(skip)} puuids déjà en silver → "
                   f"échantillonnage plus profond", file=sys.stderr)
-        silver_base = rl.SILVER_DIR / rl.KIND_REF / rank
+        silver_base = rl.silver_dir() / rl.KIND_REF / rank
         pool = collect_rank(client, rank, n_players, n_games, patch,
                             skip=skip, max_pages=max_pages, start_page=start_page,
                             silver_base=silver_base, target_role=target_role,

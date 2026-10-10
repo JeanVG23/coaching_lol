@@ -53,7 +53,7 @@ def build_rank_map() -> tuple[dict[str, str], int]:
     rang le plus bas (RANK_ORD min) pour ne pas gonfler high_elo aux frontières."""
     seen: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
     for rank in RANKS:
-        for g in rl.read_jsonl(rl.silver_games(rl.KIND_REF, rank)):
+        for g in rl.iter_jsonl(rl.silver_games(rl.KIND_REF, rank)):
             seen[g["match_id"]][rank] += 1
     rank_of, multi = {}, 0
     for mid, cnt in seen.items():
@@ -96,7 +96,7 @@ def _legacy_adc_main() -> int:
     if raw_miss:
         print(f"  ⚠ {raw_miss} games sans raw lisible -> ignorées")
 
-    perso_root = rl.SILVER_DIR / rl.KIND_PERSONAL
+    perso_root = rl.silver_dir() / rl.KIND_PERSONAL
     if perso_root.exists():
         for directory in sorted(perso_root.iterdir()):
             games = rl.read_jsonl(directory / "games.jsonl")
@@ -134,7 +134,7 @@ def _role_dataset_main(role: str) -> int:
     # Le rang du dossier silver ne labellise plus chaque game. Le snapshot du
     # ladder sera joint après agrégation, dans build_role_player_dataset.py.
     match_ids = {g["match_id"] for rank in RANKS
-                 for g in rl.read_jsonl(rl.silver_games(rl.KIND_REF, rank))}
+                 for g in rl.iter_jsonl(rl.silver_games(rl.KIND_REF, rank))}
     print(f"  {len(match_ids)} games référentiel distinctes")
     raw_miss = 0
     for mid in sorted(match_ids):

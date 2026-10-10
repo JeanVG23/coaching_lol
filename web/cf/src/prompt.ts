@@ -34,10 +34,16 @@ export function renderGame(payload: Record<string, any>): [string, string] {
   return [SYSTEM_GAME, user];
 }
 
+const promptVersionCache = new Map<string, string>();
+
 export async function versionOf(system: string): Promise<string> {
+  const cached = promptVersionCache.get(system);
+  if (cached !== undefined) return cached;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(system));
-  return Array.from(new Uint8Array(digest))
+  const version = Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, 12);
+  promptVersionCache.set(system, version);
+  return version;
 }
