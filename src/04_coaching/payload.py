@@ -7,8 +7,8 @@ les features de profondeur sont `descriptive_only` (jamais une erreur).
 """
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -155,9 +155,10 @@ def _gold_state_signals(mf: dict, rf: dict) -> list[dict]:
 
 def _load(gold_dir: Path, kind: str, name: str, scope: str) -> dict:
     path = gold_dir / kind / name / scope / "aggregate.json"
-    if not path.exists():
+    data = rl.read_json(path)
+    if data is None:
         raise FileNotFoundError(f"missing gold data: {path}")
-    return json.loads(path.read_text())
+    return data
 
 
 def _review_matches_scope(record: dict, scope: str) -> bool:

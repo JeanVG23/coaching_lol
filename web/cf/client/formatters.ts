@@ -57,3 +57,51 @@ export function diffClass(value: unknown): string {
   if (value === null || value === undefined || Number(value) === 0) return "diff-neutral";
   return Number(value) > 0 ? "diff-pos" : "diff-neg";
 }
+
+/** Parse de manière tolérante une valeur temporelle (timestamp numérique ou chaîne ISO). */
+export function parseDateValue(value?: number | string | null): Date | null {
+  if (value == null || value === "" || value === 0) return null;
+  const num = typeof value === "number" ? value : Number(value);
+  if (!Number.isNaN(num)) {
+    if (num <= 0) return null;
+    return new Date(num);
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Formate une date courte en anglais (ex: `15 Oct 2026`). */
+export function formatDate(value?: number | string | null): string {
+  if (value == null || value === "") return "—";
+  const date = parseDateValue(value);
+  if (!date) return String(value).slice(0, 10);
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric", month: "short", year: "numeric",
+  }).format(date);
+}
+
+/** Formate une date de partie courte (ex: `15 Oct 2026`), ou chaîne vide si invalide. */
+export function formatGameDate(value?: number | string | null): string {
+  const date = parseDateValue(value);
+  if (!date) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+/** Formate une date détaillée avec heure (ex: `Thursday, 15 October 2026, 14:30`). */
+export function formatFullDate(value?: number | string | null): string {
+  const date = parseDateValue(value);
+  if (!date) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+

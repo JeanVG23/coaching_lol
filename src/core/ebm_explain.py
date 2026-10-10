@@ -26,7 +26,6 @@ automatiquement l'aval quand ce moteur change.
 """
 from __future__ import annotations
 
-import json
 import pickle
 
 import numpy as np
@@ -68,7 +67,7 @@ def load_level(level: str) -> dict:
     filtré pour les rows perso (drivers Spadzze au niveau game)."""
     cfg = LEVELS[level]
     model_dir = rl.DATA / "05_model"   # résolu à l'APPEL : les tests substituent rl.DATA
-    features = json.loads((model_dir / cfg["features_file"]).read_text())
+    features = rl.read_json(model_dir / cfg["features_file"]) or []
     models = {}
     for name in cfg["models"]:
         with open(model_dir / f"{name}.pkl", "rb") as f:

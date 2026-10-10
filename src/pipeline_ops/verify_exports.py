@@ -8,7 +8,6 @@ Usage : poetry run python3 src/pipeline_ops/verify_exports.py [--rows 50]
 """
 from __future__ import annotations
 
-import json
 import pickle
 import sys
 from pathlib import Path
@@ -30,8 +29,7 @@ TOLERANCE = 1e-12
 def verify_role(role: str, n_rows: int) -> list[str]:
     """Retourne les écarts constatés pour un rôle."""
     slug = role.lower()
-    export = json.loads(
-        (MODEL_DIR / f"{slug}_ebm_export.json").read_text())
+    export = rl.read_json(MODEL_DIR / f"{slug}_ebm_export.json") or {}
     with (MODEL_DIR / f"{slug}_player_ebm.pkl").open("rb") as handle:
         bundle = pickle.load(handle)
     ebm, features = bundle["model"], bundle["features"]

@@ -55,7 +55,8 @@ def parse_games(raw: str) -> list[dict[str, Any]]:
 def read_games(slug: str) -> list[dict[str, Any]]:
     """Lit les games silver d'un joueur et les trie par séquence décroissante."""
     path = rl.silver_games(rl.KIND_PERSONAL, slug)
-    return parse_games(path.read_text()) if path.exists() else []
+    rows = rl.read_jsonl(path)
+    return sorted(rows, key=lambda row: _match_seq(row.get("match_id", "")), reverse=True)
 
 
 def merge_jsonl(remote: str | None, local: list[dict], id_key: str = "ts") -> str:

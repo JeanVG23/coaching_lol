@@ -82,7 +82,8 @@ catégorie, le contrefactuel `no_opponent_spike` et l'affichage web sont en plac
   seuil `MIN_PLAYER_GAMES`, split et fenêtre de données). Déclencher un réentraînement
   seulement si cette identité ou le protocole diffère réellement du modèle servi
   (`compute_dataset_identity` dans `dataset_split.py`, court-circuit d'idempotence
-  avec flag `--force` dans `train_player_ensemble.py`).
+  avec flag `--force` déployé sur `train_player_ensemble.py`, `train_player_lp.py` et
+  `train_role_ensemble.py`).
 - [ ] **Décider explicitement de la politique temporelle.** Les données actuelles viennent
   uniquement du patch 16.13 et ont environ 60–73 jours : soit le modèle est une étude figée
   sur ce patch et on le documente, soit il est servi comme produit courant et il faut définir
@@ -127,3 +128,4 @@ catégorie, le contrefactuel `no_opponent_spike` et l'affichage web sont en plac
 - Structured output, validation Pydantic, grounding, contrefactuels et feedback humain.
 - Cloudflare Worker + KV + SPA, streaming SSE et chat coaching asymétrie-safe.
 - Pipeline Parquet/ML/SHAP et manifeste `COACHING_SAFE` / `ML_ONLY`.
+- Empreintes de dataset déterministes, pipelines ML idempotents (`--force`), I/O atomiques (`rl.read_json`/`rl.dump_json_atomic`) et formateurs client unifiés.

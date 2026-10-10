@@ -18,7 +18,6 @@ Usage : poetry run python3 src/01_data_engineering/build_player_lp_dataset.py
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -61,11 +60,11 @@ def build_lp_player_rows(ref: pd.DataFrame, lp_players: dict,
 
 
 def main() -> int:
-    if not LP_PATH.exists():
+    lp_file = rl.read_json(LP_PATH)
+    if not lp_file:
         print(f"✗ {LP_PATH} introuvable — lancer "
               "src/collection/fetch_apex_lp.py d'abord.", file=sys.stderr)
         return 1
-    lp_file = json.loads(LP_PATH.read_text())
 
     df = pd.read_parquet(DATASET_DIR / "adc_dataset.parquet")
     ref = df[df["source"] == "referentiel"].copy()
@@ -84,11 +83,11 @@ def main() -> int:
 
     out.to_parquet(DATASET_DIR / "adc_player_lp_dataset.parquet", index=False)
     out.to_csv(DATASET_DIR / "adc_player_lp_dataset.csv", index=False)
-    (DATASET_DIR / "adc_player_lp_dataset.meta.json").write_text(json.dumps({
+    rl.dump_json_atomic(DATASET_DIR / "adc_player_lp_dataset.meta.json", {
         "fetched_at": lp_file["fetched_at"],
         "n_dropped_no_lp": n_dropped,
         "n_by_tier": n_by_tier,
-    }, indent=2))
+    }, indent=2)
     print(f"\n✓ Dataset LP per-player écrit dans {DATASET_DIR}/adc_player_lp_dataset.parquet")
     return 0
 

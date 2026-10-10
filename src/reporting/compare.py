@@ -13,7 +13,6 @@ Usage :
 """
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -90,7 +89,7 @@ def context_benchmark(me_agg, ref_agg, axis, outcome):
 
 
 def load(path):
-    return json.loads(path.read_text()) if path.exists() else None
+    return rl.read_json(path)
 
 
 def dpg(agg, outcome):

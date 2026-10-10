@@ -237,16 +237,15 @@ def build_report() -> dict:
     df = pd.read_parquet(DATASET_DIR / "adc_dataset.parquet")
     pdf = pd.read_parquet(DATASET_DIR / "adc_player_dataset.parquet")
     metrics_path = MODEL_DIR / "player_metrics.json"
-    metrics = json.loads(metrics_path.read_text()) if metrics_path.exists() else None
+    metrics = rl.read_json(metrics_path)
     ref = df[df["source"] == "referentiel"]
 
     split_assignment = None
     split_path = DATASET_DIR / "split.json"
     if split_path.exists():
-        try:
-            split_assignment = json.loads(split_path.read_text()).get("assignment")
-        except Exception:
-            pass
+        split_data = rl.read_json(split_path)
+        if split_data and isinstance(split_data, dict):
+            split_assignment = split_data.get("assignment")
 
     return {
         "per_game": per_game_stats(df),

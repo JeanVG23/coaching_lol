@@ -5,7 +5,7 @@
  * seraient un contrat de parité de plus, pour aucun gain.
  */
 import { readAccount, type Account } from "./accounts";
-import { jsonError, notFound, unprocessable } from "./http";
+import { jsonError, notFound, readJsonBody, unprocessable } from "./http";
 import { REFRESH_COOLDOWN_MS, retryAfter, type JobStatus } from "./ingest_queue";
 import type { Env } from "./index";
 
@@ -82,8 +82,7 @@ function queueStub(env: Env) {
 
 export async function apiRegister(request: Request, env: Env): Promise<Response> {
   if (!env.INGEST_QUEUE) return jsonError(503, "registration unavailable");
-  const body = await request.json().catch(() => null) as
-    { riot_id?: unknown; platform?: unknown } | null;
+  const body = await readJsonBody<{ riot_id?: unknown; platform?: unknown }>(request);
   if (typeof body?.riot_id !== "string" || typeof body?.platform !== "string") {
     return unprocessable("riot_id and platform are required");
   }

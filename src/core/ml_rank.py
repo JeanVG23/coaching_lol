@@ -30,7 +30,6 @@ la même ligne de features (drivers EBM, cf. core/ebm_explain.py).
 from __future__ import annotations
 
 import functools
-import json
 import pickle
 
 import pandas as pd
@@ -55,12 +54,12 @@ def _load_models() -> dict:
 
 @functools.lru_cache(maxsize=1)
 def _load_features() -> list[str]:
-    return json.loads((MODEL_DIR / "player_features.json").read_text())
+    return rl.read_json(MODEL_DIR / "player_features.json") or []
 
 
 @functools.lru_cache(maxsize=1)
 def _load_calibration() -> list[dict]:
-    return json.loads((MODEL_DIR / "player_rank_calibration.json").read_text())
+    return rl.read_json(MODEL_DIR / "player_rank_calibration.json") or []
 
 
 APEX_RANKS = {"master", "grandmaster", "challenger"}
@@ -76,10 +75,20 @@ def _load_lp_bundle() -> tuple[list, list[str]] | None:
         for name in ("xgb", "rf", "ebm"):
             with open(MODEL_DIR / f"{name}_player_lp.pkl", "rb") as f:
                 models.append(pickle.load(f))
-        features = json.loads((MODEL_DIR / "player_lp_features.json").read_text())
+        features = rl.read_json(MODEL_DIR / "player_lp_features.json")
+        if features is None:
+            return None
         return models, features
     except FileNotFoundError:
         return None
+
+
+def clear_cache() -> None:
+    """Vide le cache LRU des modèles et métadonnées."""
+    _load_models.cache_clear()
+    _load_features.cache_clear()
+    _load_calibration.cache_clear()
+    _load_lp_bundle.cache_clear()
 
 
 def predict_lp(agg: dict) -> int | None:

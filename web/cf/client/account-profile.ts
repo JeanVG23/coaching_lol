@@ -230,22 +230,5 @@ export function formatAccountRank(rank: CurrentRank | null): string {
   return `${tierName}${div}${lp}`;
 }
 
-export function parseDateValue(value?: number | string | null): Date | null {
-  if (value == null || value === "" || value === 0) return null;
-  const num = typeof value === "number" ? value : Number(value);
-  if (!Number.isNaN(num)) {
-    if (num <= 0) return null;
-    return new Date(num);
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
+export { formatDate, parseDateValue } from "./formatters";
 
-export function formatDate(value?: number | string | null): string {
-  if (value == null || value === "") return "—";
-  const date = parseDateValue(value);
-  if (!date) return String(value).slice(0, 10);
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric", month: "short", year: "numeric",
-  }).format(date);
-}

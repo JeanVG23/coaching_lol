@@ -18,7 +18,6 @@ Usage : poetry run python3 src/01_data_engineering/build_role_player_dataset.py 
 from __future__ import annotations
 
 import datetime as dt
-import json
 import sys
 from pathlib import Path
 
@@ -170,7 +169,7 @@ def main() -> int:
     if not out.empty:
         meta = provenance(out, role=role, platform=platform, day=day,
                           as_of_ms=as_of_ms, n_window=n_window)
-        path.with_suffix(".meta.json").write_text(json.dumps(meta, indent=2))
+        rl.dump_json_atomic(path.with_suffix(".meta.json"), meta)
         print(f"  répartition : {meta['n_by_tier']}")
         print(f"  âge du label (jours) : {meta['label_age_days']}")
     return 0

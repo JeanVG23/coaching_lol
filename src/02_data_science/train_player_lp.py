@@ -29,10 +29,11 @@ Usage : poetry run python3 src/02_data_science/train_player_lp.py
 from __future__ import annotations
 
 import itertools
-import json
 import pickle
 import sys
 from pathlib import Path
+
+import cli
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "core"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # lp_metrics, train_player_ensemble
@@ -180,11 +181,29 @@ def shap_top20(model, X: pd.DataFrame) -> dict:
 def main() -> int:
     split = ds.load_split()
     df = pd.read_parquet(DATASET)
-    meta = json.loads(DATASET_META.read_text()) if DATASET_META.exists() else {}
+    meta = rl.read_json(DATASET_META) or {}
     ref = pd.read_parquet(DATASET_PER_GAME)
     ref = ref[(ref["source"] == "referentiel")
               & ref["puuid"].isin(set(df["puuid"]))].copy()
     features = mf.player_feature_names(mf.FEATURES)
+
+    identity = ds.compute_dataset_identity(
+        df["puuid"],
+        features=features,
+        split_assignment=split.get("assignment"),
+        min_player_games=15,
+    )
+    if not cli.flag("--force") and (MODEL_DIR / "player_lp_metrics.json").exists():
+        existing_metrics = rl.read_json(MODEL_DIR / "player_lp_metrics.json") or {}
+        existing_identity = existing_metrics.get("dataset_identity")
+        models_exist = all(
+            (MODEL_DIR / f"{name}_player_lp.pkl").exists()
+            for name in ("xgb", "rf", "ebm")
+        )
+        if existing_identity == identity and models_exist:
+            print(f"✓ Modèles LP déjà à jour pour cette identité de dataset "
+                  f"(fingerprint {identity['fingerprint']}). Passer --force pour réentraîner.")
+            return 0
 
     pop = set(df["puuid"])
     train_p = ds.puuids_in(split, "train") & pop
@@ -244,13 +263,14 @@ def main() -> int:
     for name, model in final_models.items():
         with open(MODEL_DIR / f"{name}_player_lp.pkl", "wb") as f:
             pickle.dump(model, f)
-    (MODEL_DIR / "player_lp_features.json").write_text(json.dumps(features, indent=2))
+    rl.dump_json_atomic(MODEL_DIR / "player_lp_features.json", features)
 
     shap_block = shap_top20(final_models["xgb"], Xtr_final_feat.fillna(Xtr_final_feat.median()))
     print(f"  dispersion (std/p10/p90) = {shap_block['shap_dispersion_share']:.1%} "
           "du signal SHAP (xgb)")
 
-    (MODEL_DIR / "player_lp_metrics.json").write_text(json.dumps({
+    rl.dump_json_atomic(MODEL_DIR / "player_lp_metrics.json", {
+        "dataset_identity": identity,
         "cv_train": cv_report,
         "test": test_report,
         "per_model_cv": per_model,
@@ -263,7 +283,7 @@ def main() -> int:
         "poc_baseline_spearman_pooled": POC_BASELINE_SPEARMAN_POOLED,
         "features": features,
         "shap": shap_block,
-    }, indent=2))
+    })
 
     print(f"\n✓ Modèles LP écrits dans {MODEL_DIR}/ (HEADLINE = TEST held-out)")
     return 0

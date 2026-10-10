@@ -433,3 +433,20 @@ def test_l_export_est_ecrit_apres_les_metriques(tmp_path, monkeypatch):
         player_df, "TOP", metrics, boundary=tre.DEFAULT_BOUNDARY)
     assert ((tmp_path / "top_ebm_export.json").stat().st_mtime_ns
             >= (tmp_path / "top_player_metrics.json").stat().st_mtime_ns)
+
+
+def test_save_role_artifacts_records_dataset_identity(tmp_path, monkeypatch):
+    import json as json_module
+
+    monkeypatch.setattr(tre, "MODEL_DIR", tmp_path)
+    player_df, games_df = _synthetic_role_data(role="TOP")
+    metrics = tre.train_role(
+        player_df, games_df, "TOP", n_splits=2, holdout_seeds=(42,))
+    tre.save_role_artifacts(
+        player_df, "TOP", metrics, boundary=tre.DEFAULT_BOUNDARY)
+    saved = json_module.loads(
+        (tmp_path / "top_player_metrics.json").read_text())
+    assert "dataset_identity" in saved
+    assert "fingerprint" in saved["dataset_identity"]
+    assert saved["dataset_identity"]["role"] == "TOP"
+    assert saved["dataset_identity"]["boundary"] == "diamond"

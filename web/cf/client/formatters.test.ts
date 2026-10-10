@@ -3,11 +3,15 @@ import {
   countKdaValue,
   diffClass,
   formatConfidence,
+  formatDate,
   formatDiff,
   formatDuration,
+  formatFullDate,
+  formatGameDate,
   formatKda,
   formatNumber,
   formatPercent,
+  parseDateValue,
 } from "./formatters";
 
 describe("formatters", () => {
@@ -67,5 +71,35 @@ describe("formatters", () => {
     expect(diffClass(-5)).toBe("diff-neg");
     expect(diffClass(0)).toBe("diff-neutral");
     expect(diffClass(null)).toBe("diff-neutral");
+  });
+
+  it("parseDateValue parses timestamps, numeric strings, and ISO strings", () => {
+    expect(parseDateValue(null)).toBeNull();
+    expect(parseDateValue(undefined)).toBeNull();
+    expect(parseDateValue(0)).toBeNull();
+    expect(parseDateValue(-100)).toBeNull();
+    expect(parseDateValue("invalid")).toBeNull();
+
+    const timestamp = 1710000000000;
+    const date = parseDateValue(timestamp);
+    expect(date).toBeInstanceOf(Date);
+    expect(date?.getTime()).toBe(timestamp);
+
+    const strDate = parseDateValue("2026-03-09T16:00:00Z");
+    expect(strDate).toBeInstanceOf(Date);
+  });
+
+  it("formatDate formats dates or falls back gracefully", () => {
+    expect(formatDate(null)).toBe("—");
+    expect(formatDate("")).toBe("—");
+    expect(formatDate(1710000000000)).toMatch(/2024/);
+  });
+
+  it("formatGameDate and formatFullDate format correctly or return empty string", () => {
+    expect(formatGameDate(null)).toBe("");
+    expect(formatGameDate(1710000000000)).toMatch(/2024/);
+
+    expect(formatFullDate(null)).toBe("");
+    expect(formatFullDate(1710000000000)).toMatch(/2024/);
   });
 });

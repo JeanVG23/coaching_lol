@@ -23,6 +23,7 @@ from sklearn.metrics import roc_auc_score  # noqa: E402
 from sklearn.model_selection import StratifiedKFold, train_test_split  # noqa: E402
 
 import cli  # noqa: E402
+import dataset_split as ds  # noqa: E402
 import ebm_explain  # noqa: E402
 import ebm_lookup  # noqa: E402
 import ml_features as mf  # noqa: E402
@@ -385,7 +386,7 @@ def _shape_summaries(ebm, players: pd.DataFrame,
 
 
 def save_role_artifacts(player_df: pd.DataFrame, role: str, metrics: dict, *,
-                        boundary: str) -> dict:
+                        boundary: str, identity: dict | None = None) -> dict:
     """Ajuste le modèle publié, puis écrit pickle, métriques et export.
 
     L'export part en dernier. Make 3.81 le tient pour à jour tant qu'il n'est
@@ -409,7 +410,17 @@ def save_role_artifacts(player_df: pd.DataFrame, role: str, metrics: dict, *,
         },
         shapes=_shape_summaries(ebm, players, columns),
     )
-    metrics = {**metrics, "model_id": export["model_id"]}
+    if identity is None:
+        puuids = player_df["puuid"] if "puuid" in player_df.columns else player_df.index
+        identity = ds.compute_dataset_identity(
+            puuids,
+            features=columns,
+            min_player_games=int(player_df["n_window"].iloc[0]) if len(player_df) and "n_window" in player_df else 15,
+        )
+        identity["boundary"] = boundary
+        identity["role"] = role
+
+    metrics = {**metrics, "dataset_identity": identity, "model_id": export["model_id"]}
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     with (MODEL_DIR / f"{role.lower()}_player_ebm.pkl").open("wb") as handle:
@@ -445,6 +456,27 @@ def main() -> int:
             games_path = legacy_games
     player_df = pd.read_parquet(player_path)
     games_df = pd.read_parquet(games_path)
+
+    columns = ebm_feature_columns(role)
+    identity = ds.compute_dataset_identity(
+        player_df["puuid"] if "puuid" in player_df.columns else player_df.index,
+        features=columns,
+        min_player_games=int(player_df["n_window"].iloc[0]) if len(player_df) and "n_window" in player_df else 15,
+    )
+    identity["boundary"] = boundary
+    identity["role"] = role
+
+    metrics_path = MODEL_DIR / f"{role.lower()}_player_metrics.json"
+    ebm_path = MODEL_DIR / f"{role.lower()}_player_ebm.pkl"
+    export_path = MODEL_DIR / f"{role.lower()}_ebm_export.json"
+    if not cli.flag("--force") and metrics_path.exists() and ebm_path.exists() and export_path.exists():
+        existing_metrics = rl.read_json(metrics_path) or {}
+        existing_identity = existing_metrics.get("dataset_identity")
+        if existing_identity == identity:
+            print(f"✓ Modèle {role} ({boundary}) déjà à jour pour cette identité de dataset "
+                  f"(fingerprint {identity['fingerprint']}). Passer --force pour réentraîner.")
+            return 0
+
     metrics = train_role(player_df, games_df, role, boundary=boundary,
                          n_splits=folds)
     metrics["dataset"] = dataset_provenance(player_path)
@@ -452,7 +484,7 @@ def main() -> int:
     # Le modèle publié est ajusté sur le tirage canonique : les graines servent
     # à mesurer l'incertitude de la décision, pas à choisir un modèle parmi dix.
     metrics = save_role_artifacts(
-        player_df, role, metrics, boundary=boundary)
+        player_df, role, metrics, boundary=boundary, identity=identity)
     draws = [row["ebm"] for row in metrics["auc_heldout_seeds"]]
     print(f"✓ {role} ({boundary}) : EBM held-out médiane "
           f"{metrics['auc_heldout_median']['ebm']:.4f} "

@@ -17,6 +17,7 @@ import {
   pageParams,
   paginate,
   pagingError,
+  readJsonBody,
   unauthorized,
   unprocessable,
 } from "./http";
@@ -52,7 +53,7 @@ async function gatedCoach(
   env: Env,
   direct: (request: Request, env: Env) => Promise<Response>,
 ): Promise<Response> {
-  const body = await request.clone().json().catch(() => null) as { slug?: unknown } | null;
+  const body = await readJsonBody<{ slug?: unknown }>(request.clone());
   if (!env.COACH_GATE || typeof body?.slug !== "string" || !body.slug) {
     return direct(request, env);
   }

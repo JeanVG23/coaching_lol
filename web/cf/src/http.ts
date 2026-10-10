@@ -48,7 +48,7 @@ export function paginate<T>(items: T[], { page, size }: Paging): Page<T> {
 
 /** Parse de manière sécurisée le corps JSON d'une requête sans propager d'exception. */
 export async function readJsonBody<T = Record<string, unknown>>(
-  request: Request,
+  request: Request<any, any>,
 ): Promise<T | null> {
   try {
     const data = await request.json();

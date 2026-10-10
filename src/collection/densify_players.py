@@ -12,7 +12,6 @@ tout `--history` pour chacun. Rétro-compatible avec l'ancien format plat
 """
 from __future__ import annotations
 
-import json
 import sys
 import time
 from pathlib import Path
@@ -92,33 +91,25 @@ def _known_match_ids() -> set[str]:
 
 
 def _patch_from_sources(sources_file: Path) -> str | None:
-    if not sources_file.exists():
-        return None
-    try:
-        return json.loads(sources_file.read_text()).get("patch")
-    except (json.JSONDecodeError, OSError):
-        return None
+    data = rl.read_json(sources_file)
+    return data.get("patch") if data else None
 
 
 def _existing_player_count(sources_file: Path) -> int:
-    if not sources_file.exists():
-        return 0
-    try:
-        return json.loads(sources_file.read_text()).get("n_players", 0)
-    except (json.JSONDecodeError, OSError):
-        return 0
+    data = rl.read_json(sources_file)
+    return data.get("n_players", 0) if data else 0
 
 
 def _persist_pool(path: Path, sources_file: Path, pool: list[dict], *,
                   rank: str, patch: str) -> list[dict]:
     merged = rl.merge_jsonl(path, pool)
-    sources_file.write_text(json.dumps({
+    rl.dump_json_atomic(sources_file, {
         "rank": rank,
         "patch": patch,
         "collected_at": time.strftime("%Y-%m-%d %H:%M"),
         "n_players": _existing_player_count(sources_file),
         "n_games": len(merged),
-    }, indent=2))
+    }, indent=2)
     pool.clear()
     return merged
 
@@ -126,7 +117,7 @@ def _persist_pool(path: Path, sources_file: Path, pool: list[dict], *,
 def _players_for_rank(path: Path, rank: str, target_file: str | None) \
         -> tuple[list[str], dict[str, int]]:
     if target_file:
-        targets = json.loads(Path(target_file).read_text())
+        targets = rl.read_json(Path(target_file)) or {}
         puuids, gaps = parse_target_list(targets, rank)
         print(f"\n=== {rank.upper()} : {len(puuids)} joueurs CIBLÉS à densifier "
               f"({len(gaps)} avec objectif chiffré = arrêt anticipé) ===", file=sys.stderr)

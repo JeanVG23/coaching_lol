@@ -5,7 +5,6 @@ module : `pipeline.py` et `sync_cloudflare.py` en dependent pour la collecte loc
 qui alimente Cloudflare KV."""
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
@@ -41,7 +40,7 @@ def load_accounts() -> list[dict]:
     # accounts.json n'est pas versionné (comptes suivis = données perso) :
     # on retombe sur l'exemple pour qu'un clone frais démarre quand même.
     path = ACCOUNTS_FILE if ACCOUNTS_FILE.exists() else ACCOUNTS_EXAMPLE_FILE
-    return json.loads(path.read_text())
+    return rl.read_json(path) or []
 
 
 def account_for(slug: str) -> dict | None:
@@ -49,6 +48,11 @@ def account_for(slug: str) -> dict | None:
         if a["slug"] == slug:
             return a
     return None
+
+
+def clear_cache() -> None:
+    """Vide le cache de résolution des puuids (pour tests et rechargements)."""
+    _PUUID_CACHE.clear()
 
 
 def resolve_puuid(account: dict) -> str:

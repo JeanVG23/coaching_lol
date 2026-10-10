@@ -1,5 +1,3 @@
-import { parseDateValue } from "./account-profile";
-
 export type CombatFilter = "all" | "kill" | "death" | "assist";
 
 export interface TimelineEvent {
@@ -81,6 +79,8 @@ import {
 export {
   diffClass,
   formatDiff,
+  formatFullDate,
+  formatGameDate,
   formatNumber,
   formatPercent,
 } from "./formatters";
@@ -216,25 +216,3 @@ export function combatCount(game: GameSummary, filter: CombatFilter): number {
   return count(game.kills) + count(game.deaths) + count(game.assists);
 }
 
-export function formatGameDate(value?: number | string | null): string {
-  const date = parseDateValue(value);
-  if (!date) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-export function formatFullDate(value?: number | string | null): string {
-  const date = parseDateValue(value);
-  if (!date) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}

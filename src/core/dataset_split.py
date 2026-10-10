@@ -5,7 +5,6 @@ Voir docs/superpowers/specs/2026-07-18-gold-standard-eval-protocol-design.md."""
 from __future__ import annotations
 
 import hashlib
-import json
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -17,12 +16,13 @@ BUCKETS = ("train", "calibration", "test")
 
 def load_split(path: Path = SPLIT_PATH) -> dict:
     """Charge le split. Lève FileNotFoundError explicite si absent (pas de repli)."""
-    if not Path(path).exists():
+    target = Path(path)
+    if not target.exists():
         raise FileNotFoundError(
             f"split introuvable ({path}). Lance d'abord "
             "`poetry run python3 src/01_data_engineering/build_split.py`."
         )
-    return json.loads(Path(path).read_text())
+    return rl.read_json(target) or {}
 
 
 def puuids_in(split: dict, bucket: str) -> set[str]:
